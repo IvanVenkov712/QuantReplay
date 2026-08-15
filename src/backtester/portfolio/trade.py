@@ -7,7 +7,6 @@ class Side(Enum):
     BUY = "buy"
     SELL = "sell"
 
-
 @dataclass(frozen=True)
 class Trade:
     symbol: str
