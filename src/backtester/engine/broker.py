@@ -1,8 +1,8 @@
 from typing import List
 
-from backtester.exceptions import NotEnoughCashException
-from backtester.portfolio.portfolio import Portfolio
-from backtester.portfolio.trade import Trade, Side
+from ..exceptions.NotEnoughCashException import NotEnoughCashException
+from ..portfolio.portfolio import Portfolio
+from ..portfolio.trade import Side, Trade
 
 
 class Broker:
