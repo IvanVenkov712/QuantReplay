@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 
 from src.backtester.engine.broker import Broker
-from src.backtester.exceptions.NotEnoughCashException import NotEnoughCashException
+from src.backtester.exceptions.trading_errors import InsufficientFundsError
 from src.backtester.portfolio.portfolio import Portfolio
 from src.backtester.portfolio.trade import Side, Trade
 
@@ -36,7 +36,7 @@ def test_buy_without_enough_cash_raises_and_keeps_state() -> None:
     broker = Broker(Portfolio(cash=100, positions={}))
     trade = make_trade("AAPL", Side.BUY, quantity=6, price=20)
 
-    with pytest.raises(NotEnoughCashException):
+    with pytest.raises(InsufficientFundsError):
         broker.execute(trade)
 
     assert broker.portfolio.cash == 100

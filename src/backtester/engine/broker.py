@@ -1,6 +1,6 @@
 from typing import List
 
-from ..exceptions.NotEnoughCashException import NotEnoughCashException
+from ..exceptions.trading_errors import InsufficientFundsError, InsufficientPositionError
 from ..portfolio.portfolio import Portfolio
 from ..portfolio.trade import Side, Trade
 
@@ -30,7 +30,7 @@ class Broker:
 
         cost = trade.price * trade.quantity
         if cost > self.__portfolio.cash:
-            raise NotEnoughCashException
+            raise InsufficientFundsError
 
         self.__portfolio.cash -= cost
         self.__portfolio.positions[trade.symbol] = self.__portfolio.positions.get(trade.symbol, 0) + trade.quantity
@@ -47,7 +47,7 @@ class Broker:
         owned = self.__portfolio.positions.get(trade.symbol, 0)
 
         if trade.quantity > owned:
-            raise ValueError("Insufficient position.")
+            raise InsufficientPositionError
 
         self.__portfolio.cash += trade.quantity * trade.price
         remaining = owned - trade.quantity

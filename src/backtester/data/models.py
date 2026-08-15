@@ -12,8 +12,3 @@ class Candle:
     close: float
     volume: float
 
-class Signal(Enum):
-    BUY = "buy"
-    SELL = "sell"
-    HOLD = "hold"
-
