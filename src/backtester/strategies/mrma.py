@@ -1,0 +1,32 @@
+from typing import Sequence
+
+from backtester.data.models import Candle
+from backtester.strategies.base import Strategy, Signal
+
+
+class MeanReversionStrategy(Strategy):
+    def __init__(self, window: int, threshold: float):
+        if not window > 0:
+            raise ValueError("window must be positive integer")
+
+        if not 0 <= threshold <= 1:
+            raise ValueError("threshold must be between 0 and 1")
+
+        self.__window: int = window
+        self.__threshold: float = threshold
+
+    def generate_signal(
+        self, candles: Sequence[Candle]) -> Signal:
+
+        if len(candles) < self.__window:
+            return Signal.HOLD
+
+        average = sum(candle.close for candle in candles[-self.__window:])
+        price = candles[-1].close
+
+        if price < average * self.__threshold:
+            return Signal.BUY
+        elif price >= average:
+            return Signal.SELL
+        else:
+            return Signal.HOLD
