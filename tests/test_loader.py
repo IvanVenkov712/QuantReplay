@@ -3,11 +3,66 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.backtester.data.loader import CSVDataSource
+from src.backtester.data.loader import CSVDataSource, YFinanceDataSource
 
 
 def write_csv(path: Path, content: str) -> None:
     path.write_text(content.strip(), encoding="utf-8")
+
+
+def test_yfinance_data_source_normalizes_downloaded_data(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    downloaded_data = pd.DataFrame(
+        {
+            "Open": [100, 104],
+            "High": [105, 108],
+            "Low": [99, 103],
+            "Close": [104, 107],
+            "Adj Close": [103, 106],
+            "Volume": [1000, 1200],
+        },
+        index=pd.DatetimeIndex(
+            [pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-02")],
+            name="Date",
+        ),
+    )
+    download_calls: list[dict[str, object]] = []
+
+    def fake_download(**kwargs: object) -> pd.DataFrame:
+        download_calls.append(kwargs)
+        return downloaded_data
+
+    monkeypatch.setattr("src.backtester.data.loader.yf.download", fake_download)
+
+    data = YFinanceDataSource().load(
+        symbol="AAPL",
+        start="2024-01-01",
+        end="2024-01-03",
+    )
+
+    assert data is not None
+    assert download_calls == [
+        {
+            "tickers": "AAPL",
+            "start": "2024-01-01",
+            "end": "2024-01-03",
+            "interval": "1d",
+            "auto_adjust": False,
+            "progress": False,
+            "multi_level_index": False,
+        }
+    ]
+    assert data.loc[:, ["date", "open", "high", "low", "close", "volume"]].to_dict(
+        orient="list"
+    ) == {
+        "date": [pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-02")],
+        "open": [100, 104],
+        "high": [105, 108],
+        "low": [99, 103],
+        "close": [104, 107],
+        "volume": [1000, 1200],
+    }
 
 
 def test_csv_data_source_loads_symbol_file_and_filters_dates(tmp_path: Path) -> None:
