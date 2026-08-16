@@ -4,3 +4,6 @@ class InsufficientFundsError(Exception):
 
 class InsufficientPositionError(Exception):
     pass
+
+class ActiveNotFoundError(Exception):
+    pass

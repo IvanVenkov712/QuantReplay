@@ -14,3 +14,10 @@ class Trade:
     quantity: int
     price: float
     timestamp: datetime
+
+@dataclass(frozen=True)
+class Order:
+    symbol: str
+    side: Side
+    quantity: int
+    timestamp: datetime

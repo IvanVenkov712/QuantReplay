@@ -1,8 +1,10 @@
+from datetime import datetime
 from typing import List
 
-from ..exceptions.trading_errors import InsufficientFundsError, InsufficientPositionError
-from ..portfolio.portfolio import Portfolio
-from ..portfolio.trade import Side, Trade
+from backtester.exceptions.trading_errors import InsufficientFundsError, InsufficientPositionError
+from backtester.portfolio.portfolio import Portfolio
+from backtester.portfolio.trade import Side, Trade, Order
+from exceptions.trading_errors import ActiveNotFoundError
 
 
 class Broker:
@@ -21,49 +23,56 @@ class Broker:
     def trades(self) -> List[Trade]:
         return self.__trades.copy()
 
-    def _buy(self, trade: Trade) -> None:
-        if trade.quantity <= 0:
+    def _buy(self, order: Order, price: float) -> None:
+        if order.quantity <= 0:
             raise ValueError("Count must be positive.")
 
-        if trade.price <= 0:
+        if price <= 0:
             raise ValueError("Price must be positive.")
 
-        cost = trade.price * trade.quantity
+        cost = price * order.quantity
         if cost > self.__portfolio.cash:
             raise InsufficientFundsError
 
         self.__portfolio.cash -= cost
-        self.__portfolio.positions[trade.symbol] = self.__portfolio.positions.get(trade.symbol, 0) + trade.quantity
+        self.__portfolio.positions[order.symbol] = self.__portfolio.positions.get(order.symbol, 0) + order.quantity
 
-        self.__trades.append(trade)
-
-    def _sell(self, trade: Trade):
-        if trade.quantity <= 0:
+    def _sell(self, order: Order, price: float):
+        if order.quantity <= 0:
             raise ValueError("Count must be positive.")
 
-        if trade.price <= 0:
+        if price <= 0:
             raise ValueError("Price must be positive.")
 
-        owned = self.__portfolio.positions.get(trade.symbol, 0)
+        owned = self.__portfolio.positions.get(order.symbol, 0)
 
-        if trade.quantity > owned:
+        if order.quantity > owned:
             raise InsufficientPositionError
 
-        self.__portfolio.cash += trade.quantity * trade.price
-        remaining = owned - trade.quantity
+        self.__portfolio.cash += order.quantity * price
+        remaining = owned - order.quantity
 
         if remaining == 0:
-            del self.__portfolio.positions[trade.symbol]
+            del self.__portfolio.positions[order.symbol]
         else:
-            self.__portfolio.positions[trade.symbol] = remaining
+            self.__portfolio.positions[order.symbol] = remaining
 
-        self.__trades.append(trade)
+    def execute(self, order: Order, prices: dict[str, float], timestamp: datetime):
+        if not order.symbol in prices:
+            raise ActiveNotFoundError
+        price = prices[order.symbol]
+        if order.side == Side.BUY:
+            self._buy(order, price)
+        elif order.side == Side.SELL:
+            self._sell(order, price)
 
-    def execute(self, trade: Trade):
-        if trade.side == Side.BUY:
-            self._buy(trade)
-        elif trade.side == Side.SELL:
-            self._sell(trade)
+        self.__trades.append(Trade(
+            symbol=order.symbol,
+            side=order.side,
+            quantity=order.quantity,
+            price=price,
+            timestamp=timestamp
+        ))
 
 
 

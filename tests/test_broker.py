@@ -6,39 +6,38 @@ from backtester.exceptions.trading_errors import InsufficientPositionError
 from backtester.engine.broker import Broker
 from backtester.exceptions.trading_errors import InsufficientFundsError
 from backtester.portfolio.portfolio import Portfolio
-from backtester.portfolio.trade import Side, Trade
-
+from backtester.portfolio.trade import Side, Trade, Order
 
 TIMESTAMP = datetime(2026, 1, 1)
 
 
-def make_trade(symbol: str, side: Side, quantity: int, price: float) -> Trade:
-    return Trade(
+def make_order(symbol: str, side: Side, quantity: int) -> Order:
+    return Order(
         symbol=symbol,
         side=side,
         quantity=quantity,
-        price=price,
+        #price=price,
         timestamp=TIMESTAMP,
     )
 
 
 def test_buy_updates_cash_and_position() -> None:
     broker = Broker(Portfolio(cash=1_000, positions={}))
-    trade = make_trade("AAPL", Side.BUY, quantity=10, price=20)
+    order = make_order("AAPL", Side.BUY, quantity=10, price=20)
 
-    broker.execute(trade)
+    broker.execute(order)
 
     assert broker.portfolio.cash == 800
     assert broker.portfolio.positions == {"AAPL": 10}
-    assert broker.trades == [trade]
+    assert broker.orders == [trade]
 
 
 def test_buy_without_enough_cash_raises_and_keeps_state() -> None:
     broker = Broker(Portfolio(cash=100, positions={}))
-    trade = make_trade("AAPL", Side.BUY, quantity=6, price=20)
+    order = make_order("AAPL", Side.BUY, quantity=6, price=20)
 
     with pytest.raises(InsufficientFundsError):
-        broker.execute(trade)
+        broker.execute(order)
 
     assert broker.portfolio.cash == 100
     assert broker.portfolio.positions == {}
@@ -47,11 +46,11 @@ def test_buy_without_enough_cash_raises_and_keeps_state() -> None:
 
 def test_sell_updates_cash_and_reduces_position() -> None:
     broker = Broker(Portfolio(cash=1_000, positions={}))
-    buy_trade = make_trade("AAPL", Side.BUY, quantity=10, price=20)
-    sell_trade = make_trade("AAPL", Side.SELL, quantity=4, price=25)
+    buy_order = make_order("AAPL", Side.BUY, quantity=10, price=20)
+    sell_order = make_order("AAPL", Side.SELL, quantity=4, price=25)
 
-    broker.execute(buy_trade)
-    broker.execute(sell_trade)
+    broker.execute(buy_order)
+    broker.execute(sell_order)
 
     assert broker.portfolio.cash == 900
     assert broker.portfolio.positions == {"AAPL": 6}
@@ -60,8 +59,8 @@ def test_sell_updates_cash_and_reduces_position() -> None:
 
 def test_sell_more_shares_than_owned_raises_and_keeps_state() -> None:
     broker = Broker(Portfolio(cash=1_000, positions={}))
-    buy_trade = make_trade("AAPL", Side.BUY, quantity=5, price=20)
-    sell_trade = make_trade("AAPL", Side.SELL, quantity=6, price=25)
+    buy_order = make_order("AAPL", Side.BUY, quantity=5, price=20)
+    sell_order = make_order("AAPL", Side.SELL, quantity=6, price=25)
 
     broker.execute(buy_trade)
     with pytest.raises(InsufficientPositionError):
