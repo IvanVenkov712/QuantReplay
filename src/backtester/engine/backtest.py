@@ -57,10 +57,15 @@ class BacktestEngine:
 
         if signal == Signal.BUY or signal == Signal.SELL:
             side = side_from_signal(signal)
+            quantity = self._calculate_quantity(candle.close, side)
+
+            if quantity <= 0:
+                return None
+
             return Order(
                 symbol=self._symbol,
                 timestamp=candle.timestamp,
-                quantity=self._calculate_quantity(candle.close, side),
+                quantity=quantity,
                 side=side
             )
 
