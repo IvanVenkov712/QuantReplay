@@ -33,7 +33,7 @@ def test_yfinance_data_source_normalizes_downloaded_data(
         download_calls.append(kwargs)
         return downloaded_data
 
-    monkeypatch.setattr("src.backtester.data.loader.yf.download", fake_download)
+    monkeypatch.setattr("backtester.data.loader.yf.download", fake_download)
 
     data = YFinanceDataSource().load(
         symbol="AAPL",

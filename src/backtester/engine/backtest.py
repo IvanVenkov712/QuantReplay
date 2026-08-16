@@ -1,11 +1,11 @@
 from typing import Sequence
 
-from data.models import Candle
-from engine.backtest_result import BacktestResult, OrderExecution, BacktestRecord
-from engine.broker import Broker
-from exceptions.trading_errors import InsufficientError
-from portfolio.trade import Order, side_from_signal, Side
-from strategies.base import Strategy, Signal
+from backtester.data.models import Candle
+from backtester.engine.backtest_result import BacktestResult, OrderExecution, BacktestRecord
+from backtester.engine.broker import Broker
+from backtester.exceptions.trading_errors import InsufficientError
+from backtester.portfolio.trade import Order, side_from_signal, Side
+from backtester.strategies.base import Strategy, Signal
 
 
 class BacktestEngine:

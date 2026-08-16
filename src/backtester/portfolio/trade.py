@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from strategies.base import Signal
+from backtester.strategies.base import Signal
 
 
 class Side(Enum):
