@@ -1,8 +1,11 @@
-class InsufficientFundsError(Exception):
+class InsufficientError(Exception):
+    pass
+
+class InsufficientFundsError(InsufficientError):
     def __init__(self, msg: str = "Not enough cash"):
         super().__init__(msg)
 
-class InsufficientPositionError(Exception):
+class InsufficientPositionError(InsufficientError):
     pass
 
 class ActiveNotFoundError(Exception):
