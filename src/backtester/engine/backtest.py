@@ -75,8 +75,8 @@ class BacktestEngine:
     def _create_record(self, candle: Candle, signal: Signal) -> BacktestRecord:
         return  BacktestRecord(
             timestamp=candle.timestamp,
-            signal=signal,
-            portfolio_value=self._broker.portfolio.value(prices={self._symbol: candle.close}),
+            generated_signal=signal,
+            portfolio_value_at_close=self._broker.portfolio.value(prices={self._symbol: candle.close}),
             cash=self._broker.portfolio.cash
         )
 

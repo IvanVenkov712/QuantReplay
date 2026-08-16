@@ -14,8 +14,8 @@ class OrderExecution:
 @dataclass(frozen=True)
 class BacktestRecord:
     timestamp: datetime
-    signal: Signal
-    portfolio_value: float
+    generated_signal: Signal
+    portfolio_value_at_close: float
     cash: float
 
 @dataclass(frozen=True)
