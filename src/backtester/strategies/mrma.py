@@ -21,7 +21,7 @@ class MeanReversionStrategy(Strategy):
         if len(candles) < self.__window:
             return Signal.HOLD
 
-        average = sum(candle.close for candle in candles[-self.__window:])
+        average = sum(candle.close for candle in candles[-self.__window:]) / self.__window
         price = candles[-1].close
 
         if price < average * self.__threshold:

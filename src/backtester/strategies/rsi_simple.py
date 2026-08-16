@@ -5,7 +5,7 @@ from backtester.data.models import Candle
 from backtester.strategies.base import Strategy, Signal
 
 
-def calculate_rsi(n: int, candles: Sequence[Candle]) -> float:
+def calculate_simple_rsi(n: int, candles: Sequence[Candle]) -> float:
 
     deltas = [
         curr.close - prev.close for
@@ -42,7 +42,7 @@ class SimpleRSIStrategy(Strategy):
         if len(candles) < self.__n + 1:
             return Signal.HOLD
 
-        rsi = calculate_rsi(self.__n, candles)
+        rsi = calculate_simple_rsi(self.__n, candles)
 
         if rsi < self.__min:
             return Signal.BUY
