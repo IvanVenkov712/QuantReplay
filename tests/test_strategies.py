@@ -6,7 +6,7 @@ from backtester.data.models import Candle
 from backtester.strategies.base import Signal
 from backtester.strategies.mrma import MeanReversionStrategy
 from backtester.strategies.moving_average import MovingAverageCrossStrategy
-from backtester.strategies.rsi_simple import SimpleRSIStrategy
+from backtester.strategies.rsi_simple import SimpleRSIStrategy, calculate_simple_rsi
 
 
 def make_candles(closes: list[float]) -> list[Candle]:
@@ -155,6 +155,30 @@ def test_simple_rsi_rejects_invalid_thresholds(
 ) -> None:
     with pytest.raises(ValueError, match="0 <= min <= max <= 100"):
         SimpleRSIStrategy(n=3, min=minimum, max=maximum)
+
+
+def test_calculate_simple_rsi_uses_average_gains_and_losses() -> None:
+    rsi = calculate_simple_rsi(3, make_candles([100, 110, 105, 115]))
+
+    assert rsi == pytest.approx(80)
+
+
+def test_calculate_simple_rsi_returns_100_when_there_are_no_losses() -> None:
+    rsi = calculate_simple_rsi(3, make_candles([100, 105, 110, 115]))
+
+    assert rsi == 100
+
+
+def test_calculate_simple_rsi_returns_0_when_there_are_only_losses() -> None:
+    rsi = calculate_simple_rsi(3, make_candles([115, 110, 105, 100]))
+
+    assert rsi == 0
+
+
+def test_calculate_simple_rsi_uses_only_the_last_n_periods() -> None:
+    rsi = calculate_simple_rsi(3, make_candles([1_000, 100, 110, 105, 115]))
+
+    assert rsi == pytest.approx(80)
 
 
 def test_simple_rsi_holds_until_enough_candles_for_period() -> None:
