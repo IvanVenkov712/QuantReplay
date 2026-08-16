@@ -3,11 +3,34 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from backtester.data.loader import CSVDataSource, YFinanceDataSource
+from backtester.data.loader import CSVDataSource, YFinanceDataSource, prepare_market_data
 
 
 def write_csv(path: Path, content: str) -> None:
     path.write_text(content.strip(), encoding="utf-8")
+
+
+def make_market_data(**overrides: object) -> pd.DataFrame:
+    values = {
+        "date": [pd.Timestamp("2024-01-01")],
+        "open": [100],
+        "high": [110],
+        "low": [90],
+        "close": [105],
+        "volume": [1_000],
+    }
+    values.update(overrides)
+
+    return pd.DataFrame(values)
+
+
+def prepare_single_row_market_data(data: pd.DataFrame) -> pd.DataFrame:
+    return prepare_market_data(
+        data,
+        timestamp_column="date",
+        start_timestamp=pd.Timestamp("2024-01-01"),
+        end_timestamp=pd.Timestamp("2024-01-02"),
+    )
 
 
 def test_yfinance_data_source_normalizes_downloaded_data(
@@ -140,3 +163,38 @@ def test_csv_data_source_rejects_unsorted_timestamps(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="sorted by timestamp"):
         CSVDataSource(csv_path).load("AAPL", "2024-01-01", "2024-01-03")
+
+
+def test_prepare_market_data_rejects_missing_ohlcv_values() -> None:
+    data = make_market_data(close=[None])
+
+    with pytest.raises(ValueError, match="OHLCV values must not be missing"):
+        prepare_single_row_market_data(data)
+
+
+def test_prepare_market_data_rejects_non_finite_ohlcv_values() -> None:
+    data = make_market_data(close=[float("inf")])
+
+    with pytest.raises(ValueError, match="OHLCV values must be finite"):
+        prepare_single_row_market_data(data)
+
+
+def test_prepare_market_data_rejects_high_below_low() -> None:
+    data = make_market_data(high=[89], low=[90])
+
+    with pytest.raises(ValueError, match="high must be greater than or equal to low"):
+        prepare_single_row_market_data(data)
+
+
+def test_prepare_market_data_rejects_open_outside_high_low_range() -> None:
+    data = make_market_data(open=[111])
+
+    with pytest.raises(ValueError, match="open and close must be between low and high"):
+        prepare_single_row_market_data(data)
+
+
+def test_prepare_market_data_rejects_close_outside_high_low_range() -> None:
+    data = make_market_data(close=[89])
+
+    with pytest.raises(ValueError, match="open and close must be between low and high"):
+        prepare_single_row_market_data(data)

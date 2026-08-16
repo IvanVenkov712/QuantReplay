@@ -1,4 +1,5 @@
-from abc import ABC
+from abc import ABC, abstractmethod
+from math import isfinite
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +14,7 @@ YFINANCE_INTERVAL = "1d"
 
 
 class DataSource(ABC):
+    @abstractmethod
     def load(self, symbol: str, start: str, end: str) -> DataFrame | None:
         pass
 
@@ -146,12 +148,30 @@ def prepare_market_data(
     for column in REQUIRED_OHLCV_COLUMNS:
         prepared[column] = pd.to_numeric(prepared[column], errors="raise")
 
+    if prepared.loc[:, REQUIRED_OHLCV_COLUMNS].isna().any().any():
+        raise ValueError("OHLCV values must not be missing.")
+
+    finite_values = prepared.loc[:, REQUIRED_OHLCV_COLUMNS].map(isfinite)
+    if not finite_values.all().all():
+        raise ValueError("OHLCV values must be finite.")
+
     price_columns = ("open", "high", "low", "close")
     if (prepared.loc[:, price_columns] <= 0).any().any():
         raise ValueError("OHLC prices must be positive.")
 
     if (prepared["volume"] < 0).any():
         raise ValueError("Volume must not be negative.")
+
+    if (prepared["high"] < prepared["low"]).any():
+        raise ValueError("OHLC high must be greater than or equal to low.")
+
+    if (
+        (prepared["open"] < prepared["low"])
+        | (prepared["open"] > prepared["high"])
+        | (prepared["close"] < prepared["low"])
+        | (prepared["close"] > prepared["high"])
+    ).any():
+        raise ValueError("OHLC open and close must be between low and high.")
 
     return prepared.loc[
         (prepared[timestamp_column] >= start_timestamp)
