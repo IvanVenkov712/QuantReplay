@@ -87,6 +87,6 @@ class BacktestEngine:
         if side == Side.BUY:
             return int(self._broker.portfolio.cash / price)
         elif side == Side.SELL:
-            return self._broker.portfolio.positions.get(self._symbol, 0)
+            return self._broker.portfolio.position_quantity(self._symbol)
         else:
             raise ValueError("Unknown side")

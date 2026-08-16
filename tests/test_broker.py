@@ -123,21 +123,15 @@ def test_execute_rejects_missing_market_price_and_keeps_state() -> None:
 
 
 @pytest.mark.parametrize(
-    "order",
+    ("side", "quantity"),
     [
-        make_order("AAPL", Side.BUY, quantity=0),
-        make_order("AAPL", Side.SELL, quantity=-1),
+        (Side.BUY, 0),
+        (Side.SELL, -1),
     ],
 )
-def test_execute_rejects_non_positive_order_quantity(order: Order) -> None:
-    broker = Broker(Portfolio(cash=1_000, positions={"AAPL": 1}))
-
-    with pytest.raises(ValueError, match="Count must be positive"):
-        execute_order(broker, order, price=20)
-
-    assert broker.portfolio.cash == 1_000
-    assert broker.portfolio.positions == {"AAPL": 1}
-    assert broker.trades == []
+def test_order_rejects_non_positive_quantity(side: Side, quantity: int) -> None:
+    with pytest.raises(ValueError, match="Quantity must be positive"):
+        make_order("AAPL", side, quantity=quantity)
 
 
 def test_execute_rejects_non_positive_market_price() -> None:
@@ -161,3 +155,47 @@ def test_value_with_multiple_positions() -> None:
     value = broker.portfolio.value({"AAPL": 25, "MSFT": 50})
 
     assert value == 1_100
+
+
+def test_portfolio_rejects_negative_cash() -> None:
+    with pytest.raises(ValueError, match="Cash must not be negative"):
+        Portfolio(cash=-1, positions={})
+
+
+@pytest.mark.parametrize("quantity", [0, -1])
+def test_portfolio_rejects_non_positive_initial_positions(quantity: int) -> None:
+    with pytest.raises(ValueError, match="Position quantity must be positive"):
+        Portfolio(cash=1_000, positions={"AAPL": quantity})
+
+
+def test_portfolio_positions_returns_copy() -> None:
+    portfolio = Portfolio(cash=1_000, positions={"AAPL": 2})
+
+    positions = portfolio.positions
+    positions["AAPL"] = 99
+
+    assert portfolio.positions == {"AAPL": 2}
+
+
+def test_portfolio_value_rejects_missing_market_price() -> None:
+    portfolio = Portfolio(cash=1_000, positions={"AAPL": 2})
+
+    with pytest.raises(ValueError, match="Missing market price for position: AAPL"):
+        portfolio.value({})
+
+
+def test_portfolio_value_rejects_non_positive_market_price() -> None:
+    portfolio = Portfolio(cash=1_000, positions={"AAPL": 2})
+
+    with pytest.raises(ValueError, match="Market price must be positive"):
+        portfolio.value({"AAPL": 0})
+
+
+def test_order_rejects_empty_symbol() -> None:
+    with pytest.raises(ValueError, match="Symbol must be a non-empty string"):
+        make_order("", Side.BUY, quantity=1)
+
+
+def test_trade_rejects_non_positive_price() -> None:
+    with pytest.raises(ValueError, match="Price must be positive"):
+        Trade("AAPL", Side.BUY, quantity=1, price=0, timestamp=EXECUTION_TIMESTAMP)

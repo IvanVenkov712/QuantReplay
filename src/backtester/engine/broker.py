@@ -27,9 +27,6 @@ class Broker:
         return self.__trades.copy()
 
     def _buy(self, order: Order, price: float) -> None:
-        if order.quantity <= 0:
-            raise ValueError("Count must be positive.")
-
         if price <= 0:
             raise ValueError("Price must be positive.")
 
@@ -38,27 +35,19 @@ class Broker:
             raise InsufficientFundsError
 
         self.__portfolio.cash -= cost
-        self.__portfolio.positions[order.symbol] = self.__portfolio.positions.get(order.symbol, 0) + order.quantity
+        self.__portfolio.add_position(order.symbol, order.quantity)
 
     def _sell(self, order: Order, price: float):
-        if order.quantity <= 0:
-            raise ValueError("Count must be positive.")
-
         if price <= 0:
             raise ValueError("Price must be positive.")
 
-        owned = self.__portfolio.positions.get(order.symbol, 0)
+        owned = self.__portfolio.position_quantity(order.symbol)
 
         if order.quantity > owned:
             raise InsufficientPositionError
 
         self.__portfolio.cash += order.quantity * price
-        remaining = owned - order.quantity
-
-        if remaining == 0:
-            del self.__portfolio.positions[order.symbol]
-        else:
-            self.__portfolio.positions[order.symbol] = remaining
+        self.__portfolio.remove_position(order.symbol, order.quantity)
 
     def execute(self, order: Order, prices: dict[str, float], timestamp: datetime):
         if not order.symbol in prices:

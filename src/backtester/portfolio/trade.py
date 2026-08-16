@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from math import isfinite
+from numbers import Real
 
 from backtester.strategies.base import Signal
 
@@ -9,10 +11,10 @@ class Side(Enum):
     BUY = "buy"
     SELL = "sell"
 
-def side_from_signal(signal: Signal):
-    if signal == signal.BUY:
+def side_from_signal(signal: Signal) -> Side:
+    if signal == Signal.BUY:
         return Side.BUY
-    elif signal == signal.SELL:
+    elif signal == Signal.SELL:
         return Side.SELL
     else:
         raise ValueError("Invalid signal")
@@ -25,9 +27,53 @@ class Trade:
     price: float
     timestamp: datetime
 
+    def __post_init__(self) -> None:
+        _validate_symbol(self.symbol)
+        _validate_side(self.side)
+        _validate_quantity(self.quantity)
+        _validate_price(self.price)
+        _validate_timestamp(self.timestamp)
+
 @dataclass(frozen=True)
 class Order:
     symbol: str
     side: Side
     quantity: int
     timestamp: datetime
+
+    def __post_init__(self) -> None:
+        _validate_symbol(self.symbol)
+        _validate_side(self.side)
+        _validate_quantity(self.quantity)
+        _validate_timestamp(self.timestamp)
+
+
+def _validate_symbol(symbol: str) -> None:
+    if not isinstance(symbol, str) or not symbol:
+        raise ValueError("Symbol must be a non-empty string.")
+
+
+def _validate_side(side: Side) -> None:
+    if not isinstance(side, Side):
+        raise ValueError("Side must be a Side.")
+
+
+def _validate_quantity(quantity: int) -> None:
+    if not isinstance(quantity, int) or isinstance(quantity, bool):
+        raise ValueError("Quantity must be an integer.")
+
+    if quantity <= 0:
+        raise ValueError("Quantity must be positive.")
+
+
+def _validate_price(price: float) -> None:
+    if not isinstance(price, Real) or not isfinite(price):
+        raise ValueError("Price must be a finite number.")
+
+    if price <= 0:
+        raise ValueError("Price must be positive.")
+
+
+def _validate_timestamp(timestamp: datetime) -> None:
+    if not isinstance(timestamp, datetime):
+        raise ValueError("Timestamp must be a datetime.")

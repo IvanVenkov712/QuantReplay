@@ -1,11 +1,94 @@
-from dataclasses import dataclass
+from collections.abc import Mapping
+from math import isfinite
+from numbers import Real
 
-@dataclass
+
 class Portfolio:
-    cash: float
-    positions: dict[str, int]
+    """Tracks long-only cash and positions for a backtest portfolio."""
 
-    def value(self, prices: dict[str, float]) -> float:
-        return self.cash + sum(
-            prices[symbol] *  quantity for symbol, quantity in self.positions.items()
-        )
+    def __init__(self, cash: float, positions: Mapping[str, int] | None = None):
+        self._cash = 0.0
+        self._positions: dict[str, int] = {}
+
+        self.cash = cash
+        for symbol, quantity in (positions or {}).items():
+            self._validate_symbol(symbol)
+            self._validate_quantity(quantity, "Position quantity")
+            self._positions[symbol] = quantity
+
+    @property
+    def cash(self) -> float:
+        return self._cash
+
+    @cash.setter
+    def cash(self, value: float) -> None:
+        self._validate_cash(value)
+        self._cash = float(value)
+
+    @property
+    def positions(self) -> dict[str, int]:
+        return self._positions.copy()
+
+    def position_quantity(self, symbol: str) -> int:
+        self._validate_symbol(symbol)
+        return self._positions.get(symbol, 0)
+
+    def add_position(self, symbol: str, quantity: int) -> None:
+        self._validate_symbol(symbol)
+        self._validate_quantity(quantity, "Position quantity")
+        self._positions[symbol] = self.position_quantity(symbol) + quantity
+
+    def remove_position(self, symbol: str, quantity: int) -> None:
+        self._validate_symbol(symbol)
+        self._validate_quantity(quantity, "Position quantity")
+
+        owned = self.position_quantity(symbol)
+        if quantity > owned:
+            raise ValueError("Cannot remove more shares than the portfolio owns.")
+
+        remaining = owned - quantity
+        if remaining == 0:
+            del self._positions[symbol]
+        else:
+            self._positions[symbol] = remaining
+
+    def value(self, prices: Mapping[str, float]) -> float:
+        total = self.cash
+        for symbol, quantity in self._positions.items():
+            if symbol not in prices:
+                raise ValueError(f"Missing market price for position: {symbol}.")
+
+            price = prices[symbol]
+            self._validate_price(price)
+            total += float(price) * quantity
+
+        return total
+
+    @staticmethod
+    def _validate_cash(value: float) -> None:
+        if not isinstance(value, Real) or not isfinite(value):
+            raise ValueError("Cash must be a finite number.")
+
+        if value < 0:
+            raise ValueError("Cash must not be negative.")
+
+    @staticmethod
+    def _validate_price(value: float) -> None:
+        if not isinstance(value, Real) or not isfinite(value):
+            raise ValueError("Market price must be a finite number.")
+
+        if value <= 0:
+            raise ValueError("Market price must be positive.")
+
+    @staticmethod
+    def _validate_quantity(value: int, label: str) -> None:
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError(f"{label} must be an integer.")
+
+        if value <= 0:
+            raise ValueError(f"{label} must be positive.")
+
+    @staticmethod
+    def _validate_symbol(symbol: str) -> None:
+        if not isinstance(symbol, str) or not symbol:
+            raise ValueError("Symbol must be a non-empty string.")
