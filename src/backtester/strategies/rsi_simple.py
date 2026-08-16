@@ -24,7 +24,7 @@ def calculate_rsi(n: int, candles: Sequence[Candle]) -> float:
 
     return rsi
 
-class RSIStrategy(Strategy):
+class SimpleRSIStrategy(Strategy):
     def __init__(self, n: int = 14, min: float= 30, max: float= 70):
         if n <= 1:
             raise ValueError("n must be greater than 1")

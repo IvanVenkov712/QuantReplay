@@ -62,7 +62,7 @@ class Broker:
     def execute(self, trade: Trade):
         if trade.side == Side.BUY:
             self._buy(trade)
-        else:
+        elif trade.side == Side.SELL:
             self._sell(trade)
 
 

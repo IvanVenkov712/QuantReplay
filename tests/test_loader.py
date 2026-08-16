@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.backtester.data.loader import CSVDataSource, YFinanceDataSource
+from backtester.data.loader import CSVDataSource, YFinanceDataSource
 
 
 def write_csv(path: Path, content: str) -> None:

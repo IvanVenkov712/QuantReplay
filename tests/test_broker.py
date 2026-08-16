@@ -2,10 +2,11 @@ from datetime import datetime
 
 import pytest
 
-from src.backtester.engine.broker import Broker
-from src.backtester.exceptions.trading_errors import InsufficientFundsError
-from src.backtester.portfolio.portfolio import Portfolio
-from src.backtester.portfolio.trade import Side, Trade
+from backtester.exceptions.trading_errors import InsufficientPositionError
+from backtester.engine.broker import Broker
+from backtester.exceptions.trading_errors import InsufficientFundsError
+from backtester.portfolio.portfolio import Portfolio
+from backtester.portfolio.trade import Side, Trade
 
 
 TIMESTAMP = datetime(2026, 1, 1)
@@ -63,7 +64,7 @@ def test_sell_more_shares_than_owned_raises_and_keeps_state() -> None:
     sell_trade = make_trade("AAPL", Side.SELL, quantity=6, price=25)
 
     broker.execute(buy_trade)
-    with pytest.raises(ValueError, match="Insufficient position"):
+    with pytest.raises(InsufficientPositionError):
         broker.execute(sell_trade)
 
     assert broker.portfolio.cash == 900
