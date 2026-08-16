@@ -5,6 +5,8 @@ import pandas as pd
 import yfinance as yf
 from pandas import DataFrame
 
+from data.models import Candle
+
 REQUIRED_OHLCV_COLUMNS = ("open", "high", "low", "close", "volume")
 TIMESTAMP_COLUMNS = ("timestamp", "date", "datetime")
 YFINANCE_INTERVAL = "1d"
@@ -155,3 +157,19 @@ def prepare_market_data(
         (prepared[timestamp_column] >= start_timestamp)
         & (prepared[timestamp_column] < end_timestamp)
     ].reset_index(drop=True)
+
+def candles_from_dataframe(
+    data: DataFrame,
+    timestamp_column: str = "date",
+) -> list[Candle]:
+    return [
+        Candle(
+            timestamp=row.date.to_pydatetime(),
+            open=float(row.open),
+            high=float(row.high),
+            low=float(row.low),
+            close=float(row.close),
+            volume=float(row.volume),
+        )
+        for row in data.rename(columns={timestamp_column: "date"}).itertuples(index=False)
+    ]
