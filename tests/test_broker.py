@@ -1,4 +1,5 @@
 from datetime import datetime
+from unittest.mock import Mock
 
 import pytest
 
@@ -8,7 +9,6 @@ from backtester.exceptions.trading_errors import (
     InsufficientFundsError,
     InsufficientPositionError,
 )
-from backtester.portfolio.portfolio import Portfolio
 from backtester.portfolio.trade import Order, Side, Trade
 
 
@@ -25,6 +25,13 @@ def make_order(symbol: str, side: Side, quantity: int) -> Order:
     )
 
 
+def make_portfolio_mock(cash: float = 1_000, owned_quantity: int = 0) -> Mock:
+    portfolio = Mock()
+    portfolio.cash = cash
+    portfolio.position_quantity.return_value = owned_quantity
+    return portfolio
+
+
 def execute_order(
     broker: Broker,
     order: Order,
@@ -34,80 +41,79 @@ def execute_order(
     broker.execute(order, prices={order.symbol: price}, timestamp=timestamp)
 
 
-def test_buy_order_uses_market_price_and_records_trade() -> None:
-    broker = Broker(Portfolio(cash=1_000, positions={}))
+def test_buy_order_uses_market_price_updates_portfolio_and_records_trade() -> None:
+    portfolio = make_portfolio_mock(cash=1_000)
+    broker = Broker(portfolio)
     order = make_order("AAPL", Side.BUY, quantity=10)
 
     execute_order(broker, order, price=20)
 
-    expected_trade = Trade(
-        symbol="AAPL",
-        side=Side.BUY,
-        quantity=10,
-        price=20,
-        timestamp=EXECUTION_TIMESTAMP,
-    )
-    assert broker.portfolio.cash == 800
-    assert broker.portfolio.positions == {"AAPL": 10}
-    assert broker.trades == [expected_trade]
+    assert portfolio.cash == 800
+    portfolio.add_position.assert_called_once_with("AAPL", 10)
+    portfolio.remove_position.assert_not_called()
+    assert broker.trades == [
+        Trade("AAPL", Side.BUY, quantity=10, price=20, timestamp=EXECUTION_TIMESTAMP)
+    ]
 
 
-def test_buy_without_enough_cash_raises_and_keeps_state() -> None:
-    broker = Broker(Portfolio(cash=100, positions={}))
+def test_buy_without_enough_cash_raises_without_updating_portfolio() -> None:
+    portfolio = make_portfolio_mock(cash=100)
+    broker = Broker(portfolio)
     order = make_order("AAPL", Side.BUY, quantity=6)
 
     with pytest.raises(InsufficientFundsError):
         execute_order(broker, order, price=20)
 
-    assert broker.portfolio.cash == 100
-    assert broker.portfolio.positions == {}
+    assert portfolio.cash == 100
+    portfolio.add_position.assert_not_called()
+    portfolio.remove_position.assert_not_called()
     assert broker.trades == []
 
 
-def test_sell_order_uses_market_price_and_reduces_position() -> None:
-    broker = Broker(Portfolio(cash=1_000, positions={}))
-    buy_order = make_order("AAPL", Side.BUY, quantity=10)
-    sell_order = make_order("AAPL", Side.SELL, quantity=4)
+def test_sell_order_uses_market_price_updates_portfolio_and_records_trade() -> None:
+    portfolio = make_portfolio_mock(cash=1_000, owned_quantity=10)
+    broker = Broker(portfolio)
+    order = make_order("AAPL", Side.SELL, quantity=4)
 
-    execute_order(broker, buy_order, price=20)
-    execute_order(broker, sell_order, price=25)
+    execute_order(broker, order, price=25)
 
-    assert broker.portfolio.cash == 900
-    assert broker.portfolio.positions == {"AAPL": 6}
+    portfolio.position_quantity.assert_called_once_with("AAPL")
+    assert portfolio.cash == 1_100
+    portfolio.remove_position.assert_called_once_with("AAPL", 4)
+    portfolio.add_position.assert_not_called()
     assert broker.trades == [
-        Trade("AAPL", Side.BUY, quantity=10, price=20, timestamp=EXECUTION_TIMESTAMP),
-        Trade("AAPL", Side.SELL, quantity=4, price=25, timestamp=EXECUTION_TIMESTAMP),
+        Trade("AAPL", Side.SELL, quantity=4, price=25, timestamp=EXECUTION_TIMESTAMP)
     ]
 
 
-def test_sell_more_shares_than_owned_raises_and_keeps_state() -> None:
-    broker = Broker(Portfolio(cash=1_000, positions={}))
-    buy_order = make_order("AAPL", Side.BUY, quantity=5)
-    sell_order = make_order("AAPL", Side.SELL, quantity=6)
+def test_sell_more_shares_than_owned_raises_without_updating_portfolio() -> None:
+    portfolio = make_portfolio_mock(cash=1_000, owned_quantity=5)
+    broker = Broker(portfolio)
+    order = make_order("AAPL", Side.SELL, quantity=6)
 
-    execute_order(broker, buy_order, price=20)
     with pytest.raises(InsufficientPositionError):
-        execute_order(broker, sell_order, price=25)
+        execute_order(broker, order, price=25)
 
-    assert broker.portfolio.cash == 900
-    assert broker.portfolio.positions == {"AAPL": 5}
-    assert broker.trades == [
-        Trade("AAPL", Side.BUY, quantity=5, price=20, timestamp=EXECUTION_TIMESTAMP)
-    ]
+    portfolio.position_quantity.assert_called_once_with("AAPL")
+    assert portfolio.cash == 1_000
+    portfolio.remove_position.assert_not_called()
+    portfolio.add_position.assert_not_called()
+    assert broker.trades == []
 
 
-def test_sell_full_position_removes_symbol() -> None:
-    broker = Broker(Portfolio(cash=1_000, positions={}))
+def test_sell_full_position_requests_position_removal() -> None:
+    portfolio = make_portfolio_mock(cash=1_000, owned_quantity=5)
+    broker = Broker(portfolio)
 
-    execute_order(broker, make_order("AAPL", Side.BUY, quantity=5), price=20)
     execute_order(broker, make_order("AAPL", Side.SELL, quantity=5), price=30)
 
-    assert broker.portfolio.cash == 1_050
-    assert broker.portfolio.positions == {}
+    assert portfolio.cash == 1_150
+    portfolio.remove_position.assert_called_once_with("AAPL", 5)
 
 
-def test_execute_rejects_missing_market_price_and_keeps_state() -> None:
-    broker = Broker(Portfolio(cash=1_000, positions={}))
+def test_execute_rejects_missing_market_price_without_updating_portfolio() -> None:
+    portfolio = make_portfolio_mock(cash=1_000)
+    broker = Broker(portfolio)
     order = make_order("AAPL", Side.BUY, quantity=1)
 
     with pytest.raises(ActiveNotFoundError):
@@ -117,8 +123,9 @@ def test_execute_rejects_missing_market_price_and_keeps_state() -> None:
             timestamp=EXECUTION_TIMESTAMP,
         )
 
-    assert broker.portfolio.cash == 1_000
-    assert broker.portfolio.positions == {}
+    assert portfolio.cash == 1_000
+    portfolio.add_position.assert_not_called()
+    portfolio.remove_position.assert_not_called()
     assert broker.trades == []
 
 
@@ -134,61 +141,30 @@ def test_order_rejects_non_positive_quantity(side: Side, quantity: int) -> None:
         make_order("AAPL", side, quantity=quantity)
 
 
-def test_execute_rejects_non_positive_market_price() -> None:
-    broker = Broker(Portfolio(cash=1_000, positions={}))
+def test_execute_rejects_non_positive_market_price_without_trade() -> None:
+    portfolio = make_portfolio_mock(cash=1_000)
+    broker = Broker(portfolio)
     order = make_order("AAPL", Side.BUY, quantity=1)
 
     with pytest.raises(ValueError, match="Price must be positive"):
         execute_order(broker, order, price=0)
 
-    assert broker.portfolio.cash == 1_000
-    assert broker.portfolio.positions == {}
+    assert portfolio.cash == 1_000
+    portfolio.add_position.assert_not_called()
+    portfolio.remove_position.assert_not_called()
     assert broker.trades == []
 
 
-def test_value_with_multiple_positions() -> None:
-    broker = Broker(Portfolio(cash=1_000, positions={}))
+def test_trades_returns_copy() -> None:
+    broker = Broker(make_portfolio_mock(cash=1_000))
+    execute_order(broker, make_order("AAPL", Side.BUY, quantity=1), price=20)
 
-    execute_order(broker, make_order("AAPL", Side.BUY, quantity=10), price=20)
-    execute_order(broker, make_order("MSFT", Side.BUY, quantity=5), price=40)
+    trades = broker.trades
+    trades.clear()
 
-    value = broker.portfolio.value({"AAPL": 25, "MSFT": 50})
-
-    assert value == 1_100
-
-
-def test_portfolio_rejects_negative_cash() -> None:
-    with pytest.raises(ValueError, match="Cash must not be negative"):
-        Portfolio(cash=-1, positions={})
-
-
-@pytest.mark.parametrize("quantity", [0, -1])
-def test_portfolio_rejects_non_positive_initial_positions(quantity: int) -> None:
-    with pytest.raises(ValueError, match="Position quantity must be positive"):
-        Portfolio(cash=1_000, positions={"AAPL": quantity})
-
-
-def test_portfolio_positions_returns_copy() -> None:
-    portfolio = Portfolio(cash=1_000, positions={"AAPL": 2})
-
-    positions = portfolio.positions
-    positions["AAPL"] = 99
-
-    assert portfolio.positions == {"AAPL": 2}
-
-
-def test_portfolio_value_rejects_missing_market_price() -> None:
-    portfolio = Portfolio(cash=1_000, positions={"AAPL": 2})
-
-    with pytest.raises(ValueError, match="Missing market price for position: AAPL"):
-        portfolio.value({})
-
-
-def test_portfolio_value_rejects_non_positive_market_price() -> None:
-    portfolio = Portfolio(cash=1_000, positions={"AAPL": 2})
-
-    with pytest.raises(ValueError, match="Market price must be positive"):
-        portfolio.value({"AAPL": 0})
+    assert broker.trades == [
+        Trade("AAPL", Side.BUY, quantity=1, price=20, timestamp=EXECUTION_TIMESTAMP)
+    ]
 
 
 def test_order_rejects_empty_symbol() -> None:
