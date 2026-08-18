@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from collections import namedtuple
 from collections.abc import Callable
 
 from typing_extensions import override, NamedTuple
@@ -53,7 +52,7 @@ class PerformanceAnalyzer:
 
         self.add_metric(FunctionMetric(name, label, function))
 
-    def calculate_metrics(self, results: BacktestResult) -> dict[str, tuple[str, float]]:
+    def calculate_metrics(self, results: BacktestResult) -> dict[str, MetricData]:
         return {
             name: PerformanceAnalyzer.MetricData(metric.label, metric.calculate(results))
             for name, metric in self._metrics.items()
