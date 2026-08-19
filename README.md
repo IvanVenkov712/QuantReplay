@@ -25,6 +25,44 @@ The current strategies include:
 - `SimpleRSIStrategy`
 - `MeanReversionStrategy`
 
+## Strategies and metrics
+
+The CLI tests exactly one selected strategy at a time. With `backtest`, the selected strategy is evaluated on its own. With `compare`, the selected strategy is evaluated against a benchmark strategy on the same symbol, date range, data source, and initial capital.
+
+By default:
+
+- `backtest` tests `MovingAverageCrossStrategy(20, 50)`.
+- `compare` tests `MovingAverageCrossStrategy(20, 50)` against `BuyAndHoldStrategy`.
+
+Available strategies:
+
+| CLI name | Class | What it tests | Buy signal | Sell signal |
+| --- | --- | --- | --- | --- |
+| `moving-average` | `MovingAverageCrossStrategy` | A trend-following idea: a short moving average crossing above or below a long moving average may indicate a change in trend. | The short average crosses above the long average. | The short average crosses below the long average. |
+| `buy-and-hold` | `BuyAndHoldStrategy` | A passive benchmark: buy once at the beginning and hold until the end. | The first time the strategy is called. | Never. |
+| `rsi` | `SimpleRSIStrategy` | A momentum/mean-reversion indicator based on recent average gains and losses. | RSI falls below the minimum threshold, default `30`. | RSI rises above the maximum threshold, default `70`. |
+| `mean-reversion` | `MeanReversionStrategy` | A mean-reversion idea: unusually low prices may move back toward their recent average. | Current close is below `average * threshold`. | Current close is at or above the average. |
+
+The available benchmark strategies are the same four strategies. `BuyAndHoldStrategy` is the default benchmark because it answers a simple question: did the active strategy add value compared with just buying the asset and holding it?
+
+### Metrics
+
+The CLI registers all metrics currently available through `PerformanceAnalyzer`:
+
+| Metric | Meaning | Formula used in this project | Generally good | Generally bad |
+| --- | --- | --- | --- | --- |
+| Total return | The total portfolio gain or loss over the whole backtest. | `final_value / first_value - 1` | Higher is better. Positive return means the portfolio ended above its starting value. | Negative return means the portfolio lost money. A return below the benchmark means the strategy did not justify its extra trading. |
+| Annualized return | The total return converted into an approximate yearly growth rate. | `(final_value / first_value) ** (1 / elapsed_years) - 1` | Higher is better, especially when it is above the benchmark and above a reasonable passive alternative. | Negative is bad. A high value from a very short test period can be misleading. |
+| Daily average return | The arithmetic average of the period-to-period portfolio returns. | `mean(value_t / value_t-1 - 1)` | Higher is better, but only when risk is also reasonable. | Negative means the average period lost money. Near zero may still be acceptable if volatility and drawdown are very low. |
+| Daily volatility | How much daily returns fluctuate. It is a risk proxy, not a return metric. | Sample standard deviation of period returns. | Lower is usually better for the same return. A strategy with high return and controlled volatility is attractive. | High volatility means unstable returns. It is especially bad when return is low or negative. |
+| Annual volatility | Daily volatility scaled to a trading-year estimate. | `daily_volatility * sqrt(252)` | Lower is usually better for the same return. Useful for comparing strategies on a yearly risk scale. | High annual volatility means the strategy may be hard to hold through large swings. |
+| Maximum drawdown | The worst peak-to-trough portfolio loss during the test. | Minimum of `current_value / previous_peak - 1` | Closer to `0%` is better. For example, `-5%` is much safer than `-40%`. | Large negative values are bad because they show deep losses from a prior high. |
+| Daily Sharpe ratio | Average daily return per unit of daily volatility. | `daily_average_return / daily_volatility` | Higher is better. Above `0` means return was positive relative to volatility. | Negative is bad. Near zero means the strategy was not compensated much for risk. |
+| Annual Sharpe ratio | Daily Sharpe ratio converted to an annual scale. | `daily_sharpe_ratio * sqrt(252)` | Higher is better. As a rough guide, above `1.0` is often considered decent, above `2.0` strong, and above `3.0` exceptional. | Below `0` is poor. Between `0` and `1` may be weak unless the strategy has other advantages. |
+| Number of trades | How many executed trades the backtest produced. | `len(results.trades)` | There is no universal best value. Fewer trades can mean lower costs and simpler behavior. More trades can be fine if they improve risk-adjusted return. | Too many trades can be bad because this project currently ignores commissions and slippage, so very active strategies may look better than they would in reality. Zero trades may mean the strategy never found a signal. |
+
+These good/bad labels are only rough guidelines. A metric should usually be read together with the others. For example, high total return is less impressive if maximum drawdown is very large, and low volatility is not useful if the strategy never earns a meaningful return. In benchmark comparison mode, a positive difference is good for return and Sharpe metrics. A negative difference is usually better for volatility because it means the tested strategy fluctuated less than the benchmark. For maximum drawdown, a positive difference is usually better because drawdown values are negative and a value closer to `0%` means a smaller peak-to-trough loss.
+
 ## Important backtesting assumptions
 
 The engine avoids look-ahead bias by separating signal generation from execution:
