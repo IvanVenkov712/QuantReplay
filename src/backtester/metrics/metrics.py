@@ -5,7 +5,7 @@ from typing import List
 
 from typing_extensions import override, NamedTuple
 
-from engine.backtest_result import BacktestResult
+from backtester.engine.backtest_result import BacktestResult
 
 class Metric(ABC):
     def __init__(self, name: str, label: str):

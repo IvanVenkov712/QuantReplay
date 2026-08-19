@@ -1,4 +1,4 @@
-from metrics.metrics import Metric, PerformanceAnalyzer, MetricData
+from backtester.metrics.metrics import MetricData
 
 
 def get_differences(
