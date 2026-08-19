@@ -16,6 +16,8 @@ def calculate_simple_rsi(n: int, candles: Sequence[Candle]) -> float:
     avg_loss = sum(max(-delta, 0) for delta in deltas) / n
 
     if isclose(avg_loss, 0):
+        if isclose(avg_gain, 0):
+            return 50
         return 100
 
     rs = avg_gain / avg_loss

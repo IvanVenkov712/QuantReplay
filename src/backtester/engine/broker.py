@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List
 
 from backtester.exceptions.trading_errors import (
-    ActiveNotFoundError,
+    PriceNotFoundError,
     InsufficientFundsError,
     InsufficientPositionError,
 )
@@ -51,7 +51,7 @@ class Broker:
 
     def execute(self, order: Order, prices: dict[str, float], timestamp: datetime):
         if not order.symbol in prices:
-            raise ActiveNotFoundError
+            raise PriceNotFoundError
         price = prices[order.symbol]
         if order.side == Side.BUY:
             self._buy(order, price)

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from math import sqrt
+from math import sqrt, isclose, nan
 from typing import List
 
 from typing_extensions import override, NamedTuple
@@ -112,7 +112,11 @@ def max_drawdown(results: BacktestResult) -> float:
     return min(drawdowns)
 
 def daily_sharpe_ratio(results: BacktestResult) -> float:
-    return daily_avg(results) / daily_volatility(results)
+    volatility = daily_volatility(results)
+    if isclose(volatility, 0):
+        return nan
+    avg = daily_avg(results)
+    return avg / volatility
 
 def annual_sharpe_ratio(results: BacktestResult) -> float:
     return daily_sharpe_ratio(results) * sqrt(252)

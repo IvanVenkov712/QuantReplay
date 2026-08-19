@@ -8,5 +8,5 @@ class InsufficientFundsError(InsufficientError):
 class InsufficientPositionError(InsufficientError):
     pass
 
-class ActiveNotFoundError(Exception):
+class PriceNotFoundError(Exception):
     pass

@@ -5,7 +5,7 @@ import pytest
 
 from backtester.engine.broker import Broker
 from backtester.exceptions.trading_errors import (
-    ActiveNotFoundError,
+    PriceNotFoundError,
     InsufficientFundsError,
     InsufficientPositionError,
 )
@@ -116,7 +116,7 @@ def test_execute_rejects_missing_market_price_without_updating_portfolio() -> No
     broker = Broker(portfolio)
     order = make_order("AAPL", Side.BUY, quantity=1)
 
-    with pytest.raises(ActiveNotFoundError):
+    with pytest.raises(PriceNotFoundError):
         broker.execute(
             order,
             prices={"MSFT": 20},
