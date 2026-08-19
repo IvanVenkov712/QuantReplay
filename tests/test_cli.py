@@ -1,0 +1,254 @@
+from datetime import date
+from pathlib import Path
+
+import pytest
+
+from backtester import cli
+
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
+    args = cli._parse_args([])
+
+    assert args.command == "backtest"
+    assert args.symbol == cli.DEFAULT_SYMBOL
+    assert args.years == cli.DEFAULT_YEARS
+    assert args.source == "yfinance"
+    assert args.initial_capital == cli.DEFAULT_INITIAL_CAPITAL
+    assert args.strategy == "moving-average"
+    assert args.short_window == cli.DEFAULT_SHORT_WINDOW
+    assert args.long_window == cli.DEFAULT_LONG_WINDOW
+
+
+def test_parse_args_accepts_backtest_options_without_explicit_command() -> None:
+    csv_path = Path("prices.csv")
+
+    args = cli._parse_args(
+        [
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--symbol",
+            "AAPL",
+            "--strategy",
+            "rsi",
+            "--rsi-period",
+            "10",
+            "--rsi-min",
+            "25",
+            "--rsi-max",
+            "75",
+            "--initial-capital",
+            "25000",
+        ]
+    )
+
+    assert args.command == "backtest"
+    assert args.source == "csv"
+    assert args.csv_path == csv_path
+    assert args.symbol == "AAPL"
+    assert args.strategy == "rsi"
+    assert args.rsi_period == 10
+    assert args.rsi_min == 25
+    assert args.rsi_max == 75
+    assert args.initial_capital == 25_000
+
+
+def test_parse_args_accepts_compare_command_and_benchmark() -> None:
+    args = cli._parse_args(
+        [
+            "compare",
+            "--strategy",
+            "mean-reversion",
+            "--benchmark",
+            "rsi",
+        ]
+    )
+
+    assert args.command == "compare"
+    assert args.strategy == "mean-reversion"
+    assert args.benchmark == "rsi"
+
+
+@pytest.mark.parametrize("command", ["backtest", "compare"])
+def test_csv_source_requires_csv_path(
+    command: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli._parse_args([command, "--source", "csv"])
+
+    assert exc_info.value.code == 2
+    assert "--csv-path is required when --source csv is used" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("option", "value", "message"),
+    [
+        ("--years", "0", "value must be a positive integer"),
+        ("--short-window", "-1", "value must be a positive integer"),
+        ("--initial-capital", "0", "value must be positive"),
+    ],
+)
+def test_parse_args_rejects_non_positive_values(
+    option: str,
+    value: str,
+    message: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli._parse_args([option, value])
+
+    assert exc_info.value.code == 2
+    assert message in capsys.readouterr().err
+
+
+def test_resolve_date_range_handles_leap_day_when_subtracting_years() -> None:
+    assert cli._resolve_date_range(None, "2024-02-29", 1) == (
+        "2023-02-28",
+        "2024-02-29",
+    )
+
+
+def test_resolve_date_range_rejects_start_on_or_after_end() -> None:
+    with pytest.raises(ValueError, match="Start date must be before end date"):
+        cli._resolve_date_range("2024-01-02", "2024-01-02", 5)
+
+
+def test_resolve_date_range_uses_today_when_end_is_omitted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FixedDate(date):
+        @classmethod
+        def today(cls) -> "FixedDate":
+            return cls(2026, 8, 19)
+
+    monkeypatch.setattr(cli, "date", FixedDate)
+
+    assert cli._resolve_date_range(None, None, 2) == (
+        "2024-08-19",
+        "2026-08-19",
+    )
+
+
+def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = cli.main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--symbol",
+            "AAPL",
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-03",
+            "--strategy",
+            "buy-and-hold",
+            "--initial-capital",
+            "10000",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert "Backtest parameters" in captured.out
+    assert "Strategy: BuyAndHoldStrategy" in captured.out
+    assert "Asset: AAPL" in captured.out
+    assert "Period: 2024-01-01 to 2024-01-03" in captured.out
+    assert f"Data source: CSVDataSource({csv_path})" in captured.out
+    assert "Initial capital: 10,000.00" in captured.out
+    assert "Performance metrics" in captured.out
+    assert "Total return: 10.00%" in captured.out
+    assert "Number of trades: 1" in captured.out
+
+
+def test_main_compares_strategy_with_benchmark_using_same_csv_data(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = cli.main(
+        [
+            "compare",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--symbol",
+            "AAPL",
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-03",
+            "--strategy",
+            "buy-and-hold",
+            "--benchmark",
+            "moving-average",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert "Benchmark comparison parameters" in captured.out
+    assert "Strategy: BuyAndHoldStrategy" in captured.out
+    assert "Benchmark: MovingAverageCrossStrategy(20, 50)" in captured.out
+    assert "Metric differences" in captured.out
+    assert "Total return difference: 10.00%" in captured.out
+    assert "Number of trades difference: 1" in captured.out
+
+
+def test_main_reports_runtime_errors_and_returns_nonzero_exit_code(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_one_candle.csv"
+
+    exit_code = cli.main(
+        [
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-02",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert (
+        captured.err
+        == "Error: At least two candles are required to calculate metrics.\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "expected"),
+    [
+        ("total_return", 0.12345, "12.35%"),
+        ("daily_sharpe_ratio", 1.23456, "1.2346"),
+        ("number_of_trades", 3.0, "3"),
+        ("daily_sharpe_ratio", float("nan"), "N/A"),
+        ("daily_sharpe_ratio", float("inf"), "N/A"),
+    ],
+)
+def test_format_metric_value_uses_metric_specific_formatting(
+    name: str,
+    value: float,
+    expected: str,
+) -> None:
+    assert cli._format_metric_value(name, value) == expected
