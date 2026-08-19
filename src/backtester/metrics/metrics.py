@@ -34,12 +34,11 @@ class FunctionMetric(Metric):
     def calculate(self, results: BacktestResult) -> float:
         return self._function(results)
 
+class MetricData(NamedTuple):
+    label: str
+    result: float
 
 class PerformanceAnalyzer:
-    class MetricData(NamedTuple):
-        label: str
-        result: float
-
     def __init__(self):
         self._metrics: dict[str, Metric] = {}
 
@@ -56,7 +55,7 @@ class PerformanceAnalyzer:
 
     def calculate_metrics(self, results: BacktestResult) -> dict[str, MetricData]:
         return {
-            name: PerformanceAnalyzer.MetricData(metric.label, metric.calculate(results))
+            name: MetricData(metric.label, metric.calculate(results))
             for name, metric in self._metrics.items()
         }
 
