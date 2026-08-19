@@ -47,6 +47,19 @@ class Order:
         _validate_quantity(self.quantity)
         _validate_timestamp(self.timestamp)
 
+@dataclass(frozen=True)
+class OrderIntent:
+    symbol: str
+    side: Side
+    quantity_instruction: float
+    timestamp: datetime
+
+    def __post_init__(self) -> None:
+        _validate_symbol(self.symbol)
+        _validate_side(self.side)
+        _validate_quantity_instruction(self.quantity_instruction)
+        _validate_timestamp(self.timestamp)
+
 
 def _validate_symbol(symbol: str) -> None:
     if not isinstance(symbol, str) or not symbol:
@@ -64,6 +77,13 @@ def _validate_quantity(quantity: int) -> None:
 
     if quantity <= 0:
         raise ValueError("Quantity must be positive.")
+
+def _validate_quantity_instruction(instr: float) -> None:
+    if not isinstance(instr, float):
+        raise ValueError("The instruction must be a float")
+
+    if not 0 <= instr <= 1:
+        raise ValueError("The instruction muse be between 0 and 1")
 
 
 def _validate_price(price: float) -> None:
