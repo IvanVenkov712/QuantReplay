@@ -1,7 +1,7 @@
 from typing import Sequence
 
-from data.models import Candle
-from strategies.base import Strategy, Signal
+from backtester.data.models import Candle
+from backtester.strategies.base import Strategy, Signal
 
 
 class BuyAndHoldStrategy(Strategy):
