@@ -23,7 +23,7 @@ class BacktestEngine:
             self,
             strategy: Strategy,
             broker: Broker,
-            # sizer: PositionSizer,
+            sizer: PositionSizer,
             data: Sequence[Candle],
             symbol: str
     ):
@@ -41,7 +41,7 @@ class BacktestEngine:
         self._results = None
         self._strategy: Strategy = strategy
         self._broker = broker
-        # self._sizer = sizer
+        self._sizer = sizer
         self._data = data
         self._symbol = symbol
 
@@ -129,24 +129,19 @@ class BacktestEngine:
         )
 
     def _calculate_quantity(self, price: float, side: Side) -> int:
-        """Calculate order quantity for the requested side.
+        return self._sizer.calculate_size(self._create_context(price), side)
+        # if price <= 0:
+        #     raise ValueError("Positive active price is expected")
+        #
+        # if side == Side.BUY:
+        #     return int(self._broker.portfolio.cash / price)
+        # elif side == Side.SELL:
+        #     return self._broker.portfolio.position_quantity(self._symbol)
+        # else:
+        #     raise ValueError("Unknown side")
 
-        Buy quantity uses all currently available cash at the provided reference
-        price. Sell quantity liquidates the currently owned position for this
-        engine's symbol.
-        """
-        if price <= 0:
-            raise ValueError("Positive active price is expected")
-
-        if side == Side.BUY:
-            return int(self._broker.portfolio.cash / price)
-        elif side == Side.SELL:
-            return self._broker.portfolio.position_quantity(self._symbol)
-        else:
-            raise ValueError("Unknown side")
-
-    def _create_context(self, price: float, symbol: str) -> SizingContext:
-        current_quantity = self._broker.portfolio.position_quantity(symbol)
+    def _create_context(self, price: float) -> SizingContext:
+        current_quantity = self._broker.portfolio.position_quantity(self._symbol)
         cash = self._broker.portfolio.cash
         return SizingContext(
             cash=cash,

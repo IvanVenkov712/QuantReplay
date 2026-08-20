@@ -40,6 +40,16 @@ class PositionSizer(ABC):
         else:
             raise ValueError("Unknown side")
 
+class FixedSizer(PositionSizer):
+    def __init__(self, buy_size: int, sell_size: int):
+        self._buy_size: int = buy_size
+        self._sell_size: int = sell_size
+
+    def calculate_size_buy(self, context: SizingContext) -> int:
+        return self._buy_size
+
+    def calculate_size_sell(self, context: SizingContext) -> int:
+        return self._sell_size
 
 class AllInAllOutSizer(PositionSizer):
     def calculate_size_buy(self, context: SizingContext) -> int:
