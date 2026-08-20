@@ -10,6 +10,19 @@ class SizingContext:
     portfolio_value: float
     price: float
 
+    def __post_init__(self):
+        if self.cash < 0:
+            raise ValueError("cash cannot be negative")
+
+        if self.current_quantity < 0:
+            raise ValueError("current quantity cannot be negative")
+
+        if self.portfolio_value < self.cash:
+            raise ValueError("portfolio value cannot be less than cash")
+
+        if self.price <= 0:
+            raise ValueError("price must be positive")
+
 class PositionSizer(ABC):
     @abstractmethod
     def calculate_size_buy(self, context: SizingContext) -> int:

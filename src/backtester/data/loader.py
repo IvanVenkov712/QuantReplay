@@ -14,12 +14,16 @@ YFINANCE_INTERVAL = "1d"
 
 
 class DataSource(ABC):
+    """Interface for loading normalized historical OHLCV data."""
+
     @abstractmethod
     def load(self, symbol: str, start: str, end: str) -> DataFrame | None:
-        pass
+        """Load one symbol for an inclusive start and exclusive end date."""
 
 
 class YFinanceDataSource(DataSource):
+    """Load unadjusted daily OHLCV data from Yahoo Finance."""
+
     def load(self, symbol: str, start: str, end: str) -> DataFrame | None:
         start_timestamp, end_timestamp = parse_date_range(start, end)
 
@@ -45,6 +49,8 @@ class YFinanceDataSource(DataSource):
 
 
 class CSVDataSource(DataSource):
+    """Load OHLCV data from one CSV file or a directory of symbol files."""
+
     def __init__(self, path: Path):
         self.__path: Path = path
 
@@ -124,6 +130,11 @@ def prepare_market_data(
     start_timestamp: pd.Timestamp,
     end_timestamp: pd.Timestamp,
 ) -> DataFrame:
+    """Validate OHLCV data and restrict it to the requested half-open range.
+
+    Input rows must already be ordered and unique. This function deliberately
+    rejects invalid data instead of sorting, filling, or otherwise repairing it.
+    """
     prepared = data.copy()
     prepared[timestamp_column] = pd.to_datetime(
         prepared[timestamp_column],
@@ -182,6 +193,8 @@ def candles_from_dataframe(
     data: DataFrame,
     timestamp_column: str = "date",
 ) -> list[Candle]:
+    """Convert normalized market-data rows to immutable ``Candle`` objects."""
+
     return [
         Candle(
             timestamp=row.date.to_pydatetime(),

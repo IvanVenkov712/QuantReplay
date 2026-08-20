@@ -6,7 +6,7 @@ from backtester.engine.broker import Broker
 from backtester.exceptions.trading_errors import InsufficientError
 from backtester.portfolio.trade import Order, side_from_signal, Side
 from backtester.strategies.base import Strategy, Signal
-from backtester.portfolio.position_sizing import SizingContext
+from backtester.portfolio.position_sizing import SizingContext, PositionSizer
 
 
 class BacktestEngine:
@@ -20,7 +20,13 @@ class BacktestEngine:
     """
 
     def __init__(
-            self, strategy: Strategy, broker: Broker, data: Sequence[Candle], symbol: str):
+            self,
+            strategy: Strategy,
+            broker: Broker,
+            # sizer: PositionSizer,
+            data: Sequence[Candle],
+            symbol: str
+    ):
         """Create a backtest engine for one strategy, broker, data set, and symbol.
 
         Args:
@@ -35,6 +41,7 @@ class BacktestEngine:
         self._results = None
         self._strategy: Strategy = strategy
         self._broker = broker
+        # self._sizer = sizer
         self._data = data
         self._symbol = symbol
 
@@ -138,12 +145,12 @@ class BacktestEngine:
         else:
             raise ValueError("Unknown side")
 
-    def _create_context(self, side: Side, price: float, symbol: str) -> SizingContext:
+    def _create_context(self, price: float, symbol: str) -> SizingContext:
         current_quantity = self._broker.portfolio.position_quantity(symbol)
         cash = self._broker.portfolio.cash
         return SizingContext(
             cash=cash,
             current_quantity=current_quantity,
             price=price,
-            side=side
+            portfolio_value=cash + current_quantity * price
         )

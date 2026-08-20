@@ -74,6 +74,67 @@ The engine avoids look-ahead bias by separating signal generation from execution
 
 The default broker is long-only. A buy order uses available cash to buy as many whole shares as possible. A sell order liquidates the currently held quantity for the tested symbol. Commissions and slippage are currently ignored.
 
+## Data sources and formats
+
+QuantReplay obtains historical OHLCV candles from one of two sources. Both sources are converted to the same internal `Candle` representation before a backtest starts, so the engine does not depend directly on Yahoo Finance or on a particular CSV file.
+
+### Yahoo Finance
+
+`YFinanceDataSource` downloads daily (`1d`) data through the `yfinance` package. OHLC prices are requested without automatic adjustment (`auto_adjust=False`). The requested start date is inclusive and the end date is exclusive.
+
+Example:
+
+```powershell
+python -m backtester.cli backtest --source yfinance --symbol SPY --start 2024-01-01 --end 2025-01-01
+```
+
+The downloaded column names are normalized and the data then passes through the same validation as CSV input.
+
+### CSV files
+
+Use `--source csv` together with `--csv-path`. The path may identify a single file or a directory. For a directory, QuantReplay looks for `<SYMBOL>.csv`; for example, the symbol `SPY` maps to `SPY.csv`.
+
+A CSV file must contain one timestamp column named `date`, `timestamp`, or `datetime`, plus all five OHLCV columns:
+
+| Column | Required | Meaning |
+| --- | --- | --- |
+| `date`, `timestamp`, or `datetime` | One of these is required | Candle timestamp in a format understood by pandas |
+| `open` | Yes | Opening price |
+| `high` | Yes | Highest price |
+| `low` | Yes | Lowest price |
+| `close` | Yes | Closing price |
+| `volume` | Yes | Traded volume |
+| `symbol` | No | Allows one file to contain multiple symbols; matching rows are selected |
+
+Column names are converted to lowercase and spaces are replaced with underscores. If a `symbol` column is present, matching is case-sensitive.
+
+Example CSV:
+
+```csv
+date,symbol,open,high,low,close,volume
+2024-01-02,SPY,472.16,473.67,470.49,472.65,12345678
+2024-01-03,SPY,470.43,471.19,468.17,468.79,14567890
+```
+
+Example command:
+
+```powershell
+python -m backtester.cli backtest --source csv --csv-path data/SPY.csv --symbol SPY --start 2024-01-01 --end 2025-01-01
+```
+
+### Validation and normalization
+
+Before data reaches the engine, QuantReplay requires:
+
+- timestamps sorted in ascending order with no duplicates;
+- numeric, finite, and non-missing OHLCV values;
+- strictly positive `open`, `high`, `low`, and `close` prices;
+- non-negative volume;
+- `high` greater than or equal to `low`;
+- `open` and `close` between `low` and `high`.
+
+Rows outside the requested date range are removed. QuantReplay does not sort rows, fill missing values, remove duplicate timestamps, resample candles, or otherwise repair invalid market data automatically. Invalid input fails with a clear error so that changes to financial data remain explicit.
+
 ## Installation
 
 Install the dependencies from the repository root:
@@ -214,25 +275,6 @@ Strategy options:
 The `compare` command also accepts:
 
 - `--benchmark`: `buy-and-hold`, `moving-average`, `rsi`, or `mean-reversion`, default `buy-and-hold`
-
-## CSV data
-
-When using CSV data, the file must contain these columns:
-
-- `date`, `timestamp`, or `datetime`
-- `open`
-- `high`
-- `low`
-- `close`
-- `volume`
-
-Example:
-
-```powershell
-python -m backtester.cli backtest --source csv --csv-path data/SPY.csv --symbol SPY --start 2024-01-01 --end 2024-12-31
-```
-
-If `--csv-path` points to a directory, QuantReplay looks for a file named `<SYMBOL>.csv` in that directory. If the CSV contains a `symbol` column, rows are filtered to the requested symbol.
 
 ## Running tests
 
