@@ -49,19 +49,31 @@ The available benchmark strategies are the same four strategies. `BuyAndHoldStra
 
 The CLI registers all metrics currently available through `PerformanceAnalyzer`:
 
-Let $V_t$ be the portfolio value at the close of observation $t$, let $r_t = \frac{V_t}{V_{t-1}} - 1$ be the simple return between consecutive observations, and let $n$ be the number of such returns. The elapsed time in years is $T = \frac{d_n - d_0}{365.25}$, where $d_0$ and $d_n$ are the first and last observation dates. The Sharpe ratio assumes a risk-free return of zero.
+Let $V_t$ be the portfolio value at the close of observation $t$, let $r_t = \frac{V_t}{V_{t-1}} - 1$ be the simple return between consecutive observations, and let $n$ be the number of such returns. The elapsed time in years is $T = \frac{d_n - d_0}{365.25}$, where $d_0$ and $d_n$ are the first and last observation dates. Let $\mathcal{T}$ be the set of executed trades. The Sharpe ratio assumes a risk-free return of zero.
 
-| Metric | Meaning | Formula used in this project | Generally good | Generally bad |
-| --- | --- | --- | --- | --- |
-| Total return | The total portfolio gain or loss over the whole backtest. | $R_{total} = \frac{V_n}{V_0} - 1$ | Higher is better. Positive return means the portfolio ended above its starting value. | Negative return means the portfolio lost money. A return below the benchmark means the strategy did not justify its extra trading. |
-| Annualized return | The total return converted into an approximate yearly growth rate. | $R_{annual} = \left(\frac{V_n}{V_0}\right)^{\frac{1}{T}} - 1$ | Higher is better, especially when it is above the benchmark and above a reasonable passive alternative. | Negative is bad. A high value from a very short test period can be misleading. |
-| Daily average return | The arithmetic average of the period-to-period portfolio returns. | $\bar{r} = \frac{1}{n}\sum_{t=1}^{n} r_t$ | Higher is better, but only when risk is also reasonable. | Negative means the average period lost money. Near zero may still be acceptable if volatility and drawdown are very low. |
-| Daily volatility | How much daily returns fluctuate. It is a risk proxy, not a return metric. | $\sigma_d = \sqrt{\frac{1}{n-1}\sum_{t=1}^{n}\left(r_t-\bar{r}\right)^2}$ | Lower is usually better for the same return. A strategy with high return and controlled volatility is attractive. | High volatility means unstable returns. It is especially bad when return is low or negative. |
-| Annual volatility | Daily volatility scaled to a trading-year estimate. | $\sigma_a = \sigma_d\sqrt{252}$ | Lower is usually better for the same return. Useful for comparing strategies on a yearly risk scale. | High annual volatility means the strategy may be hard to hold through large swings. |
-| Maximum drawdown | The worst peak-to-trough portfolio loss during the test. | $MDD = \min_{0 \le t \le n}\left(\frac{V_t}{\max_{0 \le j \le t}V_j}-1\right)$ | Closer to `0%` is better. For example, `-5%` is much safer than `-40%`. | Large negative values are bad because they show deep losses from a prior high. |
-| Daily Sharpe ratio | Average daily return per unit of daily volatility. | $S_d = \frac{\bar{r}}{\sigma_d}$ | Higher is better. Above `0` means return was positive relative to volatility. | Negative is bad. Near zero means the strategy was not compensated much for risk. |
-| Annual Sharpe ratio | Daily Sharpe ratio converted to an annual scale. | $S_a = S_d\sqrt{252}$ | Higher is better. As a rough guide, above `1.0` is often considered decent, above `2.0` strong, and above `3.0` exceptional. | Below `0` is poor. Between `0` and `1` may be weak unless the strategy has other advantages. |
-| Number of trades | How many executed trades the backtest produced. | $N_{trades} = \#\{\text{executed trades}\}$ | There is no universal best value. Fewer trades can mean lower costs and simpler behavior. More trades can be fine if they improve risk-adjusted return. | Too many trades can be bad because this project currently ignores commissions and slippage, so very active strategies may look better than they would in reality. Zero trades may mean the strategy never found a signal. |
+Formulas used in this project:
+
+- Total return: $R_{total} = \frac{V_n}{V_0} - 1$
+- Annualized return: $R_{annual} = \left(\frac{V_n}{V_0}\right)^{\frac{1}{T}} - 1$
+- Daily average return: $\bar{r} = \frac{1}{n}\sum_{t=1}^{n} r_t$
+- Daily volatility: $\sigma_d = \sqrt{\frac{1}{n-1}\sum_{t=1}^{n}\left(r_t-\bar{r}\right)^2}$
+- Annual volatility: $\sigma_a = \sigma_d\sqrt{252}$
+- Maximum drawdown: $MDD = \min_{0 \le t \le n}\left(\frac{V_t}{\max_{0 \le j \le t}V_j}-1\right)$
+- Daily Sharpe ratio: $S_d = \frac{\bar{r}}{\sigma_d}$
+- Annual Sharpe ratio: $S_a = S_d\sqrt{252}$
+- Number of trades: $N_{trades} = \lvert\mathcal{T}\rvert$
+
+| Metric | Meaning | Generally good | Generally bad |
+| --- | --- | --- | --- |
+| Total return | The total portfolio gain or loss over the whole backtest. | Higher is better. Positive return means the portfolio ended above its starting value. | Negative return means the portfolio lost money. A return below the benchmark means the strategy did not justify its extra trading. |
+| Annualized return | The total return converted into an approximate yearly growth rate. | Higher is better, especially when it is above the benchmark and above a reasonable passive alternative. | Negative is bad. A high value from a very short test period can be misleading. |
+| Daily average return | The arithmetic average of the period-to-period portfolio returns. | Higher is better, but only when risk is also reasonable. | Negative means the average period lost money. Near zero may still be acceptable if volatility and drawdown are very low. |
+| Daily volatility | How much daily returns fluctuate. It is a risk proxy, not a return metric. | Lower is usually better for the same return. A strategy with high return and controlled volatility is attractive. | High volatility means unstable returns. It is especially bad when return is low or negative. |
+| Annual volatility | Daily volatility scaled to a trading-year estimate. | Lower is usually better for the same return. Useful for comparing strategies on a yearly risk scale. | High annual volatility means the strategy may be hard to hold through large swings. |
+| Maximum drawdown | The worst peak-to-trough portfolio loss during the test. | Closer to `0%` is better. For example, `-5%` is much safer than `-40%`. | Large negative values are bad because they show deep losses from a prior high. |
+| Daily Sharpe ratio | Average daily return per unit of daily volatility. | Higher is better. Above `0` means return was positive relative to volatility. | Negative is bad. Near zero means the strategy was not compensated much for risk. |
+| Annual Sharpe ratio | Daily Sharpe ratio converted to an annual scale. | Higher is better. As a rough guide, above `1.0` is often considered decent, above `2.0` strong, and above `3.0` exceptional. | Below `0` is poor. Between `0` and `1` may be weak unless the strategy has other advantages. |
+| Number of trades | How many executed trades the backtest produced. | There is no universal best value. Fewer trades can mean lower costs and simpler behavior. More trades can be fine if they improve risk-adjusted return. | Too many trades can be bad because this project currently ignores commissions and slippage, so very active strategies may look better than they would in reality. Zero trades may mean the strategy never found a signal. |
 
 When there are no period returns, the daily average return is defined as zero. Daily volatility is defined as zero when fewer than two period returns are available, and the Sharpe ratios are reported as unavailable when daily volatility is zero.
 
