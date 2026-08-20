@@ -141,23 +141,26 @@ Rows outside the requested date range are removed. QuantReplay does not sort row
 
 ## Installation
 
-Install the dependencies from the repository root:
+Install QuantReplay from the repository root in editable mode:
 
 ```powershell
-pip install -r requirements.txt
+python -m pip install -e .
 ```
 
-Because the package lives under `src`, run commands with `PYTHONPATH` pointing to `src`:
+This installs the package and its runtime dependencies (`pandas`,
+`typing-extensions`, and `yfinance`). Editable mode means changes made under
+`src` are immediately available without reinstalling the package.
+
+For development, install the optional `dev` dependency group as well:
 
 ```powershell
-$env:PYTHONPATH = "src"
+python -m pip install -e ".[dev]"
 ```
 
-On macOS or Linux:
-
-```bash
-export PYTHONPATH=src
-```
+The `.[dev]` form installs the same package and runtime dependencies, plus
+development tools such as `pytest` and `pytest-cov`. The quotes prevent shells
+from interpreting the square brackets. Because both commands install the
+package itself, you do not need to set `PYTHONPATH` manually.
 
 ## Console interface
 
