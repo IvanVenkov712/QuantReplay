@@ -5,6 +5,8 @@ from backtester.portfolio.trade import Side
 
 @dataclass(frozen=True)
 class SizingContext:
+    """Portfolio snapshot available when a signal is converted into an order."""
+
     cash: float
     current_quantity: int
     portfolio_value: float
@@ -24,6 +26,8 @@ class SizingContext:
             raise ValueError("price must be positive")
 
 class PositionSizer(ABC):
+    """Convert buy and sell signals into whole-share order quantities."""
+
     @abstractmethod
     def calculate_size_buy(self, context: SizingContext) -> int:
         pass
@@ -41,6 +45,8 @@ class PositionSizer(ABC):
             raise ValueError("Unknown side")
 
 class FixedSizer(PositionSizer):
+    """Return configured share quantities for every buy and sell signal."""
+
     def __init__(self, buy_size: int, sell_size: int):
         self._buy_size: int = buy_size
         self._sell_size: int = sell_size
@@ -52,6 +58,8 @@ class FixedSizer(PositionSizer):
         return self._sell_size
 
 class AllInAllOutSizer(PositionSizer):
+    """Buy the affordable whole shares or sell the entire current position."""
+
     def calculate_size_buy(self, context: SizingContext) -> int:
         return int(context.cash // context.price)
 
@@ -59,6 +67,8 @@ class AllInAllOutSizer(PositionSizer):
         return context.current_quantity
 
 class PercentSizer(PositionSizer):
+    """Size buys from available cash and sells from the current position."""
+
     def __init__(self, percent_buy: float, percent_sell: float):
         if not 0 <= percent_buy <= 1:
             raise ValueError("percent_buy must be between 0 and 1")

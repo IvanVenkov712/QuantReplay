@@ -4,6 +4,11 @@ from pathlib import Path
 import pytest
 
 from backtester import cli
+from backtester.portfolio.position_sizing import (
+    AllInAllOutSizer,
+    FixedSizer,
+    PercentSizer,
+)
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -17,6 +22,11 @@ def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
     assert args.years == cli.DEFAULT_YEARS
     assert args.source == "yfinance"
     assert args.initial_capital == cli.DEFAULT_INITIAL_CAPITAL
+    assert args.sizing == cli.DEFAULT_SIZING
+    assert args.buy_size is None
+    assert args.sell_size is None
+    assert args.buy_percent is None
+    assert args.sell_percent is None
     assert args.strategy == "moving-average"
     assert args.short_window == cli.DEFAULT_SHORT_WINDOW
     assert args.long_window == cli.DEFAULT_LONG_WINDOW
@@ -71,6 +81,90 @@ def test_parse_args_accepts_compare_command_and_benchmark() -> None:
     assert args.command == "compare"
     assert args.strategy == "mean-reversion"
     assert args.benchmark == "rsi"
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected_type"),
+    [
+        ([], AllInAllOutSizer),
+        (
+            ["--sizing", "fixed", "--buy-size", "3", "--sell-size", "2"],
+            FixedSizer,
+        ),
+        (
+            [
+                "--sizing",
+                "percent",
+                "--buy-percent",
+                "0.4",
+                "--sell-percent",
+                "0.25",
+            ],
+            PercentSizer,
+        ),
+    ],
+)
+def test_create_sizer_uses_selected_policy(
+    arguments: list[str],
+    expected_type: type,
+) -> None:
+    args = cli._parse_args(arguments)
+
+    assert isinstance(cli._create_sizer(args), expected_type)
+
+
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    [
+        (
+            ["--sizing", "fixed", "--buy-size", "3"],
+            "--buy-size and --sell-size are required when --sizing fixed is used",
+        ),
+        (
+            ["--sizing", "percent", "--buy-percent", "0.5"],
+            "--buy-percent and --sell-percent are required when --sizing percent is used",
+        ),
+        (
+            ["--buy-size", "3"],
+            "--buy-size and --sell-size may only be used with --sizing fixed",
+        ),
+        (
+            ["--buy-percent", "0.5"],
+            "--buy-percent and --sell-percent may only be used with --sizing percent",
+        ),
+    ],
+)
+def test_parse_args_rejects_incomplete_or_irrelevant_sizing_options(
+    arguments: list[str],
+    message: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli._parse_args(arguments)
+
+    assert exc_info.value.code == 2
+    assert message in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("value", ["-0.01", "1.01", "nan", "inf"])
+def test_parse_args_rejects_percentage_outside_zero_to_one(
+    value: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli._parse_args(
+            [
+                "--sizing",
+                "percent",
+                "--buy-percent",
+                value,
+                "--sell-percent",
+                "0.5",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+    assert "value must be between 0 and 1" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("command", ["backtest", "compare"])
@@ -168,8 +262,44 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
     assert "Period: 2024-01-01 to 2024-01-03" in captured.out
     assert f"Data source: CSVDataSource({csv_path})" in captured.out
     assert "Initial capital: 10,000.00" in captured.out
+    assert "Position sizing: AllInAllOutSizer" in captured.out
     assert "Performance metrics" in captured.out
     assert "Total return: 10.00%" in captured.out
+    assert "Number of trades: 1" in captured.out
+
+
+def test_main_runs_backtest_with_fixed_position_sizing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = cli.main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-03",
+            "--strategy",
+            "buy-and-hold",
+            "--sizing",
+            "fixed",
+            "--buy-size",
+            "1",
+            "--sell-size",
+            "1",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert "Position sizing: FixedSizer(buy=1, sell=1)" in captured.out
+    assert "Total return: 0.10%" in captured.out
     assert "Number of trades: 1" in captured.out
 
 

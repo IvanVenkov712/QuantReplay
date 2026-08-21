@@ -31,6 +31,12 @@ from backtester.metrics.metrics import (
     total_return,
 )
 from backtester.portfolio.portfolio import Portfolio
+from backtester.portfolio.position_sizing import (
+    AllInAllOutSizer,
+    FixedSizer,
+    PercentSizer,
+    PositionSizer,
+)
 from backtester.strategies.base import Strategy
 from backtester.strategies.buy_n_hold import BuyAndHoldStrategy
 from backtester.strategies.moving_average import MovingAverageCrossStrategy
@@ -44,6 +50,7 @@ DEFAULT_INITIAL_CAPITAL = 10_000.0
 DEFAULT_SHORT_WINDOW = 20
 DEFAULT_LONG_WINDOW = 50
 DEFAULT_BENCHMARK = "buy-and-hold"
+DEFAULT_SIZING = "all-in-all-out"
 
 PERCENT_METRICS = {
     "total_return",
@@ -80,6 +87,8 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
 
     if args.source == "csv" and args.csv_path is None:
         parser.error("--csv-path is required when --source csv is used.")
+
+    _validate_sizing_args(parser, args)
 
     return args
 
@@ -153,6 +162,32 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         default=DEFAULT_INITIAL_CAPITAL,
         help=f"Initial portfolio cash. Default: {DEFAULT_INITIAL_CAPITAL:.0f}.",
     )
+    parser.add_argument(
+        "--sizing",
+        choices=["all-in-all-out", "fixed", "percent"],
+        default=DEFAULT_SIZING,
+        help=f"Position-sizing policy. Default: {DEFAULT_SIZING}.",
+    )
+    parser.add_argument(
+        "--buy-size",
+        type=_positive_int,
+        help="Whole shares bought per buy signal when --sizing fixed is used.",
+    )
+    parser.add_argument(
+        "--sell-size",
+        type=_positive_int,
+        help="Whole shares sold per sell signal when --sizing fixed is used.",
+    )
+    parser.add_argument(
+        "--buy-percent",
+        type=_percentage,
+        help="Fraction of available cash used per buy signal with --sizing percent.",
+    )
+    parser.add_argument(
+        "--sell-percent",
+        type=_percentage,
+        help="Fraction of owned shares sold per sell signal with --sizing percent.",
+    )
 
 
 def _add_strategy_arguments(parser: argparse.ArgumentParser) -> None:
@@ -223,6 +258,7 @@ def _run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
         years=args.years,
         data_source_name=_describe_data_source(args),
         initial_capital=args.initial_capital,
+        sizing_name=_describe_sizing(args),
     )
     _print_metrics(output, "Performance metrics", metrics)
 
@@ -242,12 +278,14 @@ def _run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         candles=candles,
         symbol=args.symbol,
         initial_capital=args.initial_capital,
+        sizer=_create_sizer(args),
     )
     benchmark_result = _run_backtest_with_candles(
         strategy=_create_strategy(args.benchmark, args),
         candles=candles,
         symbol=args.symbol,
         initial_capital=args.initial_capital,
+        sizer=_create_sizer(args),
     )
 
     analyzer = _create_performance_analyzer()
@@ -266,6 +304,7 @@ def _run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         years=args.years,
         data_source_name=_describe_data_source(args),
         initial_capital=args.initial_capital,
+        sizing_name=_describe_sizing(args),
     )
     _print_metrics(output, "Metric differences", differences)
 
@@ -288,6 +327,7 @@ def _run_backtest(
         candles=candles,
         symbol=args.symbol,
         initial_capital=args.initial_capital,
+        sizer=_create_sizer(args),
     )
 
 
@@ -296,9 +336,16 @@ def _run_backtest_with_candles(
     candles: Sequence,
     symbol: str,
     initial_capital: float,
+    sizer: PositionSizer,
 ) -> BacktestResult:
     broker = Broker(Portfolio(cash=initial_capital))
-    return BacktestEngine(strategy, broker, candles, symbol).run()
+    return BacktestEngine(
+        strategy=strategy,
+        broker=broker,
+        sizer=sizer,
+        data=candles,
+        symbol=symbol,
+    ).run()
 
 
 def _create_performance_analyzer() -> PerformanceAnalyzer:
@@ -330,6 +377,20 @@ def _create_strategy(name: str, args: argparse.Namespace) -> Strategy:
         return MeanReversionStrategy(args.mean_window, args.mean_threshold)
 
     raise ValueError(f"Unknown strategy: {name}.")
+
+
+def _create_sizer(args: argparse.Namespace) -> PositionSizer:
+    if args.sizing == "all-in-all-out":
+        return AllInAllOutSizer()
+    if args.sizing == "fixed":
+        return FixedSizer(buy_size=args.buy_size, sell_size=args.sell_size)
+    if args.sizing == "percent":
+        return PercentSizer(
+            percent_buy=args.buy_percent,
+            percent_sell=args.sell_percent,
+        )
+
+    raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
 
 
 def _create_data_source(args: argparse.Namespace) -> DataSource:
@@ -379,6 +440,7 @@ def _print_parameters(
     years: int,
     data_source_name: str,
     initial_capital: float,
+    sizing_name: str,
 ) -> None:
     print(title, file=output)
     print(f"Strategy: {strategy_name}", file=output)
@@ -389,6 +451,7 @@ def _print_parameters(
     print(f"Years parameter: {years}", file=output)
     print(f"Data source: {data_source_name}", file=output)
     print(f"Initial capital: {_format_money(initial_capital)}", file=output)
+    print(f"Position sizing: {sizing_name}", file=output)
     print(file=output)
 
 
@@ -439,6 +502,47 @@ def _describe_data_source(args: argparse.Namespace) -> str:
     return f"CSVDataSource({args.csv_path})"
 
 
+def _describe_sizing(args: argparse.Namespace) -> str:
+    if args.sizing == "all-in-all-out":
+        return "AllInAllOutSizer"
+    if args.sizing == "fixed":
+        return f"FixedSizer(buy={args.buy_size}, sell={args.sell_size})"
+    if args.sizing == "percent":
+        return (
+            "PercentSizer("
+            f"buy={args.buy_percent:.2%}, sell={args.sell_percent:.2%}"
+            ")"
+        )
+
+    raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
+
+
+def _validate_sizing_args(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+) -> None:
+    fixed_values = (args.buy_size, args.sell_size)
+    percent_values = (args.buy_percent, args.sell_percent)
+
+    if args.sizing == "fixed" and any(value is None for value in fixed_values):
+        parser.error(
+            "--buy-size and --sell-size are required when --sizing fixed is used."
+        )
+    if args.sizing != "fixed" and any(value is not None for value in fixed_values):
+        parser.error("--buy-size and --sell-size may only be used with --sizing fixed.")
+
+    if args.sizing == "percent" and any(value is None for value in percent_values):
+        parser.error(
+            "--buy-percent and --sell-percent are required when --sizing percent is used."
+        )
+    if args.sizing != "percent" and any(
+        value is not None for value in percent_values
+    ):
+        parser.error(
+            "--buy-percent and --sell-percent may only be used with --sizing percent."
+        )
+
+
 def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed <= 0:
@@ -451,6 +555,14 @@ def _positive_float(value: str) -> float:
     parsed = float(value)
     if parsed <= 0:
         raise argparse.ArgumentTypeError("value must be positive")
+
+    return parsed
+
+
+def _percentage(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or not 0 <= parsed <= 1:
+        raise argparse.ArgumentTypeError("value must be between 0 and 1")
 
     return parsed
 

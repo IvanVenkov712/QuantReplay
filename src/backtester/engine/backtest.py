@@ -34,6 +34,8 @@ class BacktestEngine:
                 into a buy, sell, or hold signal.
             broker: Broker responsible for order execution and portfolio
                 accounting.
+            sizer: Position-sizing policy that converts signals into whole-share
+                order quantities using the signal-time portfolio snapshot.
             data: Chronologically ordered candles used by the simulation.
             symbol: Asset symbol traded by this engine.
         """

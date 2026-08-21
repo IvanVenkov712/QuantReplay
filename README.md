@@ -13,6 +13,7 @@ QuantReplay can:
 - convert market data rows into `Candle` objects;
 - run a single-symbol backtest with a strategy, broker, and portfolio;
 - generate buy, sell, or hold signals from strategies;
+- choose all-in/all-out, fixed-share, or percentage-based position sizing;
 - execute generated orders on the next candle's open;
 - track cash, positions, trades, orders, and portfolio value;
 - calculate performance metrics such as total return, annualized return, volatility, Sharpe ratio, maximum drawdown, and number of trades;
@@ -33,6 +34,7 @@ By default:
 
 - `backtest` tests `MovingAverageCrossStrategy(20, 50)`.
 - `compare` tests `MovingAverageCrossStrategy(20, 50)` against `BuyAndHoldStrategy`.
+- Both commands use `AllInAllOutSizer`.
 
 Available strategies:
 
@@ -44,6 +46,20 @@ Available strategies:
 | `mean-reversion` | `MeanReversionStrategy` | A mean-reversion idea: unusually low prices may move back toward their recent average. | Current close is below `average * threshold`. | Current close is at or above the average. |
 
 The available benchmark strategies are the same four strategies. `BuyAndHoldStrategy` is the default benchmark because it answers a simple question: did the active strategy add value compared with just buying the asset and holding it?
+
+### Position sizing
+
+Position sizing converts a buy or sell signal into a whole-share order quantity. The CLI supports three policies:
+
+| CLI name | Class | Buy quantity | Sell quantity |
+| --- | --- | --- | --- |
+| `all-in-all-out` | `AllInAllOutSizer` | Maximum whole shares affordable with the available cash at the signal close. | The entire position. |
+| `fixed` | `FixedSizer` | The `--buy-size` number of shares. | The `--sell-size` number of shares. |
+| `percent` | `PercentSizer` | Whole shares affordable with `--buy-percent` of the available cash. | `--sell-percent` of the current shares, rounded down. |
+
+`all-in-all-out` is the default. Fixed sizing requires both `--buy-size` and `--sell-size`. Percentage sizing requires both `--buy-percent` and `--sell-percent`; each value is a fraction from `0` to `1`, so `0.25` means 25%.
+
+Percentage sizing acts on available cash for buys and currently owned shares for sells. It does not target a percentage of total portfolio value. Because only whole shares are supported, a valid percentage can produce a quantity of zero.
 
 ### Metrics
 
@@ -85,10 +101,11 @@ The engine avoids look-ahead bias by separating signal generation from execution
 
 1. The strategy receives only candles available up to the current candle.
 2. A signal generated from candle `T` is based on information available at candle `T`.
-3. If that signal creates an order, the order is executed at candle `T+1` open.
-4. Portfolio value is recorded at each candle's close.
+3. Position size is calculated using the portfolio state and closing price of candle `T`.
+4. If that size is positive, the fixed-quantity order is executed at candle `T+1` open.
+5. Portfolio value is recorded at each candle's close.
 
-The default broker is long-only. A buy order uses available cash to buy as many whole shares as possible. A sell order liquidates the currently held quantity for the tested symbol. Commissions and slippage are currently ignored.
+The broker is long-only. Because execution uses the next open rather than the signal close, an all-in order can be rejected if the market gaps up and its cost exceeds the available cash. If the market gaps down, the order can leave some cash uninvested. Fixed-size orders can similarly be rejected when there is insufficient cash or an insufficient position. Commissions and slippage are currently ignored.
 
 ## Data sources and formats
 
@@ -196,6 +213,7 @@ Default parameters:
 - end date: today's date
 - data source: `YFinanceDataSource`
 - initial capital: `10000`
+- position sizing: `AllInAllOutSizer`
 
 Example:
 
@@ -206,7 +224,7 @@ python -m backtester.cli backtest
 Example with custom parameters:
 
 ```powershell
-python -m backtester.cli backtest --strategy moving-average --short-window 10 --long-window 40 --symbol AAPL --years 3 --initial-capital 25000
+python -m backtester.cli backtest --strategy moving-average --short-window 10 --long-window 40 --symbol AAPL --years 3 --initial-capital 25000 --sizing percent --buy-percent 0.5 --sell-percent 1
 ```
 
 The output uses the format `label: result`, for example:
@@ -219,6 +237,7 @@ Period: 2021-08-19 to 2026-08-19
 Years parameter: 5
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
+Position sizing: AllInAllOutSizer
 
 Performance metrics
 Total return: 12.34%
@@ -234,7 +253,7 @@ Number of trades: 4
 
 ### Benchmark comparison command
 
-`compare` runs the selected strategy and a benchmark strategy on the same data. The default benchmark is `BuyAndHoldStrategy`.
+`compare` runs the selected strategy and a benchmark strategy on the same data. The default benchmark is `BuyAndHoldStrategy`. Both runs use the selected position-sizing configuration so that their sizing assumptions are consistent.
 
 The command calculates metrics for both backtests and then prints the result of `get_differences(strategy_metrics, benchmark_metrics)`. Each displayed value is:
 
@@ -259,6 +278,7 @@ Period: 2021-08-19 to 2026-08-19
 Years parameter: 5
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
+Position sizing: AllInAllOutSizer
 
 Metric differences
 Total return difference: -3.21%
@@ -283,6 +303,11 @@ Common options:
 - `--source`: `yfinance` or `csv`, default `yfinance`
 - `--csv-path`: CSV file or directory used with `--source csv`
 - `--initial-capital`: starting cash, default `10000`
+- `--sizing`: `all-in-all-out`, `fixed`, or `percent`, default `all-in-all-out`
+- `--buy-size`: positive whole-share buy quantity required with `--sizing fixed`
+- `--sell-size`: positive whole-share sell quantity required with `--sizing fixed`
+- `--buy-percent`: fraction of available cash from `0` to `1`, required with `--sizing percent`
+- `--sell-percent`: fraction of owned shares from `0` to `1`, required with `--sizing percent`
 
 Strategy options:
 
