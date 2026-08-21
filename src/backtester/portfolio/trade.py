@@ -51,13 +51,11 @@ class Order:
 class OrderIntent:
     symbol: str
     side: Side
-    quantity_instruction: float
     timestamp: datetime
 
     def __post_init__(self) -> None:
         _validate_symbol(self.symbol)
         _validate_side(self.side)
-        _validate_quantity_instruction(self.quantity_instruction)
         _validate_timestamp(self.timestamp)
 
 

@@ -187,13 +187,13 @@ def test_buy_signal_is_executed_on_next_candle_open() -> None:
     assert result.trades == broker.trades
 
 
-def test_signal_sizes_order_from_current_portfolio_and_signal_close() -> None:
-    candles = make_candles([(50, 60)])
+def test_pending_intent_sizes_order_from_portfolio_and_next_open() -> None:
+    candles = make_candles([(50, 60), (70, 75)])
     broker = make_broker_mock(
         make_portfolio_mock(cash=1_000, position_quantity=4)
     )
     sizer = make_sizer_mock(3)
-    engine, _, _ = make_engine([Signal.BUY], candles, broker, sizer)
+    engine, _, _ = make_engine([Signal.BUY, Signal.HOLD], candles, broker, sizer)
 
     engine.run()
 
@@ -201,8 +201,8 @@ def test_signal_sizes_order_from_current_portfolio_and_signal_close() -> None:
         SizingContext(
             cash=1_000,
             current_quantity=4,
-            portfolio_value=1_240,
-            price=60,
+            portfolio_value=1_280,
+            price=70,
         ),
         Side.BUY,
     )

@@ -53,13 +53,15 @@ Position sizing converts a buy or sell signal into a whole-share order quantity.
 
 | CLI name | Class | Buy quantity | Sell quantity |
 | --- | --- | --- | --- |
-| `all-in-all-out` | `AllInAllOutSizer` | Maximum whole shares affordable with the available cash at the signal close. | The entire position. |
+| `all-in-all-out` | `AllInAllOutSizer` | Maximum whole shares affordable with the available cash at the execution open. | The entire position immediately before execution. |
 | `fixed` | `FixedSizer` | The `--buy-size` number of shares. | The `--sell-size` number of shares. |
 | `percent` | `PercentSizer` | Whole shares affordable with `--buy-percent` of the available cash. | `--sell-percent` of the current shares, rounded down. |
 
 `all-in-all-out` is the default. Fixed sizing requires both `--buy-size` and `--sell-size`. Percentage sizing requires both `--buy-percent` and `--sell-percent`; each value is a fraction from `0` to `1`, so `0.25` means 25%.
 
 Percentage sizing acts on available cash for buys and currently owned shares for sells. It does not target a percentage of total portfolio value. Because only whole shares are supported, a valid percentage can produce a quantity of zero.
+
+Sizing occurs immediately before execution at the next candle's open. The sizing context therefore uses the portfolio state at that time and the same opening price that the broker uses to fill the order.
 
 ### Metrics
 
@@ -101,11 +103,11 @@ The engine avoids look-ahead bias by separating signal generation from execution
 
 1. The strategy receives only candles available up to the current candle.
 2. A signal generated from candle `T` is based on information available at candle `T`.
-3. Position size is calculated using the portfolio state and closing price of candle `T`.
-4. If that size is positive, the fixed-quantity order is executed at candle `T+1` open.
+3. The signal creates an order intent without choosing a quantity.
+4. At candle `T+1` open, position size is calculated from the current portfolio and opening price. If the size is positive, the order is executed at that same opening price.
 5. Portfolio value is recorded at each candle's close.
 
-The broker is long-only. Because execution uses the next open rather than the signal close, an all-in order can be rejected if the market gaps up and its cost exceeds the available cash. If the market gaps down, the order can leave some cash uninvested. Fixed-size orders can similarly be rejected when there is insufficient cash or an insufficient position. Commissions and slippage are currently ignored.
+The broker is long-only. Because all-in and percentage-based buys are sized from the execution open, overnight price gaps are reflected before their quantities are chosen. Fixed-size orders can still be rejected when there is insufficient cash or an insufficient position. Commissions and slippage are currently ignored.
 
 ## Data sources and formats
 
