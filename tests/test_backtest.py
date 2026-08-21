@@ -5,6 +5,7 @@ from unittest.mock import Mock, call
 from backtester.data.models import Candle
 from backtester.engine.backtest import BacktestEngine
 from backtester.exceptions.trading_errors import InsufficientFundsError
+from backtester.portfolio.position_sizing import PositionSizer, SizingContext
 from backtester.portfolio.trade import Order, Side, Trade
 from backtester.strategies.base import Signal, Strategy
 
@@ -69,6 +70,18 @@ def make_broker_mock(
     return broker
 
 
+def make_sizer_mock(*quantities: int) -> Mock:
+    sizer = Mock(spec=PositionSizer)
+    configured_quantities = quantities or (10,)
+
+    if len(configured_quantities) == 1:
+        sizer.calculate_size.return_value = configured_quantities[0]
+    else:
+        sizer.calculate_size.side_effect = configured_quantities
+
+    return sizer
+
+
 def make_candles(prices: Sequence[tuple[float, float]]) -> list[Candle]:
     start = datetime(2026, 1, 1)
     candles = []
@@ -92,10 +105,18 @@ def make_engine(
     signals: Sequence[Signal],
     candles: Sequence[Candle],
     broker: Mock | None = None,
+    sizer: Mock | None = None,
 ) -> tuple[BacktestEngine, ScriptedStrategy, Mock]:
     strategy = ScriptedStrategy(signals)
     broker = broker or make_broker_mock()
-    engine = BacktestEngine(strategy, broker, candles, symbol="AAPL")
+    sizer = sizer or make_sizer_mock()
+    engine = BacktestEngine(
+        strategy=strategy,
+        broker=broker,
+        sizer=sizer,
+        data=candles,
+        symbol="AAPL",
+    )
 
     return engine, strategy, broker
 
@@ -129,10 +150,13 @@ def test_hold_strategy_creates_records_without_orders_or_trades() -> None:
     broker.execute.assert_not_called()
 
 
-def test_buy_signal_creates_no_order_when_cash_cannot_buy_one_share() -> None:
+def test_buy_signal_creates_no_order_when_sizer_returns_zero() -> None:
     candles = make_candles([(100, 100), (90, 90)])
     broker = make_broker_mock(make_portfolio_mock(cash=99))
-    engine, _, broker = make_engine([Signal.BUY, Signal.HOLD], candles, broker)
+    sizer = make_sizer_mock(0)
+    engine, _, broker = make_engine(
+        [Signal.BUY, Signal.HOLD], candles, broker, sizer
+    )
 
     result = engine.run()
 
@@ -163,6 +187,27 @@ def test_buy_signal_is_executed_on_next_candle_open() -> None:
     assert result.trades == broker.trades
 
 
+def test_signal_sizes_order_from_current_portfolio_and_signal_close() -> None:
+    candles = make_candles([(50, 60)])
+    broker = make_broker_mock(
+        make_portfolio_mock(cash=1_000, position_quantity=4)
+    )
+    sizer = make_sizer_mock(3)
+    engine, _, _ = make_engine([Signal.BUY], candles, broker, sizer)
+
+    engine.run()
+
+    sizer.calculate_size.assert_called_once_with(
+        SizingContext(
+            cash=1_000,
+            current_quantity=4,
+            portfolio_value=1_240,
+            price=60,
+        ),
+        Side.BUY,
+    )
+
+
 def test_buy_signal_on_last_candle_is_not_executed() -> None:
     candles = make_candles([(100, 100)])
     engine, _, broker = make_engine([Signal.BUY], candles)
@@ -174,9 +219,12 @@ def test_buy_signal_on_last_candle_is_not_executed() -> None:
     broker.execute.assert_not_called()
 
 
-def test_sell_signal_creates_no_order_when_no_position_is_owned() -> None:
+def test_sell_signal_creates_no_order_when_sizer_returns_zero() -> None:
     candles = make_candles([(20, 20), (25, 25)])
-    engine, _, broker = make_engine([Signal.SELL, Signal.HOLD], candles)
+    sizer = make_sizer_mock(0)
+    engine, _, broker = make_engine(
+        [Signal.SELL, Signal.HOLD], candles, sizer=sizer
+    )
 
     result = engine.run()
 
@@ -188,7 +236,10 @@ def test_sell_signal_creates_no_order_when_no_position_is_owned() -> None:
 def test_sell_signal_is_executed_on_next_candle_open() -> None:
     candles = make_candles([(20, 20), (25, 30)])
     broker = make_broker_mock(make_portfolio_mock(cash=100, position_quantity=5))
-    engine, _, broker = make_engine([Signal.SELL, Signal.HOLD], candles, broker)
+    sizer = make_sizer_mock(5)
+    engine, _, broker = make_engine(
+        [Signal.SELL, Signal.HOLD], candles, broker, sizer
+    )
 
     result = engine.run()
 
@@ -234,6 +285,7 @@ def test_failed_pending_order_does_not_stop_current_candle_signal() -> None:
         [Signal.BUY, Signal.BUY, Signal.HOLD],
         candles,
         broker,
+        make_sizer_mock(10, 2),
     )
 
     result = engine.run()
