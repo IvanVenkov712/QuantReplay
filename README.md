@@ -80,7 +80,7 @@ the current working directory when that file exists. Settings follow
 `CLI option > TOML option > application default`, so individual file values
 can be overridden for one run. See the
 [`quantreplay.example.toml`](quantreplay.example.toml) file and the
-[TOML configuration reference](docs/cli.md#toml-configuration) for the schema,
+[TOML configuration reference](docs/configuration.md) for the schema,
 validation rules, and path behavior.
 
 See the [CLI reference](docs/cli.md) for all commands, options, and output
@@ -148,6 +148,8 @@ it does not create a trade or change the portfolio.
 
 ## Documentation
 
+- [TOML configuration](docs/configuration.md): precedence, paths, complete file
+  structure, supported keys, and validation
 - [CLI reference](docs/cli.md): commands, parameters, sizing, and execution-cost
   options
 - [Market data](docs/data.md): Yahoo Finance behavior, CSV format, and validation
