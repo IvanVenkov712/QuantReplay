@@ -3,7 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from backtester.engine.broker import Broker
+from backtester.engine.broker import Broker, CommissionModel
+from backtester.engine.execution import ExecutionModel
 from backtester.exceptions.trading_errors import (
     PriceNotFoundError,
     InsufficientFundsError,
@@ -32,68 +33,119 @@ def make_portfolio_mock(cash: float = 1_000, owned_quantity: int = 0) -> Mock:
     return portfolio
 
 
+def make_broker(
+    portfolio: Mock,
+    fill_price: float = 20.0,
+    commission: float = 2.0,
+) -> tuple[Broker, Mock, Mock]:
+    execution_model = Mock(spec=ExecutionModel)
+    execution_model.calculate_fill_price.return_value = fill_price
+
+    commission_model = Mock(spec=CommissionModel)
+    commission_model.calculate.return_value = commission
+
+    broker = Broker(portfolio, execution_model, commission_model)
+    return broker, execution_model, commission_model
+
+
 def execute_order(
     broker: Broker,
     order: Order,
     price: float,
     timestamp: datetime = EXECUTION_TIMESTAMP,
-) -> None:
-    broker.execute(order, prices={order.symbol: price}, timestamp=timestamp)
+) -> Trade:
+    return broker.execute(order, prices={order.symbol: price}, timestamp=timestamp)
 
 
-def test_buy_order_uses_market_price_updates_portfolio_and_records_trade() -> None:
+def test_buy_order_uses_models_updates_portfolio_and_records_trade() -> None:
     portfolio = make_portfolio_mock(cash=1_000)
-    broker = Broker(portfolio)
+    broker, execution_model, commission_model = make_broker(
+        portfolio,
+        fill_price=20.0,
+        commission=2.0,
+    )
     order = make_order("AAPL", Side.BUY, quantity=10)
 
-    execute_order(broker, order, price=20)
+    trade = execute_order(broker, order, price=19.0)
 
-    assert portfolio.cash == 800
+    execution_model.calculate_fill_price.assert_called_once_with(19.0, Side.BUY)
+    commission_model.calculate.assert_called_once_with(10, 20.0)
+    assert portfolio.cash == 798.0
     portfolio.add_position.assert_called_once_with("AAPL", 10)
     portfolio.remove_position.assert_not_called()
-    assert broker.trades == [
-        Trade("AAPL", Side.BUY, quantity=10, fill_price=20, timestamp=EXECUTION_TIMESTAMP)
-    ]
+    assert trade == Trade(
+        "AAPL",
+        Side.BUY,
+        quantity=10,
+        fill_price=20.0,
+        commission=2.0,
+        timestamp=EXECUTION_TIMESTAMP,
+    )
+    assert broker.trades == [trade]
 
 
 def test_buy_without_enough_cash_raises_without_updating_portfolio() -> None:
     portfolio = make_portfolio_mock(cash=100)
-    broker = Broker(portfolio)
+    broker, execution_model, commission_model = make_broker(
+        portfolio,
+        fill_price=20.0,
+        commission=2.0,
+    )
     order = make_order("AAPL", Side.BUY, quantity=6)
 
     with pytest.raises(InsufficientFundsError):
-        execute_order(broker, order, price=20)
+        execute_order(broker, order, price=19.0)
 
+    execution_model.calculate_fill_price.assert_called_once_with(19.0, Side.BUY)
+    commission_model.calculate.assert_called_once_with(6, 20.0)
     assert portfolio.cash == 100
     portfolio.add_position.assert_not_called()
     portfolio.remove_position.assert_not_called()
     assert broker.trades == []
 
 
-def test_sell_order_uses_market_price_updates_portfolio_and_records_trade() -> None:
+def test_sell_order_uses_models_updates_portfolio_and_records_trade() -> None:
     portfolio = make_portfolio_mock(cash=1_000, owned_quantity=10)
-    broker = Broker(portfolio)
+    broker, execution_model, commission_model = make_broker(
+        portfolio,
+        fill_price=25.0,
+        commission=2.0,
+    )
     order = make_order("AAPL", Side.SELL, quantity=4)
 
-    execute_order(broker, order, price=25)
+    trade = execute_order(broker, order, price=26.0)
 
+    execution_model.calculate_fill_price.assert_called_once_with(26.0, Side.SELL)
+    commission_model.calculate.assert_called_once_with(4, 25.0)
     portfolio.position_quantity.assert_called_once_with("AAPL")
-    assert portfolio.cash == 1_100
+    assert portfolio.cash == 1_098.0
     portfolio.remove_position.assert_called_once_with("AAPL", 4)
     portfolio.add_position.assert_not_called()
-    assert broker.trades == [
-        Trade("AAPL", Side.SELL, quantity=4, fill_price=25, timestamp=EXECUTION_TIMESTAMP)
-    ]
+    assert trade == Trade(
+        "AAPL",
+        Side.SELL,
+        quantity=4,
+        fill_price=25.0,
+        commission=2.0,
+        timestamp=EXECUTION_TIMESTAMP,
+    )
+    assert broker.trades == [trade]
 
 
 def test_sell_more_shares_than_owned_raises_without_updating_portfolio() -> None:
     portfolio = make_portfolio_mock(cash=1_000, owned_quantity=5)
-    broker = Broker(portfolio)
+    broker, execution_model, commission_model = make_broker(
+        portfolio,
+        fill_price=25.0,
+        commission=2.0,
+    )
     order = make_order("AAPL", Side.SELL, quantity=6)
 
     with pytest.raises(InsufficientPositionError):
-        execute_order(broker, order, price=25)
+        execute_order(broker, order, price=26.0)
 
+    execution_model.calculate_fill_price.assert_called_once_with(26.0, Side.SELL)
+    commission_model.calculate.assert_called_once_with(6, 25.0)
     portfolio.position_quantity.assert_called_once_with("AAPL")
     assert portfolio.cash == 1_000
     portfolio.remove_position.assert_not_called()
@@ -103,17 +155,17 @@ def test_sell_more_shares_than_owned_raises_without_updating_portfolio() -> None
 
 def test_sell_full_position_requests_position_removal() -> None:
     portfolio = make_portfolio_mock(cash=1_000, owned_quantity=5)
-    broker = Broker(portfolio)
+    broker, _, _ = make_broker(portfolio, fill_price=30.0, commission=2.0)
 
-    execute_order(broker, make_order("AAPL", Side.SELL, quantity=5), price=30)
+    execute_order(broker, make_order("AAPL", Side.SELL, quantity=5), price=31.0)
 
-    assert portfolio.cash == 1_150
+    assert portfolio.cash == 1_148.0
     portfolio.remove_position.assert_called_once_with("AAPL", 5)
 
 
 def test_execute_rejects_missing_market_price_without_updating_portfolio() -> None:
     portfolio = make_portfolio_mock(cash=1_000)
-    broker = Broker(portfolio)
+    broker, execution_model, commission_model = make_broker(portfolio)
     order = make_order("AAPL", Side.BUY, quantity=1)
 
     with pytest.raises(PriceNotFoundError):
@@ -123,6 +175,8 @@ def test_execute_rejects_missing_market_price_without_updating_portfolio() -> No
             timestamp=EXECUTION_TIMESTAMP,
         )
 
+    execution_model.calculate_fill_price.assert_not_called()
+    commission_model.calculate.assert_not_called()
     assert portfolio.cash == 1_000
     portfolio.add_position.assert_not_called()
     portfolio.remove_position.assert_not_called()
@@ -143,12 +197,17 @@ def test_order_rejects_non_positive_quantity(side: Side, quantity: int) -> None:
 
 def test_execute_rejects_non_positive_market_price_without_trade() -> None:
     portfolio = make_portfolio_mock(cash=1_000)
-    broker = Broker(portfolio)
+    broker, execution_model, commission_model = make_broker(portfolio)
+    execution_model.calculate_fill_price.side_effect = ValueError(
+        "reference_price must be positive"
+    )
     order = make_order("AAPL", Side.BUY, quantity=1)
 
-    with pytest.raises(ValueError, match="Price must be positive"):
+    with pytest.raises(ValueError, match="reference_price must be positive"):
         execute_order(broker, order, price=0)
 
+    execution_model.calculate_fill_price.assert_called_once_with(0, Side.BUY)
+    commission_model.calculate.assert_not_called()
     assert portfolio.cash == 1_000
     portfolio.add_position.assert_not_called()
     portfolio.remove_position.assert_not_called()
@@ -156,15 +215,21 @@ def test_execute_rejects_non_positive_market_price_without_trade() -> None:
 
 
 def test_trades_returns_copy() -> None:
-    broker = Broker(make_portfolio_mock(cash=1_000))
-    execute_order(broker, make_order("AAPL", Side.BUY, quantity=1), price=20)
+    broker, _, _ = make_broker(
+        make_portfolio_mock(cash=1_000),
+        fill_price=20.0,
+        commission=2.0,
+    )
+    executed_trade = execute_order(
+        broker,
+        make_order("AAPL", Side.BUY, quantity=1),
+        price=19.0,
+    )
 
     trades = broker.trades
     trades.clear()
 
-    assert broker.trades == [
-        Trade("AAPL", Side.BUY, quantity=1, fill_price=20, timestamp=EXECUTION_TIMESTAMP)
-    ]
+    assert broker.trades == [executed_trade]
 
 
 def test_order_rejects_empty_symbol() -> None:
@@ -174,4 +239,11 @@ def test_order_rejects_empty_symbol() -> None:
 
 def test_trade_rejects_non_positive_price() -> None:
     with pytest.raises(ValueError, match="Price must be positive"):
-        Trade("AAPL", Side.BUY, quantity=1, fill_price=0, timestamp=EXECUTION_TIMESTAMP)
+        Trade(
+            "AAPL",
+            Side.BUY,
+            quantity=1,
+            fill_price=0,
+            commission=2.0,
+            timestamp=EXECUTION_TIMESTAMP,
+        )

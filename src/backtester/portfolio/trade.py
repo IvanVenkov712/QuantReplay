@@ -33,7 +33,7 @@ class Trade:
         _validate_side(self.side)
         _validate_quantity(self.quantity)
         _validate_price(self.fill_price)
-        _validate_price(self.commission)
+        _validate_commission(self.commission)
         _validate_timestamp(self.timestamp)
 
 @dataclass(frozen=True)
@@ -92,6 +92,13 @@ def _validate_price(price: float) -> None:
 
     if price <= 0:
         raise ValueError("Price must be positive.")
+
+def _validate_commission(commission: float) -> None:
+    if not isinstance(commission, Real) or not isfinite(commission):
+        raise ValueError("Price must be a finite number.")
+
+    if commission < 0:
+        raise ValueError("Commission must be non-negative.")
 
 
 def _validate_timestamp(timestamp: datetime) -> None:
