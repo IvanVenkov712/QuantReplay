@@ -25,6 +25,7 @@ def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
     args = cli._parse_args([])
 
     assert args.command == "backtest"
+    assert args.config == cli.DEFAULT_CONFIG_PATH
     assert args.symbol == cli.DEFAULT_SYMBOL
     assert args.years == cli.DEFAULT_YEARS
     assert args.source == "yfinance"
@@ -41,6 +42,189 @@ def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
     assert args.strategy == "moving-average"
     assert args.short_window == cli.DEFAULT_SHORT_WINDOW
     assert args.long_window == cli.DEFAULT_LONG_WINDOW
+
+
+def test_parse_args_loads_explicit_toml_configuration(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+[backtest]
+symbol = "AAPL"
+years = 3
+initial_capital = 25000.0
+sizing = "fixed"
+buy_size = 4
+sell_size = 2
+commission_model = "fixed"
+fixed_commission = 1.5
+strategy = "rsi"
+rsi_period = 10
+rsi_min = 25.0
+rsi_max = 75.0
+""",
+    )
+
+    args = cli._parse_args(["--config", str(config_path)])
+
+    assert args.config == config_path
+    assert args.symbol == "AAPL"
+    assert args.years == 3
+    assert args.initial_capital == 25_000
+    assert args.sizing == "fixed"
+    assert args.buy_size == 4
+    assert args.sell_size == 2
+    assert args.commission_model == "fixed"
+    assert args.fixed_commission == 1.5
+    assert args.strategy == "rsi"
+    assert args.rsi_period == 10
+    assert args.rsi_min == 25
+    assert args.rsi_max == 75
+    assert args.short_window == cli.DEFAULT_SHORT_WINDOW
+
+
+def test_cli_options_override_toml_and_toml_overrides_defaults(
+    tmp_path: Path,
+) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+[backtest]
+symbol = "AAPL"
+years = 3
+initial_capital = 25000.0
+""",
+    )
+
+    args = cli._parse_args(
+        [
+            "--config",
+            str(config_path),
+            "--symbol",
+            "MSFT",
+            "--years",
+            "2",
+        ]
+    )
+
+    assert args.symbol == "MSFT"  # CLI beats TOML.
+    assert args.years == 2  # CLI beats TOML.
+    assert args.initial_capital == 25_000  # TOML beats the code default.
+    assert args.strategy == "moving-average"  # No CLI/TOML value: code default.
+
+
+def test_cli_selector_override_discards_dependent_values_for_old_toml_choice(
+    tmp_path: Path,
+) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+[backtest]
+sizing = "percent"
+buy_percent = 0.5
+sell_percent = 1.0
+commission_model = "proportional"
+commission_rate = 0.001
+""",
+    )
+
+    args = cli._parse_args(
+        [
+            "--config",
+            str(config_path),
+            "--sizing",
+            "fixed",
+            "--buy-size",
+            "4",
+            "--sell-size",
+            "2",
+            "--commission-model",
+            "fixed",
+            "--fixed-commission",
+            "1.5",
+        ]
+    )
+
+    assert args.sizing == "fixed"
+    assert args.buy_size == 4
+    assert args.sell_size == 2
+    assert args.buy_percent is None
+    assert args.sell_percent is None
+    assert args.commission_model == "fixed"
+    assert args.fixed_commission == 1.5
+    assert args.commission_rate is None
+
+
+def test_parse_args_loads_default_config_from_current_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_config(tmp_path, "[backtest]\nsymbol = 'AAPL'\n", "quantreplay.toml")
+    monkeypatch.chdir(tmp_path)
+
+    args = cli._parse_args([])
+
+    assert args.config == cli.DEFAULT_CONFIG_PATH
+    assert args.symbol == "AAPL"
+
+
+def test_compare_uses_backtest_and_compare_config_sections(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+[backtest]
+symbol = "MSFT"
+strategy = "mean-reversion"
+
+[compare]
+benchmark = "rsi"
+""",
+    )
+
+    args = cli._parse_args(["compare", "--config", str(config_path)])
+
+    assert args.command == "compare"
+    assert args.symbol == "MSFT"
+    assert args.strategy == "mean-reversion"
+    assert args.benchmark == "rsi"
+
+
+def test_config_option_may_precede_explicit_compare_command(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        "[backtest]\nsymbol = 'MSFT'\n[compare]\nbenchmark = 'rsi'\n",
+    )
+
+    args = cli._parse_args(["--config", str(config_path), "compare"])
+
+    assert args.command == "compare"
+    assert args.symbol == "MSFT"
+    assert args.benchmark == "rsi"
+
+
+def test_parse_args_rejects_missing_explicit_config_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    missing_path = tmp_path / "missing.toml"
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli._parse_args(["--config", str(missing_path)])
+
+    assert exc_info.value.code == 2
+    assert "Configuration file does not exist" in capsys.readouterr().err
+
+
+def test_toml_values_use_the_same_argparse_validation(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = _write_config(tmp_path, "[backtest]\nyears = 0\n")
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli._parse_args(["--config", str(config_path)])
+
+    assert exc_info.value.code == 2
+    assert "value must be a positive integer" in capsys.readouterr().err
 
 
 def test_parse_args_accepts_backtest_options_without_explicit_command() -> None:
@@ -379,6 +563,35 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
     assert "Number of trades: 1" in captured.out
 
 
+def test_main_runs_backtest_using_toml_configuration(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = (FIXTURES_DIR / "cli_two_candles.csv").as_posix()
+    config_path = _write_config(
+        tmp_path,
+        f"""
+[backtest]
+source = "csv"
+csv_path = "{csv_path}"
+symbol = "AAPL"
+start = "2024-01-01"
+end = "2024-01-03"
+strategy = "buy-and-hold"
+initial_capital = 10000.0
+""",
+    )
+
+    exit_code = cli.main(["--config", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert "Strategy: BuyAndHoldStrategy" in captured.out
+    assert "Asset: AAPL" in captured.out
+    assert "Total return: 10.00%" in captured.out
+
+
 def test_main_runs_backtest_with_fixed_position_sizing(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -535,3 +748,13 @@ def test_format_metric_value_uses_metric_specific_formatting(
     expected: str,
 ) -> None:
     assert cli._format_metric_value(name, value) == expected
+
+
+def _write_config(
+    tmp_path: Path,
+    contents: str,
+    filename: str = "settings.toml",
+) -> Path:
+    path = tmp_path / filename
+    path.write_text(contents.strip() + "\n", encoding="utf-8")
+    return path

@@ -7,6 +7,12 @@ from datetime import date
 from pathlib import Path
 from typing import Sequence, TextIO
 
+from backtester.config import (
+    DEFAULT_CONFIG_PATH,
+    ConfigError,
+    config_to_cli_arguments,
+    load_config,
+)
 from backtester.data.loader import (
     CSVDataSource,
     DataSource,
@@ -87,12 +93,22 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
-    raw_args = list(sys.argv[1:] if argv is None else argv)
-    if not raw_args or raw_args[0].startswith("-"):
-        raw_args.insert(0, "backtest")
+    raw_args = _normalize_command_args(list(sys.argv[1:] if argv is None else argv))
 
     parser = _build_parser()
-    args = parser.parse_args(raw_args)
+    try:
+        config_path, is_explicit = _find_config_path(raw_args)
+        config = load_config(config_path, required=is_explicit)
+    except ConfigError as exc:
+        parser.error(str(exc))
+
+    command = raw_args[0]
+    config_args = config_to_cli_arguments(
+        config,
+        command,
+        cli_overrides=_find_cli_selector_overrides(raw_args[1:]),
+    )
+    args = parser.parse_args([command, *config_args, *raw_args[1:]])
 
     if args.source == "csv" and args.csv_path is None:
         parser.error("--csv-path is required when --source csv is used.")
@@ -136,6 +152,15 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG_PATH,
+        help=(
+            "TOML configuration path. If omitted, quantreplay.toml in the "
+            "current working directory is used when present."
+        ),
+    )
     parser.add_argument(
         "--symbol",
         default=DEFAULT_SYMBOL,
@@ -660,6 +685,84 @@ def _validate_commission_args(
         parser.error(
             "--commission-rate may only be used with --commission-model proportional."
         )
+
+
+def _find_config_path(arguments: Sequence[str]) -> tuple[Path, bool]:
+    """Return the final explicit --config value or the optional default path."""
+
+    config_path: Path | None = None
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument == "--config":
+            if index + 1 >= len(arguments) or arguments[index + 1].startswith("-"):
+                raise ConfigError("--config requires a file path.")
+            config_path = Path(arguments[index + 1])
+            index += 2
+            continue
+        if argument.startswith("--config="):
+            value = argument.partition("=")[2]
+            if not value:
+                raise ConfigError("--config requires a file path.")
+            config_path = Path(value)
+
+        index += 1
+
+    if config_path is None:
+        return DEFAULT_CONFIG_PATH, False
+
+    return config_path, True
+
+
+def _normalize_command_args(arguments: list[str]) -> list[str]:
+    """Insert the default command and allow --config before an explicit command."""
+
+    if not arguments:
+        return ["backtest"]
+    if arguments[0] in {"backtest", "compare"}:
+        return arguments
+
+    prefix_end = 0
+    while prefix_end < len(arguments):
+        argument = arguments[prefix_end]
+        if argument == "--config" and prefix_end + 1 < len(arguments):
+            prefix_end += 2
+            continue
+        if argument.startswith("--config="):
+            prefix_end += 1
+            continue
+        break
+
+    if prefix_end < len(arguments) and arguments[prefix_end] in {
+        "backtest",
+        "compare",
+    }:
+        command = arguments[prefix_end]
+        return [command, *arguments[:prefix_end], *arguments[prefix_end + 1 :]]
+
+    return ["backtest", *arguments]
+
+
+def _find_cli_selector_overrides(arguments: Sequence[str]) -> dict[str, str]:
+    """Find explicit CLI values that select models with dependent settings."""
+
+    overrides: dict[str, str] = {}
+    selectors = {"sizing", "commission_model"}
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument.startswith("--"):
+            option, separator, inline_value = argument[2:].partition("=")
+            name = option.replace("-", "_")
+            if name in selectors:
+                if separator:
+                    overrides[name] = inline_value
+                elif index + 1 < len(arguments):
+                    overrides[name] = arguments[index + 1]
+                    index += 1
+        index += 1
+
+    return overrides
 
 
 def _positive_int(value: str) -> int:

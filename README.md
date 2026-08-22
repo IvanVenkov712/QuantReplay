@@ -20,7 +20,8 @@ QuantReplay can:
 - use all-in/all-out, fixed-share, or percentage-based position sizing;
 - track cash, positions, trades, orders, and portfolio value;
 - calculate return, volatility, Sharpe ratio, drawdown, and trade metrics;
-- compare a strategy against a benchmark on the same market data.
+- compare a strategy against a benchmark on the same market data;
+- configure CLI runs from TOML with explicit CLI-over-file precedence.
 
 ## Installation
 
@@ -67,6 +68,20 @@ Include a 0.1% proportional commission and 0.05% slippage:
 ```powershell
 python -m backtester.cli backtest --commission-model proportional --commission-rate 0.001 --slippage-rate 0.0005
 ```
+
+Use a TOML configuration file:
+
+```powershell
+python -m backtester.cli backtest --config quantreplay.example.toml
+```
+
+If `--config` is omitted, the CLI automatically uses `quantreplay.toml` from
+the current working directory when that file exists. Settings follow
+`CLI option > TOML option > application default`, so individual file values
+can be overridden for one run. See the
+[`quantreplay.example.toml`](quantreplay.example.toml) file and the
+[TOML configuration reference](docs/cli.md#toml-configuration) for the schema,
+validation rules, and path behavior.
 
 See the [CLI reference](docs/cli.md) for all commands, options, and output
 examples.

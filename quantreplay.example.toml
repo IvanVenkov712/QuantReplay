@@ -1,0 +1,40 @@
+# Copy this file to quantreplay.toml to make it the default configuration,
+# or pass it explicitly with: quantreplay backtest --config path/to/file.toml
+
+[backtest]
+symbol = "SPY"
+years = 5
+# Dates must be quoted because the CLI expects the YYYY-MM-DD string format.
+# start = "2021-01-01"
+# end = "2026-01-01"
+
+source = "csv"
+csv_path = "data/SPY.csv"
+initial_capital = 10000.0
+
+sizing = "percent"
+buy_percent = 0.5
+sell_percent = 1.0
+# For fixed sizing, replace the three settings above with:
+# sizing = "fixed"
+# buy_size = 10
+# sell_size = 10
+
+commission_model = "proportional"
+commission_rate = 0.001
+# For a fixed commission, replace the two settings above with:
+# commission_model = "fixed"
+# fixed_commission = 2.50
+slippage_rate = 0.0005
+
+strategy = "moving-average"
+short_window = 20
+long_window = 50
+rsi_period = 14
+rsi_min = 30.0
+rsi_max = 70.0
+mean_window = 20
+mean_threshold = 0.95
+
+[compare]
+benchmark = "buy-and-hold"
