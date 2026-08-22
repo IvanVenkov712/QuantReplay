@@ -52,7 +52,7 @@ def test_buy_order_uses_market_price_updates_portfolio_and_records_trade() -> No
     portfolio.add_position.assert_called_once_with("AAPL", 10)
     portfolio.remove_position.assert_not_called()
     assert broker.trades == [
-        Trade("AAPL", Side.BUY, quantity=10, price=20, timestamp=EXECUTION_TIMESTAMP)
+        Trade("AAPL", Side.BUY, quantity=10, fill_price=20, timestamp=EXECUTION_TIMESTAMP)
     ]
 
 
@@ -82,7 +82,7 @@ def test_sell_order_uses_market_price_updates_portfolio_and_records_trade() -> N
     portfolio.remove_position.assert_called_once_with("AAPL", 4)
     portfolio.add_position.assert_not_called()
     assert broker.trades == [
-        Trade("AAPL", Side.SELL, quantity=4, price=25, timestamp=EXECUTION_TIMESTAMP)
+        Trade("AAPL", Side.SELL, quantity=4, fill_price=25, timestamp=EXECUTION_TIMESTAMP)
     ]
 
 
@@ -163,7 +163,7 @@ def test_trades_returns_copy() -> None:
     trades.clear()
 
     assert broker.trades == [
-        Trade("AAPL", Side.BUY, quantity=1, price=20, timestamp=EXECUTION_TIMESTAMP)
+        Trade("AAPL", Side.BUY, quantity=1, fill_price=20, timestamp=EXECUTION_TIMESTAMP)
     ]
 
 
@@ -174,4 +174,4 @@ def test_order_rejects_empty_symbol() -> None:
 
 def test_trade_rejects_non_positive_price() -> None:
     with pytest.raises(ValueError, match="Price must be positive"):
-        Trade("AAPL", Side.BUY, quantity=1, price=0, timestamp=EXECUTION_TIMESTAMP)
+        Trade("AAPL", Side.BUY, quantity=1, fill_price=0, timestamp=EXECUTION_TIMESTAMP)

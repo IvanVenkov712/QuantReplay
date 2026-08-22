@@ -131,8 +131,8 @@ def test_sharpe_ratios_use_average_return_divided_by_volatility() -> None:
 
 def test_number_of_trades_counts_recorded_trades() -> None:
     trades = [
-        Trade("AAPL", Side.BUY, quantity=10, price=20, timestamp=datetime(2026, 1, 2)),
-        Trade("AAPL", Side.SELL, quantity=4, price=25, timestamp=datetime(2026, 1, 3)),
+        Trade("AAPL", Side.BUY, quantity=10, fill_price=20, timestamp=datetime(2026, 1, 2)),
+        Trade("AAPL", Side.SELL, quantity=4, fill_price=25, timestamp=datetime(2026, 1, 3)),
     ]
     result = make_result([1_000], trades=trades)
 

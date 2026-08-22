@@ -61,7 +61,7 @@ def make_broker_mock(
                 symbol=order.symbol,
                 side=order.side,
                 quantity=order.quantity,
-                price=prices[order.symbol],
+                fill_price=prices[order.symbol],
                 timestamp=timestamp,
             )
         )
@@ -297,7 +297,7 @@ def test_failed_pending_order_does_not_stop_current_candle_signal() -> None:
         Order("AAPL", Side.BUY, quantity=2, timestamp=candles[1].timestamp),
     ]
     assert result.trades == [
-        Trade("AAPL", Side.BUY, quantity=2, price=10, timestamp=candles[2].timestamp)
+        Trade("AAPL", Side.BUY, quantity=2, fill_price=10, timestamp=candles[2].timestamp)
     ]
 
 

@@ -24,14 +24,16 @@ class Trade:
     symbol: str
     side: Side
     quantity: int
-    price: float
+    fill_price: float
+    commission: float
     timestamp: datetime
 
     def __post_init__(self) -> None:
         _validate_symbol(self.symbol)
         _validate_side(self.side)
         _validate_quantity(self.quantity)
-        _validate_price(self.price)
+        _validate_price(self.fill_price)
+        _validate_price(self.commission)
         _validate_timestamp(self.timestamp)
 
 @dataclass(frozen=True)

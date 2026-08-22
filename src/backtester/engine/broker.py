@@ -1,6 +1,8 @@
+from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List
 
+from backtester.engine.execution import ExecutionModel
 from backtester.exceptions.trading_errors import (
     PriceNotFoundError,
     InsufficientFundsError,
@@ -10,13 +12,62 @@ from backtester.portfolio.portfolio import Portfolio
 from backtester.portfolio.trade import Side, Trade, Order
 
 
+class CommissionModel(ABC):
+    @abstractmethod
+    def calculate(self, quantity: int, fill_price: float) -> float:
+        pass
+
+class NoCommissionModel(CommissionModel):
+    def calculate(self, quantity: int, fill_price: float) -> float:
+        if quantity <= 0:
+            raise ValueError("quantity must be positive")
+        if fill_price <= 0:
+            raise ValueError("fill_price must be positive")
+        return 0.0
+
+class FixedCommissionModel(CommissionModel):
+    _commission: float
+
+    def __init__(self, commission: float):
+        if commission < 0:
+            raise ValueError("Non-negative commission is required")
+        self._commission = commission
+
+    def calculate(self, quantity: int, fill_price: float) -> float:
+        if quantity <= 0:
+            raise ValueError("quantity must be positive")
+        if fill_price <= 0:
+            raise ValueError("fill_price must be positive")
+        return self._commission
+
+class ProportionalCommissionModel(CommissionModel):
+    _percent: float
+    def __init__(self, percent: float):
+        if not 0 <= percent <= 1:
+            raise ValueError("percent must be between 0 and 1")
+        self._percent = percent
+
+    def calculate(self, quantity: int, fill_price: float) -> float:
+        if quantity <= 0:
+            raise ValueError("quantity must be positive")
+        if fill_price <= 0:
+            raise ValueError("fill_price must be positive")
+        return quantity * fill_price * self._percent
+
 class Broker:
     __trades: List[Trade]
     __portfolio: Portfolio
+    __execution_model: ExecutionModel
+    __commission_model: CommissionModel
 
-    def __init__(self, portfolio: Portfolio):
+    def __init__(self, portfolio: Portfolio,
+                 execution_model: ExecutionModel,
+                 commission_model: CommissionModel
+        ):
         self.__portfolio = portfolio
         self.__trades = []
+        self.__execution_model = execution_model
+        self.__commission_model = commission_model
 
     @property
     def portfolio(self) -> Portfolio:
@@ -26,19 +77,19 @@ class Broker:
     def trades(self) -> List[Trade]:
         return self.__trades.copy()
 
-    def _buy(self, order: Order, price: float) -> None:
-        if price <= 0:
+    def _buy(self, order: Order, fill_price: float, commission: float) -> None:
+        if fill_price <= 0:
             raise ValueError("Price must be positive.")
 
-        cost = price * order.quantity
+        cost = fill_price * order.quantity + commission
         if cost > self.__portfolio.cash:
             raise InsufficientFundsError
 
         self.__portfolio.cash -= cost
         self.__portfolio.add_position(order.symbol, order.quantity)
 
-    def _sell(self, order: Order, price: float):
-        if price <= 0:
+    def _sell(self, order: Order, fill_price: float, commission: float):
+        if fill_price <= 0:
             raise ValueError("Price must be positive.")
 
         owned = self.__portfolio.position_quantity(order.symbol)
@@ -46,27 +97,34 @@ class Broker:
         if order.quantity > owned:
             raise InsufficientPositionError
 
-        self.__portfolio.cash += order.quantity * price
+        new_cash = self.__portfolio.cash + order.quantity * fill_price - commission
+        if new_cash < 0:
+            raise InsufficientFundsError("Not enough cash for the commission")
+
+        self.__portfolio.cash = new_cash
         self.__portfolio.remove_position(order.symbol, order.quantity)
 
-    def execute(self, order: Order, prices: dict[str, float], timestamp: datetime):
+    def execute(self, order: Order, prices: dict[str, float], timestamp: datetime) -> Trade:
         if not order.symbol in prices:
             raise PriceNotFoundError
-        price = prices[order.symbol]
-        if order.side == Side.BUY:
-            self._buy(order, price)
-        elif order.side == Side.SELL:
-            self._sell(order, price)
 
-        self.__trades.append(Trade(
+        fill_price = self.__execution_model.calculate_fill_price(prices[order.symbol], order.side)
+        commission = self.__commission_model.calculate(order.quantity, fill_price)
+
+        if order.side == Side.BUY:
+            self._buy(order, fill_price, commission)
+        elif order.side == Side.SELL:
+            self._sell(order, fill_price, commission)
+        else:
+            raise ValueError("Invalid order side")
+
+        trade = Trade(
             symbol=order.symbol,
             side=order.side,
             quantity=order.quantity,
-            price=price,
+            fill_price=fill_price,
+            commission=commission,
             timestamp=timestamp
-        ))
-
-
-
-
-
+        )
+        self.__trades.append(trade)
+        return trade
