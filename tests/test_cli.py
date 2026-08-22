@@ -4,11 +4,18 @@ from pathlib import Path
 import pytest
 
 from backtester import cli
+from backtester.engine.broker import (
+    FixedCommissionModel,
+    NoCommissionModel,
+    ProportionalCommissionModel,
+)
+from backtester.engine.execution import ExecutionModel
 from backtester.portfolio.position_sizing import (
     AllInAllOutSizer,
     FixedSizer,
     PercentSizer,
 )
+from backtester.portfolio.trade import Side
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -27,6 +34,10 @@ def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
     assert args.sell_size is None
     assert args.buy_percent is None
     assert args.sell_percent is None
+    assert args.commission_model == cli.DEFAULT_COMMISSION_MODEL
+    assert args.fixed_commission is None
+    assert args.commission_rate is None
+    assert args.slippage_rate == cli.DEFAULT_SLIPPAGE_RATE
     assert args.strategy == "moving-average"
     assert args.short_window == cli.DEFAULT_SHORT_WINDOW
     assert args.long_window == cli.DEFAULT_LONG_WINDOW
@@ -114,6 +125,43 @@ def test_create_sizer_uses_selected_policy(
 
 
 @pytest.mark.parametrize(
+    ("arguments", "expected_type"),
+    [
+        ([], NoCommissionModel),
+        (
+            ["--commission-model", "fixed", "--fixed-commission", "2.50"],
+            FixedCommissionModel,
+        ),
+        (
+            [
+                "--commission-model",
+                "proportional",
+                "--commission-rate",
+                "0.001",
+            ],
+            ProportionalCommissionModel,
+        ),
+    ],
+)
+def test_create_commission_model_uses_selected_policy(
+    arguments: list[str],
+    expected_type: type,
+) -> None:
+    args = cli._parse_args(arguments)
+
+    assert isinstance(cli._create_commission_model(args), expected_type)
+
+
+def test_create_execution_model_uses_selected_slippage_rate() -> None:
+    args = cli._parse_args(["--slippage-rate", "0.01"])
+
+    model = cli._create_execution_model(args)
+
+    assert isinstance(model, ExecutionModel)
+    assert model.calculate_fill_price(100, Side.BUY) == pytest.approx(101)
+
+
+@pytest.mark.parametrize(
     ("arguments", "message"),
     [
         (
@@ -146,6 +194,39 @@ def test_parse_args_rejects_incomplete_or_irrelevant_sizing_options(
     assert message in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    [
+        (
+            ["--commission-model", "fixed"],
+            "--fixed-commission is required when --commission-model fixed is used",
+        ),
+        (
+            ["--fixed-commission", "2.50"],
+            "--fixed-commission may only be used with --commission-model fixed",
+        ),
+        (
+            ["--commission-model", "proportional"],
+            "--commission-rate is required when --commission-model proportional is used",
+        ),
+        (
+            ["--commission-rate", "0.001"],
+            "--commission-rate may only be used with --commission-model proportional",
+        ),
+    ],
+)
+def test_parse_args_rejects_incomplete_or_irrelevant_commission_options(
+    arguments: list[str],
+    message: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli._parse_args(arguments)
+
+    assert exc_info.value.code == 2
+    assert message in capsys.readouterr().err
+
+
 @pytest.mark.parametrize("value", ["-0.01", "1.01", "nan", "inf"])
 def test_parse_args_rejects_percentage_outside_zero_to_one(
     value: str,
@@ -165,6 +246,34 @@ def test_parse_args_rejects_percentage_outside_zero_to_one(
 
     assert exc_info.value.code == 2
     assert "value must be between 0 and 1" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("value", ["-0.01", "1", "nan", "inf"])
+def test_parse_args_rejects_invalid_slippage_rate(
+    value: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli._parse_args(["--slippage-rate", value])
+
+    assert exc_info.value.code == 2
+    assert "value must be between 0 (inclusive) and 1 (exclusive)" in (
+        capsys.readouterr().err
+    )
+
+
+@pytest.mark.parametrize("value", ["-0.01", "nan", "inf"])
+def test_parse_args_rejects_invalid_fixed_commission(
+    value: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli._parse_args(
+            ["--commission-model", "fixed", "--fixed-commission", value]
+        )
+
+    assert exc_info.value.code == 2
+    assert "value must be a non-negative finite number" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("command", ["backtest", "compare"])
@@ -263,6 +372,8 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
     assert f"Data source: CSVDataSource({csv_path})" in captured.out
     assert "Initial capital: 10,000.00" in captured.out
     assert "Position sizing: AllInAllOutSizer" in captured.out
+    assert "Commission: NoCommissionModel" in captured.out
+    assert "Slippage: ExecutionModel(rate=0.00%)" in captured.out
     assert "Performance metrics" in captured.out
     assert "Total return: 10.00%" in captured.out
     assert "Number of trades: 1" in captured.out
@@ -300,6 +411,48 @@ def test_main_runs_backtest_with_fixed_position_sizing(
     assert captured.err == ""
     assert "Position sizing: FixedSizer(buy=1, sell=1)" in captured.out
     assert "Total return: 0.10%" in captured.out
+    assert "Number of trades: 1" in captured.out
+
+
+def test_main_applies_and_prints_fixed_commission_and_slippage(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = cli.main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-03",
+            "--strategy",
+            "buy-and-hold",
+            "--sizing",
+            "fixed",
+            "--buy-size",
+            "1",
+            "--sell-size",
+            "1",
+            "--commission-model",
+            "fixed",
+            "--fixed-commission",
+            "5",
+            "--slippage-rate",
+            "0.1",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert "Commission: FixedCommissionModel(per_trade=5.00)" in captured.out
+    assert "Slippage: ExecutionModel(rate=10.00%)" in captured.out
+    assert "Total return: -0.05%" in captured.out
     assert "Number of trades: 1" in captured.out
 
 

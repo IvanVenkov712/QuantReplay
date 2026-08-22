@@ -16,6 +16,7 @@ QuantReplay can:
 - validate and normalize OHLCV data before running a backtest;
 - generate buy, sell, or hold signals from several strategies;
 - execute generated orders on the next candle's open;
+- model adverse slippage and zero, fixed, or proportional commissions;
 - use all-in/all-out, fixed-share, or percentage-based position sizing;
 - track cash, positions, trades, orders, and portfolio value;
 - calculate return, volatility, Sharpe ratio, drawdown, and trade metrics;
@@ -61,6 +62,12 @@ Use a local CSV file instead of Yahoo Finance:
 python -m backtester.cli backtest --source csv --csv-path data/SPY.csv --symbol SPY --start 2024-01-01 --end 2025-01-01
 ```
 
+Include a 0.1% proportional commission and 0.05% slippage:
+
+```powershell
+python -m backtester.cli backtest --commission-model proportional --commission-rate 0.001 --slippage-rate 0.0005
+```
+
 See the [CLI reference](docs/cli.md) for all commands, options, and output
 examples.
 
@@ -68,7 +75,7 @@ examples.
 
 The CLI runs one selected strategy at a time. The `compare` command evaluates
 that strategy and a benchmark using the same symbol, date range, data source,
-initial capital, and position-sizing policy.
+initial capital, position-sizing policy, commission model, and slippage rate.
 
 | CLI name | Class | Buy signal | Sell signal |
 | --- | --- | --- | --- |
@@ -104,20 +111,30 @@ bias:
 2. A signal generated from candle `T` creates an order intent without a
    quantity.
 3. At candle `T+1` open, the position size is calculated using the current
-   portfolio and that opening price.
-4. A positive-sized order is executed at the same `T+1` opening price.
-5. Portfolio value is recorded at each candle's close.
+   portfolio and the unadjusted opening price.
+4. Slippage adjusts the fill price against the trader: BUY fills move up and
+   SELL fills move down.
+5. Commission is calculated from the resulting fill and deducted from cash.
+6. Portfolio value is recorded at each candle's close.
 
 The broker is long-only. Overnight price gaps affect all-in and percentage
 order quantities because sizing happens at the execution open. Fixed-size
 orders can be rejected when cash or shares are insufficient.
 
-**Commissions and slippage are currently ignored.** This can make active
-strategies appear better than they would after real trading costs.
+The default is zero slippage with no commission. A fixed commission is charged
+once per executed trade. A proportional commission is a fraction of trade
+notional (`quantity * fill price`). Rates use decimal fractions, so `0.001`
+means `0.1%`.
+
+Position sizing does not reserve cash for commission or adverse slippage. In
+particular, an `all-in-all-out` BUY can be rejected as unaffordable when either
+cost is non-zero. The failed order remains visible in the backtest result, but
+it does not create a trade or change the portfolio.
 
 ## Documentation
 
-- [CLI reference](docs/cli.md): commands, parameters, sizing options, and output
+- [CLI reference](docs/cli.md): commands, parameters, sizing, and execution-cost
+  options
 - [Market data](docs/data.md): Yahoo Finance behavior, CSV format, and validation
 - [Performance metrics](docs/metrics.md): formulas, interpretations, and edge cases
 

@@ -34,7 +34,7 @@ The Sharpe ratio assumes a risk-free return of zero.
 | Maximum drawdown | Worst peak-to-trough portfolio loss. | Closer to `0%`; for example, `-5%` is better than `-40%`. | A large negative value. |
 | Daily Sharpe ratio | Average daily return per unit of daily volatility. | Higher; above zero indicates positive return relative to volatility. | Negative or near zero. |
 | Annual Sharpe ratio | Daily Sharpe ratio scaled to a 252-trading-day year. | Higher; rough conventions often call above `1.0` decent and above `2.0` strong. | Below zero is poor; between zero and one may be weak. |
-| Number of trades | Count of executed trades. | No universally best value. | Excessive trading is especially suspect while costs are ignored; zero may indicate no signals. |
+| Number of trades | Count of executed trades. | No universally best value. | Excessive trading increases the effect of configured costs; zero may indicate no signals or only rejected/zero-sized orders. |
 
 These labels are only rough guidelines. Metrics should be interpreted together.
 High total return is less impressive when maximum drawdown is very large, and
@@ -54,8 +54,11 @@ smaller losses.
 - Sharpe ratios are unavailable when daily volatility is zero.
 - Annual volatility and Sharpe ratio use 252 trading periods per year.
 - The Sharpe ratio uses a risk-free return of zero.
-- Commissions and slippage are currently ignored, so frequently trading
-  strategies may appear unrealistically favorable.
+- Configured commissions reduce cash at execution. Slippage changes fill
+  prices, and both therefore flow through the portfolio values used by return,
+  volatility, Sharpe ratio, and drawdown calculations.
+- The trade-count metric counts successful executions only. Rejected and
+  zero-sized orders are not trades.
 
 Return to the [project README](../README.md) or see the
 [CLI reference](cli.md).

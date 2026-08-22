@@ -15,7 +15,14 @@ from backtester.data.loader import (
 )
 from backtester.engine.backtest import BacktestEngine
 from backtester.engine.backtest_result import BacktestResult
-from backtester.engine.broker import Broker
+from backtester.engine.broker import (
+    Broker,
+    CommissionModel,
+    FixedCommissionModel,
+    NoCommissionModel,
+    ProportionalCommissionModel,
+)
+from backtester.engine.execution import ExecutionModel
 from backtester.metrics.benchmark_comparison import get_differences
 from backtester.metrics.metrics import (
     MetricData,
@@ -51,6 +58,8 @@ DEFAULT_SHORT_WINDOW = 20
 DEFAULT_LONG_WINDOW = 50
 DEFAULT_BENCHMARK = "buy-and-hold"
 DEFAULT_SIZING = "all-in-all-out"
+DEFAULT_COMMISSION_MODEL = "none"
+DEFAULT_SLIPPAGE_RATE = 0.0
 
 PERCENT_METRICS = {
     "total_return",
@@ -89,6 +98,7 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         parser.error("--csv-path is required when --source csv is used.")
 
     _validate_sizing_args(parser, args)
+    _validate_commission_args(parser, args)
 
     return args
 
@@ -188,6 +198,37 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         type=_percentage,
         help="Fraction of owned shares sold per sell signal with --sizing percent.",
     )
+    parser.add_argument(
+        "--commission-model",
+        choices=["none", "fixed", "proportional"],
+        default=DEFAULT_COMMISSION_MODEL,
+        help=(
+            "Commission model applied to each trade. "
+            f"Default: {DEFAULT_COMMISSION_MODEL}."
+        ),
+    )
+    parser.add_argument(
+        "--fixed-commission",
+        type=_non_negative_float,
+        help="Cash commission per trade required with --commission-model fixed.",
+    )
+    parser.add_argument(
+        "--commission-rate",
+        type=_percentage,
+        help=(
+            "Fraction of trade notional charged as commission with "
+            "--commission-model proportional."
+        ),
+    )
+    parser.add_argument(
+        "--slippage-rate",
+        type=_slippage_rate,
+        default=DEFAULT_SLIPPAGE_RATE,
+        help=(
+            "Adverse fill-price adjustment as a fraction in [0, 1). "
+            f"Default: {DEFAULT_SLIPPAGE_RATE:.0f}."
+        ),
+    )
 
 
 def _add_strategy_arguments(parser: argparse.ArgumentParser) -> None:
@@ -259,6 +300,8 @@ def _run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
         data_source_name=_describe_data_source(args),
         initial_capital=args.initial_capital,
         sizing_name=_describe_sizing(args),
+        commission_name=_describe_commission(args),
+        slippage_name=_describe_slippage(args),
     )
     _print_metrics(output, "Performance metrics", metrics)
 
@@ -279,6 +322,8 @@ def _run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         symbol=args.symbol,
         initial_capital=args.initial_capital,
         sizer=_create_sizer(args),
+        execution_model=_create_execution_model(args),
+        commission_model=_create_commission_model(args),
     )
     benchmark_result = _run_backtest_with_candles(
         strategy=_create_strategy(args.benchmark, args),
@@ -286,6 +331,8 @@ def _run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         symbol=args.symbol,
         initial_capital=args.initial_capital,
         sizer=_create_sizer(args),
+        execution_model=_create_execution_model(args),
+        commission_model=_create_commission_model(args),
     )
 
     analyzer = _create_performance_analyzer()
@@ -305,6 +352,8 @@ def _run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         data_source_name=_describe_data_source(args),
         initial_capital=args.initial_capital,
         sizing_name=_describe_sizing(args),
+        commission_name=_describe_commission(args),
+        slippage_name=_describe_slippage(args),
     )
     _print_metrics(output, "Metric differences", differences)
 
@@ -328,6 +377,8 @@ def _run_backtest(
         symbol=args.symbol,
         initial_capital=args.initial_capital,
         sizer=_create_sizer(args),
+        execution_model=_create_execution_model(args),
+        commission_model=_create_commission_model(args),
     )
 
 
@@ -337,8 +388,14 @@ def _run_backtest_with_candles(
     symbol: str,
     initial_capital: float,
     sizer: PositionSizer,
+    execution_model: ExecutionModel,
+    commission_model: CommissionModel,
 ) -> BacktestResult:
-    broker = Broker(Portfolio(cash=initial_capital))
+    broker = Broker(
+        Portfolio(cash=initial_capital),
+        execution_model=execution_model,
+        commission_model=commission_model,
+    )
     return BacktestEngine(
         strategy=strategy,
         broker=broker,
@@ -393,6 +450,21 @@ def _create_sizer(args: argparse.Namespace) -> PositionSizer:
     raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
 
 
+def _create_execution_model(args: argparse.Namespace) -> ExecutionModel:
+    return ExecutionModel(slippage_rate=args.slippage_rate)
+
+
+def _create_commission_model(args: argparse.Namespace) -> CommissionModel:
+    if args.commission_model == "none":
+        return NoCommissionModel()
+    if args.commission_model == "fixed":
+        return FixedCommissionModel(commission=args.fixed_commission)
+    if args.commission_model == "proportional":
+        return ProportionalCommissionModel(percent=args.commission_rate)
+
+    raise ValueError(f"Unknown commission model: {args.commission_model}.")
+
+
 def _create_data_source(args: argparse.Namespace) -> DataSource:
     if args.source == "yfinance":
         return YFinanceDataSource()
@@ -441,6 +513,8 @@ def _print_parameters(
     data_source_name: str,
     initial_capital: float,
     sizing_name: str,
+    commission_name: str,
+    slippage_name: str,
 ) -> None:
     print(title, file=output)
     print(f"Strategy: {strategy_name}", file=output)
@@ -452,6 +526,8 @@ def _print_parameters(
     print(f"Data source: {data_source_name}", file=output)
     print(f"Initial capital: {_format_money(initial_capital)}", file=output)
     print(f"Position sizing: {sizing_name}", file=output)
+    print(f"Commission: {commission_name}", file=output)
+    print(f"Slippage: {slippage_name}", file=output)
     print(file=output)
 
 
@@ -517,6 +593,25 @@ def _describe_sizing(args: argparse.Namespace) -> str:
     raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
 
 
+def _describe_commission(args: argparse.Namespace) -> str:
+    if args.commission_model == "none":
+        return "NoCommissionModel"
+    if args.commission_model == "fixed":
+        return (
+            "FixedCommissionModel("
+            f"per_trade={_format_money(args.fixed_commission)}"
+            ")"
+        )
+    if args.commission_model == "proportional":
+        return f"ProportionalCommissionModel(rate={args.commission_rate:.2%})"
+
+    raise ValueError(f"Unknown commission model: {args.commission_model}.")
+
+
+def _describe_slippage(args: argparse.Namespace) -> str:
+    return f"ExecutionModel(rate={args.slippage_rate:.2%})"
+
+
 def _validate_sizing_args(
     parser: argparse.ArgumentParser,
     args: argparse.Namespace,
@@ -543,6 +638,30 @@ def _validate_sizing_args(
         )
 
 
+def _validate_commission_args(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+) -> None:
+    if args.commission_model == "fixed" and args.fixed_commission is None:
+        parser.error(
+            "--fixed-commission is required when --commission-model fixed is used."
+        )
+    if args.commission_model != "fixed" and args.fixed_commission is not None:
+        parser.error(
+            "--fixed-commission may only be used with --commission-model fixed."
+        )
+
+    if args.commission_model == "proportional" and args.commission_rate is None:
+        parser.error(
+            "--commission-rate is required when "
+            "--commission-model proportional is used."
+        )
+    if args.commission_model != "proportional" and args.commission_rate is not None:
+        parser.error(
+            "--commission-rate may only be used with --commission-model proportional."
+        )
+
+
 def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed <= 0:
@@ -559,10 +678,28 @@ def _positive_float(value: str) -> float:
     return parsed
 
 
+def _non_negative_float(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed < 0:
+        raise argparse.ArgumentTypeError("value must be a non-negative finite number")
+
+    return parsed
+
+
 def _percentage(value: str) -> float:
     parsed = float(value)
     if not math.isfinite(parsed) or not 0 <= parsed <= 1:
         raise argparse.ArgumentTypeError("value must be between 0 and 1")
+
+    return parsed
+
+
+def _slippage_rate(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or not 0 <= parsed < 1:
+        raise argparse.ArgumentTypeError(
+            "value must be between 0 (inclusive) and 1 (exclusive)"
+        )
 
     return parsed
 

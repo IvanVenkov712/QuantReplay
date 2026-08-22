@@ -22,7 +22,9 @@ Default parameters:
 - end date: today's date;
 - data source: `YFinanceDataSource`;
 - initial capital: `10000`;
-- position sizing: `AllInAllOutSizer`.
+- position sizing: `AllInAllOutSizer`;
+- commission: `NoCommissionModel`;
+- slippage: `ExecutionModel(rate=0.00%)`.
 
 Run with defaults:
 
@@ -33,7 +35,7 @@ python -m backtester.cli backtest
 Run with custom parameters:
 
 ```powershell
-python -m backtester.cli backtest --strategy moving-average --short-window 10 --long-window 40 --symbol AAPL --years 3 --initial-capital 25000 --sizing percent --buy-percent 0.5 --sell-percent 1
+python -m backtester.cli backtest --strategy moving-average --short-window 10 --long-window 40 --symbol AAPL --years 3 --initial-capital 25000 --sizing percent --buy-percent 0.5 --sell-percent 1 --commission-model proportional --commission-rate 0.001 --slippage-rate 0.0005
 ```
 
 Output uses the format `label: result`:
@@ -47,6 +49,8 @@ Years parameter: 5
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
 Position sizing: AllInAllOutSizer
+Commission: NoCommissionModel
+Slippage: ExecutionModel(rate=0.00%)
 
 Performance metrics
 Total return: 12.34%
@@ -66,7 +70,8 @@ See [Performance metrics](metrics.md) for the formulas and interpretation.
 
 `compare` runs the selected strategy and a benchmark on the same data. The
 default benchmark is `BuyAndHoldStrategy`. Both runs use the selected
-position-sizing configuration so that their sizing assumptions are consistent.
+position-sizing, commission, and slippage configuration so that their execution
+assumptions are consistent.
 
 The command calculates metrics for both backtests and passes them to
 `get_differences(strategy_metrics, benchmark_metrics)`. Each displayed value is:
@@ -93,6 +98,8 @@ Years parameter: 5
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
 Position sizing: AllInAllOutSizer
+Commission: NoCommissionModel
+Slippage: ExecutionModel(rate=0.00%)
 
 Metric differences
 Total return difference: -3.21%
@@ -120,6 +127,54 @@ Number of trades difference: 3
 - `--sell-size`: positive whole-share quantity required with `--sizing fixed`
 - `--buy-percent`: fraction of available cash from `0` to `1`, required with `--sizing percent`
 - `--sell-percent`: fraction of owned shares from `0` to `1`, required with `--sizing percent`
+- `--commission-model`: `none`, `fixed`, or `proportional`, default `none`
+- `--fixed-commission`: non-negative cash amount per executed trade, required with `--commission-model fixed`
+- `--commission-rate`: fraction of trade notional from `0` to `1`, required with `--commission-model proportional`
+- `--slippage-rate`: adverse fill-price fraction from `0` inclusive to `1` exclusive, default `0`
+
+## Commission and slippage
+
+The CLI maps the commission choices to these broker models:
+
+| CLI value | Class | Calculation |
+| --- | --- | --- |
+| `none` | `NoCommissionModel` | `0` |
+| `fixed` | `FixedCommissionModel` | `fixed_commission` once per executed trade |
+| `proportional` | `ProportionalCommissionModel` | `quantity * fill_price * commission_rate` |
+
+Rates are decimal fractions. For example, `0.001` means `0.1%`, not `0.001%`.
+The proportional rate accepts the inclusive range `[0, 1]`; the slippage rate
+accepts `[0, 1)`.
+
+Slippage always moves the fill against the trader:
+
+```text
+BUY fill  = next_open * (1 + slippage_rate)
+SELL fill = next_open * (1 - slippage_rate)
+```
+
+Examples:
+
+```powershell
+# No commission and no slippage (the defaults)
+python -m backtester.cli backtest
+
+# 2.50 cash units per executed trade and 0.05% slippage
+python -m backtester.cli backtest --commission-model fixed --fixed-commission 2.50 --slippage-rate 0.0005
+
+# 0.1% of each trade's notional
+python -m backtester.cli backtest --commission-model proportional --commission-rate 0.001
+```
+
+Commission-specific values are deliberately rejected with unrelated models.
+For example, `--fixed-commission` may only be supplied with
+`--commission-model fixed`.
+
+Position sizing uses the unadjusted next-candle open and does not reserve cash
+for commission or slippage. Consequently, an order—especially an
+`all-in-all-out` BUY—can be rejected when its final cost exceeds available
+cash. A rejected order is recorded as unsuccessful, but no trade is created and
+no commission is charged.
 
 ## Strategy options
 
