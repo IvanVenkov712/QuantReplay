@@ -2,6 +2,7 @@ import pytest
 
 from backtester.portfolio.position_sizing import (
     AllInAllOutSizer,
+    BufferedSizer,
     FixedSizer,
     PercentSizer,
     SizingContext,
@@ -160,6 +161,70 @@ def test_percent_sizer_accepts_inclusive_percentage_boundaries(
 
     assert sizer.calculate_size(context, Side.BUY) == expected_buy
     assert sizer.calculate_size(context, Side.SELL) == expected_sell
+
+
+@pytest.mark.parametrize("buffer_rate", [-0.01, 1.0, 1.01])
+def test_buffered_sizer_rejects_buffer_rate_outside_zero_to_one(
+    buffer_rate: float,
+) -> None:
+    with pytest.raises(ValueError, match=r"buffer_rate must be in \[0, 1\)"):
+        BufferedSizer(
+            sizer=FixedSizer(buy_size=10, sell_size=10),
+            buffer_rate=buffer_rate,
+        )
+
+
+def test_buffered_sizer_buy_caps_quantity_to_preserve_cash_buffer() -> None:
+    sizer = BufferedSizer(
+        sizer=FixedSizer(buy_size=20, sell_size=5),
+        buffer_rate=0.25,
+    )
+
+    quantity = sizer.calculate_size(
+        make_context(cash=1_000, price=60),
+        Side.BUY,
+    )
+
+    assert quantity == 12
+
+
+def test_buffered_sizer_buy_keeps_smaller_wrapped_sizer_quantity() -> None:
+    sizer = BufferedSizer(
+        sizer=FixedSizer(buy_size=7, sell_size=5),
+        buffer_rate=0.25,
+    )
+
+    quantity = sizer.calculate_size(
+        make_context(cash=1_000, price=60),
+        Side.BUY,
+    )
+
+    assert quantity == 7
+
+
+def test_buffered_sizer_accepts_zero_buffer() -> None:
+    sizer = BufferedSizer(
+        sizer=AllInAllOutSizer(),
+        buffer_rate=0,
+    )
+
+    quantity = sizer.calculate_size(
+        make_context(cash=1_000, price=60),
+        Side.BUY,
+    )
+
+    assert quantity == 16
+
+
+def test_buffered_sizer_sell_uses_wrapped_sizer_quantity_without_buffering() -> None:
+    sizer = BufferedSizer(
+        sizer=FixedSizer(buy_size=20, sell_size=7),
+        buffer_rate=0.99,
+    )
+
+    quantity = sizer.calculate_size(make_context(), Side.SELL)
+
+    assert quantity == 7
 
 
 def test_position_sizer_rejects_unknown_side() -> None:
