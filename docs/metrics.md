@@ -40,12 +40,26 @@ These labels are only rough guidelines. Metrics should be interpreted together.
 High total return is less impressive when maximum drawdown is very large, and
 low volatility is not useful if a strategy earns no meaningful return.
 
-In benchmark comparison mode, each difference is calculated as the strategy
-metric minus the benchmark metric. A positive difference is normally good for
-returns and Sharpe ratios. A negative volatility difference means the strategy
-fluctuated less. A positive maximum drawdown difference is normally good
-because drawdown values are negative and values closer to zero represent
-smaller losses.
+In benchmark comparison mode, the CLI presents three value columns for every
+metric shared by both runs:
+
+| Strategy | Benchmark | Difference |
+| ---: | ---: | ---: |
+| Metric value from the strategy run | Metric value from the benchmark run | Strategy value minus benchmark value |
+
+The strategy and benchmark use the same data and execution assumptions. Each
+difference is calculated as:
+
+```text
+strategy metric - benchmark metric
+```
+
+A positive difference is normally good for returns and Sharpe ratios. A
+negative volatility difference means the strategy fluctuated less. A positive
+maximum drawdown difference is normally good because drawdown values are
+negative and values closer to zero represent smaller losses. Trade-count
+differences indicate only how many more or fewer successful executions the
+strategy made; positive is not inherently better.
 
 ## Edge cases and limitations
 

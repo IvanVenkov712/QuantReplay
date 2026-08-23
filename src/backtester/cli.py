@@ -391,7 +391,12 @@ def _run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         commission_name=_describe_commission(args),
         slippage_name=_describe_slippage(args),
     )
-    _print_metrics(output, "Metric differences", differences)
+    _print_metric_comparison(
+        output,
+        strategy_metrics,
+        benchmark_metrics,
+        differences,
+    )
     _print_rejected_orders(
         output,
         "Strategy rejected orders",
@@ -590,6 +595,53 @@ def _print_metrics(
     print(title, file=output)
     for name, data in metrics.items():
         print(f"{data.label}: {_format_metric_value(name, data.result)}", file=output)
+
+
+def _print_metric_comparison(
+    output: TextIO,
+    strategy_metrics: dict[str, MetricData],
+    benchmark_metrics: dict[str, MetricData],
+    differences: dict[str, MetricData],
+) -> None:
+    """Print common metrics and their strategy-minus-benchmark differences."""
+    rows: list[tuple[str, str, str, str]] = []
+    for name, difference_data in differences.items():
+        strategy_data = strategy_metrics.get(name)
+        benchmark_data = benchmark_metrics.get(name)
+        if strategy_data is None or benchmark_data is None:
+            continue
+
+        rows.append(
+            (
+                strategy_data.label,
+                _format_metric_value(name, strategy_data.result),
+                _format_metric_value(name, benchmark_data.result),
+                _format_metric_value(name, difference_data.result),
+            )
+        )
+
+    headers = ("Metric", "Strategy", "Benchmark", "Difference")
+    widths = [
+        max(len(header), *(len(row[index]) for row in rows))
+        for index, header in enumerate(headers)
+    ]
+
+    print("Metric comparison", file=output)
+    print(
+        f"{headers[0]:<{widths[0]}}  "
+        f"{headers[1]:>{widths[1]}}  "
+        f"{headers[2]:>{widths[2]}}  "
+        f"{headers[3]:>{widths[3]}}",
+        file=output,
+    )
+    for label, strategy_value, benchmark_value, difference_value in rows:
+        print(
+            f"{label:<{widths[0]}}  "
+            f"{strategy_value:>{widths[1]}}  "
+            f"{benchmark_value:>{widths[2]}}  "
+            f"{difference_value:>{widths[3]}}",
+            file=output,
+        )
 
 
 def _print_rejected_orders(

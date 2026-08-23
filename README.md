@@ -57,6 +57,10 @@ Compare a strategy with buy and hold:
 python -m backtester.cli compare --strategy moving-average --benchmark buy-and-hold --symbol SPY
 ```
 
+Comparison output shows every common metric in three value columns: the
+strategy result, the benchmark result, and the difference calculated as
+`strategy - benchmark`.
+
 Use a local CSV file instead of Yahoo Finance:
 
 ```powershell
@@ -101,7 +105,9 @@ initial capital, position-sizing policy, commission model, and slippage rate.
 
 The default strategy is `MovingAverageCrossStrategy(20, 50)`. The default
 benchmark is `BuyAndHoldStrategy`, which shows whether an active strategy added
-value compared with buying the asset once and holding it.
+value compared with buying the asset once and holding it. The comparison table
+keeps the two underlying metric values visible alongside their difference, so
+the size and direction of that difference can be interpreted in context.
 
 ## Position sizing
 

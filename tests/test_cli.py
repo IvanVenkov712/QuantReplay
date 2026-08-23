@@ -877,9 +877,40 @@ def test_main_compares_strategy_with_benchmark_using_same_csv_data(
     assert "Benchmark comparison parameters" in captured.out
     assert "Strategy: BuyAndHoldStrategy" in captured.out
     assert "Benchmark: MovingAverageCrossStrategy(20, 50)" in captured.out
-    assert "Metric differences" in captured.out
-    assert "Total return difference: 10.00%" in captured.out
-    assert "Number of trades difference: 1" in captured.out
+    assert "Metric comparison" in captured.out
+    assert "Metric" in captured.out
+    assert "Strategy" in captured.out
+    assert "Benchmark" in captured.out
+    assert "Difference" in captured.out
+    assert "Total return" in captured.out
+    assert "10.00%" in captured.out
+    assert "Number of trades" in captured.out
+
+
+def test_print_metric_comparison_shows_strategy_benchmark_and_difference() -> None:
+    output = StringIO()
+    strategy_metrics = {
+        "total_return": cli.MetricData("Total return", 0.25),
+        "number_of_trades": cli.MetricData("Number of trades", 3),
+    }
+    benchmark_metrics = {
+        "total_return": cli.MetricData("Total return", 0.20),
+        "number_of_trades": cli.MetricData("Number of trades", 1),
+    }
+    differences = cli.get_differences(strategy_metrics, benchmark_metrics)
+
+    cli._print_metric_comparison(
+        output,
+        strategy_metrics,
+        benchmark_metrics,
+        differences,
+    )
+
+    lines = output.getvalue().splitlines()
+    assert lines[0] == "Metric comparison"
+    assert lines[1].split() == ["Metric", "Strategy", "Benchmark", "Difference"]
+    assert lines[2].split() == ["Total", "return", "25.00%", "20.00%", "5.00%"]
+    assert lines[3].split() == ["Number", "of", "trades", "3", "1", "2"]
 
 
 def test_main_reports_runtime_errors_and_returns_nonzero_exit_code(

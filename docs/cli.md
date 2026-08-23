@@ -90,8 +90,9 @@ default benchmark is `BuyAndHoldStrategy`. Both runs use the selected
 position-sizing, commission, and slippage configuration so that their execution
 assumptions are consistent.
 
-The command calculates metrics for both backtests and passes them to
-`get_differences(strategy_metrics, benchmark_metrics)`. Each displayed value is:
+The command calculates metrics for both backtests and displays three value
+columns: the strategy result, the benchmark result, and their difference. Each
+difference is:
 
 ```text
 strategy metric - benchmark metric
@@ -118,16 +119,17 @@ Position sizing: AllInAllOutSizer
 Commission: NoCommissionModel
 Slippage: ExecutionModel(rate=0.00%)
 
-Metric differences
-Total return difference: -3.21%
-Annualized return difference: -0.60%
-Daily average return difference: -0.00%
-Daily volatility difference: 0.15%
-Annual volatility difference: 2.38%
-Maximum drawdown difference: 4.10%
-Daily Sharpe ratio difference: -0.0031
-Annual Sharpe ratio difference: -0.0492
-Number of trades difference: 3
+Metric comparison
+Metric                       Strategy  Benchmark  Difference
+Total return                   16.79%      20.00%      -3.21%
+Annualized return               3.16%       3.76%      -0.60%
+Daily average return            0.01%       0.01%      -0.00%
+Daily volatility                1.02%       0.87%       0.15%
+Annual volatility              16.19%      13.81%       2.38%
+Maximum drawdown              -11.90%     -16.00%       4.10%
+Daily Sharpe ratio              0.0120      0.0151      -0.0031
+Annual Sharpe ratio             0.1905      0.2397      -0.0492
+Number of trades                     4           1            3
 ```
 
 ## Common options
