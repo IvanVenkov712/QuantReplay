@@ -126,7 +126,7 @@ bias:
 2. A signal generated from candle `T` creates an order intent without a
    quantity.
 3. At candle `T+1` open, the position size is calculated using the current
-   portfolio and the unadjusted opening price.
+   portfolio and the opening price supplied by the selected data source.
 4. Slippage adjusts the fill price against the trader: BUY fills move up and
    SELL fills move down.
 5. Commission is calculated from the resulting fill and deducted from cash.
@@ -135,6 +135,13 @@ bias:
 The broker is long-only. Overnight price gaps affect all-in and percentage
 order quantities because sizing happens at the execution open. Fixed-size
 orders can be rejected when cash or shares are insufficient.
+
+Yahoo Finance candles use adjusted OHLC prices. Dividends and stock splits are
+therefore embedded in the price series, with distributions implicitly treated
+as reinvested instead of being credited to portfolio cash. CSV prices are used
+as supplied; callers are responsible for choosing a consistent adjusted or
+unadjusted convention. See [Market data](docs/data.md) for the consequences of
+these conventions.
 
 The default is zero slippage with no commission. A fixed commission is charged
 once per executed trade. A proportional commission is a fraction of trade

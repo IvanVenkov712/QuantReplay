@@ -7,9 +7,11 @@ a backtest starts, so the engine does not depend directly on either source.
 ## Yahoo Finance
 
 `YFinanceDataSource` downloads daily (`1d`) data through the `yfinance`
-package. OHLC prices are requested without automatic adjustment
-(`auto_adjust=False`). The requested start date is inclusive and the end date
-is exclusive.
+package. OHLC prices are requested with automatic adjustment
+(`auto_adjust=True`). Yahoo's adjusted close factor is applied consistently to
+open, high, low, and close, so dividends and stock splits do not appear as
+ordinary price discontinuities. The requested start date is inclusive and the
+end date is exclusive.
 
 ```powershell
 python -m backtester.cli backtest --source yfinance --symbol SPY --start 2024-01-01 --end 2025-01-01
@@ -17,6 +19,17 @@ python -m backtester.cli backtest --source yfinance --symbol SPY --start 2024-01
 
 Downloaded column names are normalized before the data passes through the same
 validation as CSV input.
+
+Adjusted Yahoo prices implicitly represent distributions as if they were
+reinvested. QuantReplay does not separately credit dividend cash or update
+share quantities for corporate actions. Consequently, Yahoo trade and
+valuation prices are synthetic adjusted prices rather than the literal prices
+quoted on each historical date. Explicit dividend cash flows must not be added
+on top of this data because that would count distributions twice.
+
+CSV OHLCV values are used as supplied. QuantReplay does not infer whether a CSV
+contains adjusted or unadjusted prices, so one file should use a consistent
+price convention throughout.
 
 ## CSV files
 

@@ -38,11 +38,10 @@ def test_yfinance_data_source_normalizes_downloaded_data(
 ) -> None:
     downloaded_data = pd.DataFrame(
         {
-            "Open": [100, 104],
-            "High": [105, 108],
-            "Low": [99, 103],
-            "Close": [104, 107],
-            "Adj Close": [103, 106],
+            "Open": [99, 103],
+            "High": [104, 107],
+            "Low": [98, 102],
+            "Close": [103, 106],
             "Volume": [1000, 1200],
         },
         index=pd.DatetimeIndex(
@@ -71,7 +70,7 @@ def test_yfinance_data_source_normalizes_downloaded_data(
             "start": "2024-01-01",
             "end": "2024-01-03",
             "interval": "1d",
-            "auto_adjust": False,
+            "auto_adjust": True,
             "progress": False,
             "multi_level_index": False,
         }
@@ -80,12 +79,60 @@ def test_yfinance_data_source_normalizes_downloaded_data(
         orient="list"
     ) == {
         "date": [pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-02")],
-        "open": [100, 104],
-        "high": [105, 108],
-        "low": [99, 103],
-        "close": [104, 107],
+        "open": [99, 103],
+        "high": [104, 107],
+        "low": [98, 102],
+        "close": [103, 106],
         "volume": [1000, 1200],
     }
+
+
+def test_yfinance_adjustment_removes_ex_dividend_price_discontinuity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dates = pd.DatetimeIndex(
+        [pd.Timestamp("2024-03-14"), pd.Timestamp("2024-03-15")],
+        name="Date",
+    )
+
+    def fake_download(**kwargs: object) -> pd.DataFrame:
+        if kwargs["auto_adjust"] is not True:
+            return pd.DataFrame(
+                {
+                    "Open": [100, 99],
+                    "High": [101, 100],
+                    "Low": [99, 98],
+                    "Close": [100, 99],
+                    "Adj Close": [99, 99],
+                    "Volume": [1_000, 1_000],
+                },
+                index=dates,
+            )
+
+        # The $1 raw-price drop is a dividend distribution, not an ordinary
+        # investment loss. yfinance exposes the adjusted series as OHLC.
+        return pd.DataFrame(
+            {
+                "Open": [99, 99],
+                "High": [99.99, 100],
+                "Low": [98.01, 98],
+                "Close": [99, 99],
+                "Volume": [1_000, 1_000],
+            },
+            index=dates,
+        )
+
+    monkeypatch.setattr("backtester.data.loader.yf.download", fake_download)
+
+    data = YFinanceDataSource().load(
+        symbol="DIVIDEND_STOCK",
+        start="2024-03-14",
+        end="2024-03-16",
+    )
+
+    assert data is not None
+    assert data["close"].tolist() == [99, 99]
+    assert data["close"].pct_change().iloc[1] == pytest.approx(0)
 
 
 def test_csv_data_source_loads_symbol_file_and_filters_dates(tmp_path: Path) -> None:

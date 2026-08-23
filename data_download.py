@@ -5,7 +5,7 @@ data = yf.download(
     start="2021-01-01",
     end="2026-01-01",
     interval="1d",
-    auto_adjust=False,
+    auto_adjust=True,
     multi_level_index=False,
 )
 
@@ -16,7 +16,7 @@ data = yf.download(
     start="2021-01-01",
     end="2026-01-01",
     interval="1d",
-    auto_adjust=False,
+    auto_adjust=True,
     multi_level_index=False,
 )
 
@@ -27,7 +27,7 @@ data = yf.download(
     start="2021-01-01",
     end="2026-01-01",
     interval="1d",
-    auto_adjust=False,
+    auto_adjust=True,
     multi_level_index=False,
 )
 
