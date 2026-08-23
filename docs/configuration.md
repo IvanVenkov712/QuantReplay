@@ -65,6 +65,7 @@ initial_capital = 25000.0
 sizing = "percent"
 buy_percent = 0.5
 sell_percent = 1.0
+buffer_rate = 0.01
 
 commission_model = "proportional"
 commission_rate = 0.001
@@ -90,7 +91,7 @@ Supported keys are:
 | --- | --- |
 | Data and period | `symbol`, `years`, `start`, `end`, `source`, `csv_path` |
 | Portfolio | `initial_capital` |
-| Position sizing | `sizing`, `buy_size`, `sell_size`, `buy_percent`, `sell_percent` |
+| Position sizing | `sizing`, `buy_size`, `sell_size`, `buy_percent`, `sell_percent`, `buffer_rate` |
 | Execution costs | `commission_model`, `fixed_commission`, `commission_rate`, `slippage_rate` |
 | Strategy selection | `strategy` |
 | Moving average | `short_window`, `long_window` |
@@ -125,6 +126,7 @@ Related settings must form a complete model. For example:
 
 - `sizing = "fixed"` requires `buy_size` and `sell_size`;
 - `sizing = "percent"` requires `buy_percent` and `sell_percent`;
+- optional `buffer_rate` accepts `[0, 1)` and may be combined with any sizing policy;
 - `commission_model = "fixed"` requires `fixed_commission`;
 - `commission_model = "proportional"` requires `commission_rate`.
 
@@ -136,6 +138,13 @@ complete model without stale TOML settings causing a conflict:
 ```powershell
 python -m backtester.cli backtest --config percent.toml --sizing fixed --buy-size 10 --sell-size 10
 ```
+
+`buffer_rate` is independent of the base sizing selection. When present, it
+wraps that policy in `BufferedSizer`: buys are capped to leave the configured
+fraction of current cash unspent, while sells are unchanged. For example,
+`buffer_rate = 0.05` reserves 5% of cash. The reserve can provide room for
+commission or adverse slippage, but does not guarantee that every order will
+be affordable.
 
 See the [CLI reference](cli.md) for all commands and options, or return to the
 [project README](../README.md).

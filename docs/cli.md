@@ -146,10 +146,29 @@ Number of trades difference: 3
 - `--sell-size`: positive whole-share quantity required with `--sizing fixed`
 - `--buy-percent`: fraction of available cash from `0` to `1`, required with `--sizing percent`
 - `--sell-percent`: fraction of owned shares from `0` to `1`, required with `--sizing percent`
+- `--buffer-rate`: optional fraction of cash reserved from buys, from `0` inclusive to `1` exclusive; compatible with every sizing policy
 - `--commission-model`: `none`, `fixed`, or `proportional`, default `none`
 - `--fixed-commission`: non-negative cash amount per executed trade, required with `--commission-model fixed`
 - `--commission-rate`: fraction of trade notional from `0` to `1`, required with `--commission-model proportional`
 - `--slippage-rate`: adverse fill-price fraction from `0` inclusive to `1` exclusive, default `0`
+
+## Buffered position sizing
+
+`--buffer-rate` wraps the selected base policy in `BufferedSizer`. It caps buy
+orders to the whole shares affordable after reserving the configured fraction
+of current cash. It does not alter sell quantities.
+
+```powershell
+# Reserve 5% of cash while otherwise using all-in/all-out sizing
+python -m backtester.cli backtest --buffer-rate 0.05
+
+# The same modifier can wrap fixed or percentage sizing
+python -m backtester.cli backtest --sizing percent --buy-percent 0.5 --sell-percent 1 --buffer-rate 0.02
+```
+
+The buffer can leave room for commission or adverse slippage, but is not an
+exact execution-cost calculation. An order can still be rejected if its final
+cost exceeds the spendable cash.
 
 ## Commission and slippage
 
@@ -189,14 +208,15 @@ Commission-specific values are deliberately rejected with unrelated models.
 For example, `--fixed-commission` may only be supplied with
 `--commission-model fixed`.
 
-Position sizing uses the unadjusted next-candle open and does not reserve cash
-for commission or slippage. Consequently, an order—especially an
-`all-in-all-out` BUY—can be rejected when its final cost exceeds available
-cash. A rejected order is recorded as unsuccessful, but no trade is created and
-no commission is charged. The CLI lists signal time, side, quantity, symbol,
-and reason when a run has at most 10 rejected orders. For larger rejection
-counts, it prints the total and omits the individual details. Comparison runs
-report strategy and benchmark rejections separately.
+Position sizing uses the unadjusted next-candle open. Without `--buffer-rate`,
+it does not reserve cash for commission or slippage. Consequently, an
+order—especially an unbuffered `all-in-all-out` BUY—can be rejected when its
+final cost exceeds available cash. A rejected order is recorded as
+unsuccessful, but no trade is created and no commission is charged. The CLI
+lists signal time, side, quantity, symbol, and reason when a run has at most 10
+rejected orders. For larger rejection counts, it prints the total and omits the
+individual details. Comparison runs report strategy and benchmark rejections
+separately.
 
 ## Strategy options
 

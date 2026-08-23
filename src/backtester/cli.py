@@ -46,6 +46,7 @@ from backtester.metrics.metrics import (
 from backtester.portfolio.portfolio import Portfolio
 from backtester.portfolio.position_sizing import (
     AllInAllOutSizer,
+    BufferedSizer,
     FixedSizer,
     PercentSizer,
     PositionSizer,
@@ -223,6 +224,14 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--sell-percent",
         type=_percentage,
         help="Fraction of owned shares sold per sell signal with --sizing percent.",
+    )
+    parser.add_argument(
+        "--buffer-rate",
+        type=_slippage_rate,
+        help=(
+            "Fraction of available cash reserved from buy orders. "
+            "May be combined with any position-sizing policy."
+        ),
     )
     parser.add_argument(
         "--commission-model",
@@ -475,16 +484,21 @@ def _create_strategy(name: str, args: argparse.Namespace) -> Strategy:
 
 def _create_sizer(args: argparse.Namespace) -> PositionSizer:
     if args.sizing == "all-in-all-out":
-        return AllInAllOutSizer()
-    if args.sizing == "fixed":
-        return FixedSizer(buy_size=args.buy_size, sell_size=args.sell_size)
-    if args.sizing == "percent":
-        return PercentSizer(
+        sizer: PositionSizer = AllInAllOutSizer()
+    elif args.sizing == "fixed":
+        sizer = FixedSizer(buy_size=args.buy_size, sell_size=args.sell_size)
+    elif args.sizing == "percent":
+        sizer = PercentSizer(
             percent_buy=args.buy_percent,
             percent_sell=args.sell_percent,
         )
+    else:
+        raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
 
-    raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
+    if args.buffer_rate is not None:
+        return BufferedSizer(sizer=sizer, buffer_rate=args.buffer_rate)
+
+    return sizer
 
 
 def _create_execution_model(args: argparse.Namespace) -> ExecutionModel:
@@ -657,17 +671,22 @@ def _describe_data_source(args: argparse.Namespace) -> str:
 
 def _describe_sizing(args: argparse.Namespace) -> str:
     if args.sizing == "all-in-all-out":
-        return "AllInAllOutSizer"
-    if args.sizing == "fixed":
-        return f"FixedSizer(buy={args.buy_size}, sell={args.sell_size})"
-    if args.sizing == "percent":
-        return (
+        description = "AllInAllOutSizer"
+    elif args.sizing == "fixed":
+        description = f"FixedSizer(buy={args.buy_size}, sell={args.sell_size})"
+    elif args.sizing == "percent":
+        description = (
             "PercentSizer("
             f"buy={args.buy_percent:.2%}, sell={args.sell_percent:.2%}"
             ")"
         )
+    else:
+        raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
 
-    raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
+    if args.buffer_rate is not None:
+        return f"BufferedSizer({description}, buffer={args.buffer_rate:.2%})"
+
+    return description
 
 
 def _describe_commission(args: argparse.Namespace) -> str:

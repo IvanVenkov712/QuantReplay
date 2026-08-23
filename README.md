@@ -17,7 +17,7 @@ QuantReplay can:
 - generate buy, sell, or hold signals from several strategies;
 - execute generated orders on the next candle's open;
 - model adverse slippage and zero, fixed, or proportional commissions;
-- use all-in/all-out, fixed-share, or percentage-based position sizing;
+- use all-in/all-out, fixed-share, or percentage-based position sizing with an optional cash buffer;
 - track cash, positions, trades, orders, and portfolio value;
 - calculate return, volatility, Sharpe ratio, drawdown, and trade metrics;
 - compare a strategy against a benchmark on the same market data;
@@ -117,6 +117,13 @@ Position sizing converts a signal into a whole-share order quantity.
 percentage of total portfolio equity. Because the engine supports only whole
 shares, a valid sizing decision can produce a quantity of zero.
 
+The optional `--buffer-rate` wraps the selected policy in `BufferedSizer`. It
+limits buy quantities so that the configured fraction of current cash remains
+unspent, while sell quantities still come directly from the selected policy.
+For example, `--buffer-rate 0.05` reserves 5% of cash. This can reduce order
+rejections caused by commission or adverse slippage, but it is a cash reserve,
+not an exact prediction of execution costs.
+
 ## Backtesting assumptions
 
 The engine separates signal generation from execution to avoid look-ahead
@@ -148,10 +155,12 @@ once per executed trade. A proportional commission is a fraction of trade
 notional (`quantity * fill price`). Rates use decimal fractions, so `0.001`
 means `0.1%`.
 
-Position sizing does not reserve cash for commission or adverse slippage. In
-particular, an `all-in-all-out` BUY can be rejected as unaffordable when either
-cost is non-zero. The failed order remains visible in the backtest result, but
-it does not create a trade or change the portfolio. The CLI displays individual
+By default, position sizing does not reserve cash for commission or adverse
+slippage. In particular, an unbuffered `all-in-all-out` BUY can be rejected as
+unaffordable when either cost is non-zero. `--buffer-rate` provides an optional
+cash reserve, though the order can still be rejected if actual execution costs
+exceed it. The failed order remains visible in the backtest result, but it does
+not create a trade or change the portfolio. The CLI displays individual
 rejection details when there are at most 10 rejected orders; above that limit,
 it displays the rejection count without listing every order.
 

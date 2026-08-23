@@ -36,6 +36,7 @@ _NUMBER_OPTIONS = {
     "initial_capital",
     "buy_percent",
     "sell_percent",
+    "buffer_rate",
     "fixed_commission",
     "commission_rate",
     "slippage_rate",

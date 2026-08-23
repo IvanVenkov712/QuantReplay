@@ -15,7 +15,9 @@ initial_capital = 10000.0
 sizing = "percent"
 buy_percent = 0.5
 sell_percent = 1.0
-# For fixed sizing, replace the three settings above with:
+# Optionally reserve this fraction of cash from buy orders for costs or liquidity.
+buffer_rate = 0.01
+# For fixed sizing, replace sizing and the two percentage settings with:
 # sizing = "fixed"
 # buy_size = 10
 # sell_size = 10

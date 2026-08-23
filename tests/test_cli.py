@@ -15,8 +15,10 @@ from backtester.engine.execution import ExecutionModel
 from backtester.exceptions.trading_errors import InsufficientFundsError
 from backtester.portfolio.position_sizing import (
     AllInAllOutSizer,
+    BufferedSizer,
     FixedSizer,
     PercentSizer,
+    SizingContext,
 )
 from backtester.portfolio.trade import Order, Side
 
@@ -38,6 +40,7 @@ def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
     assert args.sell_size is None
     assert args.buy_percent is None
     assert args.sell_percent is None
+    assert args.buffer_rate is None
     assert args.commission_model == cli.DEFAULT_COMMISSION_MODEL
     assert args.fixed_commission is None
     assert args.commission_rate is None
@@ -58,6 +61,7 @@ initial_capital = 25000.0
 sizing = "fixed"
 buy_size = 4
 sell_size = 2
+buffer_rate = 0.1
 commission_model = "fixed"
 fixed_commission = 1.5
 strategy = "rsi"
@@ -76,6 +80,7 @@ rsi_max = 75.0
     assert args.sizing == "fixed"
     assert args.buy_size == 4
     assert args.sell_size == 2
+    assert args.buffer_rate == 0.1
     assert args.commission_model == "fixed"
     assert args.fixed_commission == 1.5
     assert args.strategy == "rsi"
@@ -311,6 +316,22 @@ def test_create_sizer_uses_selected_policy(
     assert isinstance(cli._create_sizer(args), expected_type)
 
 
+def test_create_sizer_wraps_selected_policy_with_cash_buffer() -> None:
+    args = cli._parse_args(["--buffer-rate", "0.25"])
+
+    sizer = cli._create_sizer(args)
+    context = SizingContext(
+        cash=1_000,
+        current_quantity=10,
+        portfolio_value=1_600,
+        price=60,
+    )
+
+    assert isinstance(sizer, BufferedSizer)
+    assert sizer.calculate_size(context, Side.BUY) == 12
+    assert sizer.calculate_size(context, Side.SELL) == 10
+
+
 @pytest.mark.parametrize(
     ("arguments", "expected_type"),
     [
@@ -442,6 +463,20 @@ def test_parse_args_rejects_invalid_slippage_rate(
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
         cli._parse_args(["--slippage-rate", value])
+
+    assert exc_info.value.code == 2
+    assert "value must be between 0 (inclusive) and 1 (exclusive)" in (
+        capsys.readouterr().err
+    )
+
+
+@pytest.mark.parametrize("value", ["-0.01", "1", "nan", "inf"])
+def test_parse_args_rejects_invalid_buffer_rate(
+    value: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli._parse_args(["--buffer-rate", value])
 
     assert exc_info.value.code == 2
     assert "value must be between 0 (inclusive) and 1 (exclusive)" in (
@@ -669,6 +704,38 @@ def test_main_runs_backtest_with_fixed_position_sizing(
     assert "Position sizing: FixedSizer(buy=1, sell=1)" in captured.out
     assert "Total return: 0.10%" in captured.out
     assert "Number of trades: 1" in captured.out
+
+
+def test_main_applies_and_prints_buffered_position_sizing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = cli.main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-03",
+            "--strategy",
+            "buy-and-hold",
+            "--buffer-rate",
+            "0.05",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert (
+        "Position sizing: BufferedSizer(AllInAllOutSizer, buffer=5.00%)"
+        in captured.out
+    )
 
 
 def test_main_applies_and_prints_fixed_commission_and_slippage(

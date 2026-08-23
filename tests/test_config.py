@@ -41,6 +41,7 @@ def test_load_config_accepts_supported_sections_and_types(tmp_path: Path) -> Non
 symbol = "AAPL"
 years = 3
 initial_capital = 25000.0
+buffer_rate = 0.05
 slippage_rate = 0.001
 
 [compare]
@@ -53,6 +54,7 @@ benchmark = "rsi"
             "symbol": "AAPL",
             "years": 3,
             "initial_capital": 25_000.0,
+            "buffer_rate": 0.05,
             "slippage_rate": 0.001,
         },
         "compare": {"benchmark": "rsi"},
