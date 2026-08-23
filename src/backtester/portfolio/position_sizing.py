@@ -48,6 +48,12 @@ class FixedSizer(PositionSizer):
     """Return configured share quantities for every buy and sell signal."""
 
     def __init__(self, buy_size: int, sell_size: int):
+        if buy_size < 0:
+            raise ValueError("negative buy_size is not allowed")
+
+        if sell_size < 0:
+            raise ValueError("negative sell_size is not allowed")
+        
         self._buy_size: int = buy_size
         self._sell_size: int = sell_size
 
@@ -85,3 +91,22 @@ class PercentSizer(PositionSizer):
     def calculate_size_sell(self, context: SizingContext) -> int:
         return int(context.current_quantity * self._percent_sell)
 
+class BufferedSizer(PositionSizer):
+    """Ensure buys retain a configured fraction of the available cash."""
+
+    def __init__(self, sizer: PositionSizer, buffer_rate: float):
+        if not 0 <= buffer_rate < 1:
+            raise ValueError("buffer_rate must be in [0, 1)")
+
+        self._sizer = sizer
+        self._buffer_rate = buffer_rate
+
+    def calculate_size_buy(self, context: SizingContext) -> int:
+        requested_quantity = self._sizer.calculate_size_buy(context)
+        spendable_cash = context.cash * (1 - self._buffer_rate)
+        maximum_affordable = int(spendable_cash // context.price)
+
+        return min(requested_quantity, maximum_affordable)
+
+    def calculate_size_sell(self, context: SizingContext) -> int:
+        return self._sizer.calculate_size_sell(context)

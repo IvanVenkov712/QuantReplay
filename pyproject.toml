@@ -21,7 +21,7 @@ classifiers = [
     "Topic :: Office/Business :: Financial :: Investment",
 ]
 dependencies = [
-    "pandas>=2.0",
+    "pandas>=2.1",
     "typing-extensions>=4.12",
     "yfinance>=0.2",
 ]
