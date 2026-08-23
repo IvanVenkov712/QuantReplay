@@ -151,7 +151,9 @@ means `0.1%`.
 Position sizing does not reserve cash for commission or adverse slippage. In
 particular, an `all-in-all-out` BUY can be rejected as unaffordable when either
 cost is non-zero. The failed order remains visible in the backtest result, but
-it does not create a trade or change the portfolio.
+it does not create a trade or change the portfolio. The CLI displays individual
+rejection details when there are at most 10 rejected orders; above that limit,
+it displays the rejection count without listing every order.
 
 ## Documentation
 

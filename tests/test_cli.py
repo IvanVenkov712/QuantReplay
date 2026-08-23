@@ -1,21 +1,24 @@
-from datetime import date
+from datetime import date, datetime
+from io import StringIO
 from pathlib import Path
 
 import pytest
 
 from backtester import cli
+from backtester.engine.backtest_result import BacktestResult, OrderExecution
 from backtester.engine.broker import (
     FixedCommissionModel,
     NoCommissionModel,
     ProportionalCommissionModel,
 )
 from backtester.engine.execution import ExecutionModel
+from backtester.exceptions.trading_errors import InsufficientFundsError
 from backtester.portfolio.position_sizing import (
     AllInAllOutSizer,
     FixedSizer,
     PercentSizer,
 )
-from backtester.portfolio.trade import Side
+from backtester.portfolio.trade import Order, Side
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -708,6 +711,72 @@ def test_main_applies_and_prints_fixed_commission_and_slippage(
     assert "Slippage: ExecutionModel(rate=10.00%)" in captured.out
     assert "Total return: -0.05%" in captured.out
     assert "Number of trades: 1" in captured.out
+
+
+def test_main_displays_affordability_rejection_details(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = cli.main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--symbol",
+            "AAPL",
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-03",
+            "--strategy",
+            "buy-and-hold",
+            "--commission-model",
+            "proportional",
+            "--commission-rate",
+            "0.001",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert "Number of trades: 0" in captured.out
+    assert "Rejected orders: 1" in captured.out
+    assert (
+        "- Signal time 2024-01-01 00:00:00 | BUY 100 AAPL | "
+        "InsufficientFundsError: Not enough cash"
+    ) in captured.out
+
+
+def test_rejected_order_details_are_omitted_above_display_limit() -> None:
+    rejected_orders = [
+        OrderExecution(
+            order=Order(
+                symbol="AAPL",
+                side=Side.BUY,
+                quantity=100,
+                timestamp=datetime(2024, 1, 1),
+            ),
+            success=False,
+            reason=InsufficientFundsError(),
+        )
+        for _ in range(cli.MAX_REJECTED_ORDER_DETAILS + 1)
+    ]
+    result = BacktestResult(records=[], trades=[], orders=rejected_orders)
+    output = StringIO()
+
+    cli._print_rejected_orders(output, "Rejected orders", result)
+
+    report = output.getvalue()
+    assert f"Rejected orders: {len(rejected_orders)}" in report
+    assert (
+        "Details omitted because the rejected-order limit is "
+        f"{cli.MAX_REJECTED_ORDER_DETAILS}."
+    ) in report
+    assert "Signal time" not in report
 
 
 def test_main_compares_strategy_with_benchmark_using_same_csv_data(

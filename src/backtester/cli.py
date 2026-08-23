@@ -66,6 +66,7 @@ DEFAULT_BENCHMARK = "buy-and-hold"
 DEFAULT_SIZING = "all-in-all-out"
 DEFAULT_COMMISSION_MODEL = "none"
 DEFAULT_SLIPPAGE_RATE = 0.0
+MAX_REJECTED_ORDER_DETAILS = 10
 
 PERCENT_METRICS = {
     "total_return",
@@ -329,6 +330,7 @@ def _run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
         slippage_name=_describe_slippage(args),
     )
     _print_metrics(output, "Performance metrics", metrics)
+    _print_rejected_orders(output, "Rejected orders", result)
 
 
 def _run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
@@ -381,6 +383,16 @@ def _run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         slippage_name=_describe_slippage(args),
     )
     _print_metrics(output, "Metric differences", differences)
+    _print_rejected_orders(
+        output,
+        "Strategy rejected orders",
+        strategy_result,
+    )
+    _print_rejected_orders(
+        output,
+        "Benchmark rejected orders",
+        benchmark_result,
+    )
 
 
 def _run_backtest(
@@ -564,6 +576,46 @@ def _print_metrics(
     print(title, file=output)
     for name, data in metrics.items():
         print(f"{data.label}: {_format_metric_value(name, data.result)}", file=output)
+
+
+def _print_rejected_orders(
+    output: TextIO,
+    title: str,
+    result: BacktestResult,
+) -> None:
+    rejected_orders = [execution for execution in result.orders if not execution.success]
+    if not rejected_orders:
+        return
+
+    print(file=output)
+    print(f"{title}: {len(rejected_orders)}", file=output)
+
+    if len(rejected_orders) > MAX_REJECTED_ORDER_DETAILS:
+        print(
+            "Details omitted because the rejected-order limit is "
+            f"{MAX_REJECTED_ORDER_DETAILS}.",
+            file=output,
+        )
+        return
+
+    for execution in rejected_orders:
+        order = execution.order
+        print(
+            "- Signal time "
+            f"{order.timestamp.isoformat(sep=' ')} | "
+            f"{order.side.value.upper()} {order.quantity} {order.symbol} | "
+            f"{_format_rejection_reason(execution.reason)}",
+            file=output,
+        )
+
+
+def _format_rejection_reason(reason: Exception | None) -> str:
+    if reason is None:
+        return "Unknown rejection reason"
+
+    reason_name = type(reason).__name__
+    message = str(reason).strip()
+    return f"{reason_name}: {message}" if message else reason_name
 
 
 def _format_metric_value(name: str, value: float) -> str:

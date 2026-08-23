@@ -193,7 +193,10 @@ Position sizing uses the unadjusted next-candle open and does not reserve cash
 for commission or slippage. Consequently, an order—especially an
 `all-in-all-out` BUY—can be rejected when its final cost exceeds available
 cash. A rejected order is recorded as unsuccessful, but no trade is created and
-no commission is charged.
+no commission is charged. The CLI lists signal time, side, quantity, symbol,
+and reason when a run has at most 10 rejected orders. For larger rejection
+counts, it prints the total and omits the individual details. Comparison runs
+report strategy and benchmark rejections separately.
 
 ## Strategy options
 
