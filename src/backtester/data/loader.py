@@ -22,7 +22,7 @@ class DataSource(ABC):
 
 
 class YFinanceDataSource(DataSource):
-    """Load unadjusted daily OHLCV data from Yahoo Finance."""
+    """Load adjusted daily OHLCV data from Yahoo Finance."""
 
     def load(self, symbol: str, start: str, end: str) -> DataFrame | None:
         start_timestamp, end_timestamp = parse_date_range(start, end)
@@ -32,7 +32,7 @@ class YFinanceDataSource(DataSource):
             start=start,
             end=end,
             interval=YFINANCE_INTERVAL,
-            auto_adjust=False,
+            auto_adjust=True,
             progress=False,
             multi_level_index=False,
         )
@@ -191,18 +191,35 @@ def prepare_market_data(
 
 def candles_from_dataframe(
     data: DataFrame,
-    timestamp_column: str = "date",
+    timestamp_column: str | None = None,
 ) -> list[Candle]:
     """Convert normalized market-data rows to immutable ``Candle`` objects."""
 
+    if timestamp_column is None:
+        timestamp_column = find_timestamp_column(data)
+
+    if timestamp_column not in data.columns:
+        raise ValueError(
+            f"Market data does not contain timestamp column: {timestamp_column}."
+        )
+
     return [
         Candle(
-            timestamp=row.date.to_pydatetime(),
-            open=float(row.open),
-            high=float(row.high),
-            low=float(row.low),
-            close=float(row.close),
-            volume=float(row.volume),
+            timestamp=pd.Timestamp(timestamp).to_pydatetime(),
+            open=float(open_price),
+            high=float(high_price),
+            low=float(low_price),
+            close=float(close_price),
+            volume=float(volume),
         )
-        for row in data.rename(columns={timestamp_column: "date"}).itertuples(index=False)
+        for (
+            timestamp,
+            open_price,
+            high_price,
+            low_price,
+            close_price,
+            volume,
+        ) in data.loc[
+            :, [timestamp_column, *REQUIRED_OHLCV_COLUMNS]
+        ].itertuples(index=False, name=None)
     ]

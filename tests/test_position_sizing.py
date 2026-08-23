@@ -2,6 +2,7 @@ import pytest
 
 from backtester.portfolio.position_sizing import (
     AllInAllOutSizer,
+    FixedSizer,
     PercentSizer,
     SizingContext,
 )
@@ -60,6 +61,22 @@ def test_sizing_context_rejects_portfolio_value_below_cash() -> None:
 def test_sizing_context_rejects_non_positive_price(price: float) -> None:
     with pytest.raises(ValueError, match="price must be positive"):
         make_context(price=price)
+
+
+def test_fixed_sizer_buy_returns_configured_quantity() -> None:
+    sizer = FixedSizer(buy_size=7, sell_size=3)
+
+    quantity = sizer.calculate_size(make_context(), Side.BUY)
+
+    assert quantity == 7
+
+
+def test_fixed_sizer_sell_returns_configured_quantity() -> None:
+    sizer = FixedSizer(buy_size=7, sell_size=3)
+
+    quantity = sizer.calculate_size(make_context(), Side.SELL)
+
+    assert quantity == 3
 
 
 def test_all_in_all_out_buy_uses_all_available_cash_in_whole_shares() -> None:

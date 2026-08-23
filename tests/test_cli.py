@@ -563,6 +563,47 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
     assert "Number of trades: 1" in captured.out
 
 
+@pytest.mark.parametrize("timestamp_column", ["timestamp", "datetime"])
+def test_main_accepts_supported_csv_timestamp_aliases(
+    timestamp_column: str,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = tmp_path / "prices.csv"
+    csv_path.write_text(
+        (
+            f"{timestamp_column},open,high,low,close,volume\n"
+            "2024-01-01,100,100,100,100,1000\n"
+            "2024-01-02,100,110,100,110,1200\n"
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = cli.main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--symbol",
+            "AAPL",
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-03",
+            "--strategy",
+            "buy-and-hold",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert "Total return: 10.00%" in captured.out
+    assert "Number of trades: 1" in captured.out
+
+
 def test_main_runs_backtest_using_toml_configuration(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
