@@ -2,6 +2,8 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timedelta
 from unittest.mock import Mock, call
 
+import pytest
+
 from backtester.data.models import Candle
 from backtester.engine.backtest import BacktestEngine
 from backtester.exceptions.trading_errors import InsufficientFundsError
@@ -132,6 +134,14 @@ def test_empty_data_produces_empty_result_without_calling_strategy() -> None:
     assert result.trades == []
     assert strategy.received_lengths == []
     broker.execute.assert_not_called()
+
+
+def test_engine_rejects_candles_that_are_not_chronological() -> None:
+    candles = make_candles([(10, 10), (11, 11)])
+    candles.reverse()
+
+    with pytest.raises(ValueError, match="strictly increasing"):
+        make_engine([Signal.HOLD, Signal.HOLD], candles)
 
 
 def test_hold_strategy_creates_records_without_orders_or_trades() -> None:

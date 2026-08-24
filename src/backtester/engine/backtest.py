@@ -1,6 +1,7 @@
 from typing import Sequence
 
 from backtester.data.models import Candle
+from backtester.data.validation import validate_candles_chronological
 from backtester.engine.backtest_result import BacktestResult, OrderExecution, BacktestRecord
 from backtester.engine.broker import Broker
 from backtester.exceptions.trading_errors import InsufficientError
@@ -41,11 +42,14 @@ class BacktestEngine:
             symbol: Asset symbol traded by this engine.
         """
 
+        validated_data = tuple(data)
+        validate_candles_chronological(validated_data)
+
         self._results = None
         self._strategy: Strategy = strategy
         self._broker = broker
         self._sizer = sizer
-        self._data = data
+        self._data = validated_data
         self._symbol = symbol
 
     def run(self) -> BacktestResult:
