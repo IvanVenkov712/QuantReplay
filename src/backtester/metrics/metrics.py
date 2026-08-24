@@ -65,7 +65,8 @@ def total_return(results: BacktestResult) -> float:
     return vn / v1 - 1
 
 def annualized_return(results: BacktestResult) -> float:
-    t = (results.records[-1].timestamp - results.records[0].timestamp).total_seconds / 3600.0 / 365.25
+    elapsed_seconds = (results.records[-1].timestamp - results.records[0].timestamp).total_seconds()
+    t =  elapsed_seconds / (3600.0 * 24 * 365.25)
     vn = results.records[-1].portfolio_value_at_close
     v1 = results.records[0].portfolio_value_at_close
     return (vn / v1) ** (1 / t) - 1
