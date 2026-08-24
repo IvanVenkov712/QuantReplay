@@ -111,6 +111,8 @@ class Broker:
         fill_price = self.__execution_model.calculate_fill_price(prices[order.symbol], order.side)
         commission = self.__commission_model.calculate(order.quantity, fill_price)
 
+        _validate_timestamp(timestamp=timestamp)
+
         if order.side == Side.BUY:
             self._buy(order, fill_price, commission)
         elif order.side == Side.SELL:
@@ -128,3 +130,7 @@ class Broker:
         )
         self.__trades.append(trade)
         return trade
+
+def _validate_timestamp(timestamp: datetime) -> None:
+    if not isinstance(timestamp, datetime):
+        raise ValueError("Timestamp must be a datetime.")
