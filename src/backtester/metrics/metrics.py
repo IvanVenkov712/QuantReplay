@@ -77,6 +77,8 @@ def annualized_return(results: BacktestResult) -> float:
     v1 = results.records[0].portfolio_value_at_close
     if isclose(v1, 0):
         return float("+inf")
+    if isclose(t, 0):
+        return 0
     return (vn / v1) ** (1 / t) - 1
 
 def period_returns(results: BacktestResult) -> List[float]:
@@ -109,6 +111,8 @@ def annual_volatility(results: BacktestResult) -> float:
     return daily_volatility(results) * sqrt(252)
 
 def max_drawdown(results: BacktestResult) -> float:
+    if not results.records:
+        return 0.0
     curr_max = float("-inf")
     drawdowns = []
     for r in results.records:

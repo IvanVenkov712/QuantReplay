@@ -47,6 +47,16 @@ def test_total_return_uses_first_and_last_portfolio_values() -> None:
     assert total_return(result) == 0.25
 
 
+@pytest.mark.parametrize(
+    "metric",
+    [total_return, annualized_return, max_drawdown],
+)
+def test_record_based_metrics_are_zero_for_empty_result(metric) -> None:
+    result = make_result([])
+
+    assert metric(result) == 0
+
+
 def test_annualized_return_uses_elapsed_calendar_days() -> None:
     result = make_result(
         [100, 121],
@@ -69,6 +79,12 @@ def test_annualized_return_uses_elapsed_calendar_days() -> None:
     expected = (121 / 100) ** (365.25 / 365) - 1
 
     assert isclose(annualized_return(result), expected)
+
+
+def test_annualized_return_is_zero_with_only_one_record() -> None:
+    result = make_result([100])
+
+    assert annualized_return(result) == 0
 
 
 def test_period_returns_are_simple_returns_between_consecutive_records() -> None:
