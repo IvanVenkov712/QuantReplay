@@ -60,15 +60,23 @@ class PerformanceAnalyzer:
         }
 
 def total_return(results: BacktestResult) -> float:
+    if not results.records:
+        return 0
     vn = results.records[-1].portfolio_value_at_close
     v1 = results.records[0].portfolio_value_at_close
+    if isclose(v1, 0):
+        return float("+inf")
     return vn / v1 - 1
 
 def annualized_return(results: BacktestResult) -> float:
+    if not results.records:
+        return 0
     elapsed_seconds = (results.records[-1].timestamp - results.records[0].timestamp).total_seconds()
     t =  elapsed_seconds / (3600.0 * 24 * 365.25)
     vn = results.records[-1].portfolio_value_at_close
     v1 = results.records[0].portfolio_value_at_close
+    if isclose(v1, 0):
+        return float("+inf")
     return (vn / v1) ** (1 / t) - 1
 
 def period_returns(results: BacktestResult) -> List[float]:
