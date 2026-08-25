@@ -31,19 +31,11 @@ class ResolutionContext:
     current_quantity: int
     portfolio_value: float
 
-class OrderResolver:
+class QuantityResolver:
     def __init__(self, estimator: ExecutionCostEstimator):
         self._estimator: ExecutionCostEstimator = estimator
 
-    def resolve(self, intent: OrderIntent, context: ResolutionContext) -> Order:
-        return Order(
-            symbol=intent.symbol,
-            side = intent.side,
-            timestamp=context.timestamp,
-            quantity=self._resolve_quantity(intent.side, intent.sizing_instruction, context)
-        )
-
-    def _resolve_quantity(self, side: Side, instr: SizingInstruction, context: ResolutionContext) -> int:
+    def resolve_quantity(self, side: Side, instr: SizingInstruction, context: ResolutionContext) -> int:
         if side == Side.BUY:
             return self._resolve_buy_quantity(instr, context)
         elif side == Side.SELL:
@@ -90,8 +82,20 @@ class OrderResolver:
             return min(instruction.value, context.current_quantity)
         elif instruction.mode == SizingMode.PERCENT:
             return int(context.current_quantity * instruction.value)
+        else:
+            raise ValueError("Invalid sizing instruction")
 
+class OrderResolver:
+    def __init__(self, q_resolver: QuantityResolver):
+        self._q_resolver: QuantityResolver = q_resolver
 
+    def resolve(self, intent: OrderIntent, context: ResolutionContext) -> Order:
+        return Order(
+            symbol=intent.symbol,
+            side = intent.side,
+            timestamp=context.timestamp,
+            quantity=self._q_resolver.resolve_quantity(intent.side, intent.sizing_instruction, context)
+        )
 
 
 
