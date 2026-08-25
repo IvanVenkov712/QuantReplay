@@ -21,14 +21,11 @@ from backtester.data.loader import (
 )
 from backtester.engine.backtest import BacktestEngine
 from backtester.engine.backtest_result import BacktestResult
-from backtester.engine.broker import (
+from backtester.execution.broker import (
     Broker,
-    CommissionModel,
-    FixedCommissionModel,
-    NoCommissionModel,
-    ProportionalCommissionModel,
 )
-from backtester.engine.execution import ExecutionModel
+from backtester.execution.costs import CommissionModel, NoCommissionModel, FixedCommissionModel, \
+    ProportionalCommissionModel, ExecutionModel
 from backtester.metrics.benchmark_comparison import get_differences
 from backtester.metrics.metrics import (
     MetricData,

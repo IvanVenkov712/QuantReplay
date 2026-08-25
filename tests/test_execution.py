@@ -1,6 +1,6 @@
 import pytest
 
-from backtester.engine.execution import ExecutionModel
+from backtester.execution.costs import ExecutionModel
 from backtester.domain.trading import Side
 
 

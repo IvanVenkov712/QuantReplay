@@ -6,12 +6,8 @@ import pytest
 
 from backtester import cli
 from backtester.engine.backtest_result import BacktestResult, OrderExecution
-from backtester.engine.broker import (
-    FixedCommissionModel,
-    NoCommissionModel,
-    ProportionalCommissionModel,
-)
-from backtester.engine.execution import ExecutionModel
+from backtester.execution.costs import NoCommissionModel, FixedCommissionModel, ProportionalCommissionModel, \
+    ExecutionModel
 from backtester.exceptions.trading_errors import InsufficientFundsError
 from backtester.sizing.position_sizing import (
     AllInAllOutSizer,

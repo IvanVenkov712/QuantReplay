@@ -3,8 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from backtester.engine.broker import Broker, CommissionModel
-from backtester.engine.execution import ExecutionModel
+from backtester.execution.broker import Broker
+from backtester.execution.costs import CommissionModel, ExecutionModel
 from backtester.exceptions.trading_errors import (
     PriceNotFoundError,
     InsufficientFundsError,

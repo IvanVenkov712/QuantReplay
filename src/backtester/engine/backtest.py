@@ -4,8 +4,8 @@ from typing import Sequence
 from backtester.domain.market import Candle
 from backtester.data.validation import validate_candles_chronological
 from backtester.engine.backtest_result import BacktestResult, OrderExecution, BacktestRecord
-from backtester.engine.broker import Broker
-from backtester.engine.resolver import OrderResolver, ResolutionContext
+from backtester.execution.broker import Broker
+from backtester.resolving.resolver import OrderResolver, ResolutionContext
 from backtester.exceptions.trading_errors import InsufficientError
 from backtester.strategies.base import Strategy
 from backtester.domain.trading import Signal, SizingInstruction, Order, OrderIntent, Side

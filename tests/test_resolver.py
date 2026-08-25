@@ -4,10 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from backtester.engine.broker import CommissionModel
-from backtester.engine.execution import ExecutionModel
-from backtester.engine.resolver import (
-    ExecutionCostEstimator,
+from backtester.execution.costs import CommissionModel, ExecutionModel, ExecutionCostCalculator
+from backtester.resolving.resolver import (
     OrderResolver,
     QuantityResolver,
     ResolutionContext,
@@ -37,7 +35,7 @@ def make_quantity_resolver(
     *,
     buy_cost: Callable[[int, float], float] | None = None,
 ) -> QuantityResolver:
-    estimator = Mock(spec=ExecutionCostEstimator)
+    estimator = Mock(spec=ExecutionCostCalculator)
     estimator.estimate_buy_cost.side_effect = (
         buy_cost or (lambda quantity, reference_price: quantity * reference_price)
     )
@@ -65,7 +63,7 @@ def test_estimate_buy_cost_includes_slippage_and_commission() -> None:
     execution_model.calculate_fill_price.return_value = 101.0
     commission_model = Mock(spec=CommissionModel)
     commission_model.calculate.return_value = 20.2
-    estimator = ExecutionCostEstimator(
+    estimator = ExecutionCostCalculator(
         execution_model=execution_model,
         commission_model=commission_model,
     )
@@ -82,7 +80,7 @@ def test_estimate_sell_cost_returns_commission_at_the_sell_fill_price() -> None:
     execution_model.calculate_fill_price.return_value = 99.0
     commission_model = Mock(spec=CommissionModel)
     commission_model.calculate.return_value = 19.8
-    estimator = ExecutionCostEstimator(
+    estimator = ExecutionCostCalculator(
         execution_model=execution_model,
         commission_model=commission_model,
     )

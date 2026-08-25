@@ -1,11 +1,7 @@
 import pytest
 
-from backtester.engine.broker import (
-    CommissionModel,
-    FixedCommissionModel,
-    NoCommissionModel,
-    ProportionalCommissionModel,
-)
+from backtester.execution.costs import CommissionModel, NoCommissionModel, FixedCommissionModel, \
+    ProportionalCommissionModel
 
 
 def test_no_commission_model_returns_zero() -> None:
