@@ -43,6 +43,22 @@ class QuantityResolver:
         else:
             raise ValueError("invalid side")
 
+    def _resolve_affordable_quantity(
+            self,
+            budget: float,
+            reference_price: float,
+            max_quantity: int | None = None,
+    ) -> int:
+        quantity = int(budget // reference_price)
+
+        if max_quantity is not None:
+            quantity = min(quantity, max_quantity)
+
+        while quantity > 0 and self._estimator.estimate_buy_cost(quantity, reference_price) > budget:
+            quantity -= 1
+
+        return quantity
+
     def _resolve_buy_quantity(self, instruction: SizingInstruction, context: ResolutionContext) -> int:
         if instruction.mode == SizingMode.ALL_IN:
             return self._resolve_buy_quantity_all_in(context)
@@ -56,22 +72,13 @@ class QuantityResolver:
             raise ValueError("Invalid sizing instruction")
 
     def _resolve_buy_quantity_all_in(self, context: ResolutionContext) -> int:
-        q = int(context.cash // context.reference_price) + 2
-        while self._estimator.estimate_buy_cost(q, context.reference_price) > context.cash and q > 0:
-            q -= 1
-        return q
+        return self._resolve_affordable_quantity(context.cash, context.reference_price)
 
     def _resolve_buy_quantity_percent(self, percent: float, context: ResolutionContext):
-        q = int(context.cash * percent // context.reference_price) + 2
-        while self._estimator.estimate_buy_cost(q, context.reference_price) > context.cash * percent and q > 0:
-            q -= 1
-        return q
+        return self._resolve_affordable_quantity(context.cash * percent, context.reference_price)
 
     def _resolve_buy_quantity_up_to(self, max_q: int, context: ResolutionContext):
-        q = max_q
-        while self._estimator.estimate_buy_cost(q, context.reference_price) > context.cash and q > 0:
-            q -= 1
-        return q
+        return self._resolve_affordable_quantity(context.cash, context.reference_price, max_q)
 
     def _resolve_sell_quantity(self, instruction: SizingInstruction, context: ResolutionContext) -> int:
         if instruction.mode == SizingMode.FIXED:
@@ -89,12 +96,16 @@ class OrderResolver:
     def __init__(self, q_resolver: QuantityResolver):
         self._q_resolver: QuantityResolver = q_resolver
 
-    def resolve(self, intent: OrderIntent, context: ResolutionContext) -> Order:
+    def resolve(self, intent: OrderIntent, context: ResolutionContext) -> Order | None:
+        quantity = self._q_resolver.resolve_quantity(intent.side, intent.sizing_instruction, context)
+        if quantity <= 0:
+            return None
+
         return Order(
             symbol=intent.symbol,
             side = intent.side,
             timestamp=context.timestamp,
-            quantity=self._q_resolver.resolve_quantity(intent.side, intent.sizing_instruction, context)
+            quantity=quantity
         )
 
 
