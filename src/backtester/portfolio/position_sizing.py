@@ -1,7 +1,19 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum, auto
 
 from backtester.portfolio.trade import Side
+
+class SizingMode(Enum):
+    FIXED = auto()
+    PERCENT = auto()
+    ALL_IN = auto()
+    UP_TP = auto()
+
+@dataclass(frozen=True)
+class SizingInstruction:
+    value: int | None
+    mode: SizingMode
 
 @dataclass(frozen=True)
 class SizingContext:

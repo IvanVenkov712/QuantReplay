@@ -4,6 +4,7 @@ from enum import Enum
 from math import isfinite
 from numbers import Real
 
+from backtester.portfolio.position_sizing import SizingInstruction
 from backtester.strategies.base import Signal
 
 
@@ -54,6 +55,7 @@ class OrderIntent:
     symbol: str
     side: Side
     timestamp: datetime
+    sizing_instruction: SizingInstruction
 
     def __post_init__(self) -> None:
         _validate_symbol(self.symbol)
