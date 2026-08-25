@@ -6,9 +6,7 @@ from numbers import Real
 from typing import TYPE_CHECKING
 
 from backtester.strategies.base import Signal
-
-if TYPE_CHECKING:
-    from backtester.portfolio.position_sizing import SizingInstruction
+from backtester.portfolio.position_sizing import SizingInstruction
 
 
 class Side(Enum):
