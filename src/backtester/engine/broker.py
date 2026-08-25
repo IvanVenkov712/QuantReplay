@@ -9,7 +9,7 @@ from backtester.exceptions.trading_errors import (
     InsufficientPositionError,
 )
 from backtester.portfolio.portfolio import Portfolio
-from backtester.portfolio.trade import Side, Trade, Order
+from backtester.domain.trading import Side, Trade, Order
 
 
 class CommissionModel(ABC):

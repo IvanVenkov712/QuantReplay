@@ -18,8 +18,7 @@ from backtester.metrics.metrics import (
     period_returns,
     total_return,
 )
-from backtester.portfolio.trade import Side, Trade
-from backtester.strategies.base import Signal
+from backtester.domain.trading import Side, Signal, Trade
 
 
 def make_result(

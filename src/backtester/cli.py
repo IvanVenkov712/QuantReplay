@@ -44,7 +44,7 @@ from backtester.metrics.metrics import (
     total_return,
 )
 from backtester.portfolio.portfolio import Portfolio
-from backtester.portfolio.position_sizing import (
+from backtester.sizing.position_sizing import (
     AllInAllOutSizer,
     BufferedSizer,
     FixedSizer,

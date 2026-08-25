@@ -13,15 +13,14 @@ from backtester.engine.broker import (
 )
 from backtester.engine.execution import ExecutionModel
 from backtester.exceptions.trading_errors import InsufficientFundsError
-from backtester.portfolio.position_sizing import (
+from backtester.sizing.position_sizing import (
     AllInAllOutSizer,
     BufferedSizer,
     FixedSizer,
     PercentSizer,
     SizingContext,
 )
-from backtester.portfolio.trade import Order, Side
-
+from backtester.domain.trading import Side, Order
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

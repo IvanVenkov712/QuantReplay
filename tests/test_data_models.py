@@ -3,8 +3,7 @@ from math import inf
 
 import pytest
 
-from backtester.data.models import Candle
-
+from backtester.domain.market import Candle
 
 TIMESTAMP = datetime(2026, 1, 1)
 

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from backtester.portfolio.trade import Side
+from backtester.domain.trading import Side
 
 
 class ExecutionModel:

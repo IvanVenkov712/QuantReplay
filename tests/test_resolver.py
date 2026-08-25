@@ -12,9 +12,7 @@ from backtester.engine.resolver import (
     QuantityResolver,
     ResolutionContext,
 )
-from backtester.portfolio.position_sizing import SizingInstruction, SizingMode
-from backtester.portfolio.trade import Order, OrderIntent, Side
-
+from backtester.domain.trading import Side, SizingMode, SizingInstruction, Order, OrderIntent
 
 TIMESTAMP = datetime(2024, 1, 2, 9, 30)
 

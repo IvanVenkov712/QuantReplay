@@ -3,9 +3,7 @@ from datetime import datetime
 
 from backtester.engine.broker import CommissionModel
 from backtester.engine.execution import ExecutionModel
-from backtester.portfolio.portfolio import Portfolio
-from backtester.portfolio.position_sizing import SizingInstruction, SizingMode
-from backtester.portfolio.trade import Side, OrderIntent, Order
+from backtester.domain.trading import Side, SizingMode, SizingInstruction, Order, OrderIntent
 
 
 class ExecutionCostEstimator:
@@ -49,7 +47,7 @@ class QuantityResolver:
             reference_price: float,
             max_quantity: int | None = None,
     ) -> int:
-        quantity = int(budget // reference_price)
+        quantity = int(budget // reference_price) + 1
 
         if max_quantity is not None:
             quantity = min(quantity, max_quantity)

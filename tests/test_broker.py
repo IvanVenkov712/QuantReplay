@@ -10,8 +10,7 @@ from backtester.exceptions.trading_errors import (
     InsufficientFundsError,
     InsufficientPositionError,
 )
-from backtester.portfolio.trade import Order, Side, Trade
-
+from backtester.domain.trading import Side, Trade, Order
 
 ORDER_TIMESTAMP = datetime(2026, 1, 1, 9, 30)
 EXECUTION_TIMESTAMP = datetime(2026, 1, 1, 9, 31)

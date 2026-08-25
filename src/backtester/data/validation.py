@@ -1,7 +1,7 @@
 from itertools import pairwise
 from typing import Sequence
 
-from backtester.data.models import Candle
+from backtester.domain.market import Candle
 
 
 def validate_candles_chronological(candles: Sequence[Candle]) -> None:

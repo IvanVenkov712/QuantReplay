@@ -4,12 +4,12 @@ from unittest.mock import Mock, call
 
 import pytest
 
-from backtester.data.models import Candle
+from backtester.domain.market import Candle
 from backtester.engine.backtest import BacktestEngine
 from backtester.exceptions.trading_errors import InsufficientFundsError
-from backtester.portfolio.position_sizing import PositionSizer, SizingContext
-from backtester.portfolio.trade import Order, Side, Trade
-from backtester.strategies.base import Signal, Strategy
+from backtester.sizing.position_sizing import PositionSizer, SizingContext
+from backtester.domain.trading import Side, Signal, Trade, Order
+from backtester.strategies.base import Strategy
 
 
 class ScriptedStrategy(Strategy):

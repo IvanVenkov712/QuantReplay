@@ -1,38 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum, auto
 
-from backtester.portfolio.trade import Side
+from backtester.domain.trading import Side
 
-class SizingMode(Enum):
-    FIXED = auto()
-    PERCENT = auto()
-    ALL_IN = auto()
-    UP_TO = auto()
-
-@dataclass(frozen=True)
-class SizingInstruction:
-    value: int | float | None
-    mode: SizingMode
-
-    def __post_init__(self):
-        if self.mode == SizingMode.FIXED or self.mode == SizingMode.UP_TO:
-            _validate_quantity(self.value)
-        elif self.mode == SizingMode.PERCENT:
-            _validate_percent(self.value)
-        elif self.mode == SizingMode.ALL_IN:
-            if self.value is not None:
-                raise ValueError("With all in value should be none")
-        else:
-            raise ValueError("correct sizing mode expected")
-
-def _validate_quantity(value):
-    if not isinstance(value, int) or value <= 0:
-        raise ValueError("value must be positive integer")
-
-def _validate_percent(value):
-    if not (isinstance(value, float | int) and 0 <= value <= 1):
-        raise ValueError("value must be in [0, 1]")
 
 @dataclass(frozen=True)
 class SizingContext:

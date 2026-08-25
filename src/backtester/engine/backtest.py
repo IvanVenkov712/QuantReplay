@@ -1,15 +1,14 @@
 from datetime import datetime
 from typing import Sequence
 
-from backtester.data.models import Candle
+from backtester.domain.market import Candle
 from backtester.data.validation import validate_candles_chronological
 from backtester.engine.backtest_result import BacktestResult, OrderExecution, BacktestRecord
 from backtester.engine.broker import Broker
 from backtester.engine.resolver import OrderResolver, ResolutionContext
 from backtester.exceptions.trading_errors import InsufficientError
-from backtester.portfolio.trade import Order, side_from_signal, Side, OrderIntent
-from backtester.strategies.base import Strategy, Signal
-from backtester.portfolio.position_sizing import SizingContext, PositionSizer, SizingInstruction
+from backtester.strategies.base import Strategy
+from backtester.domain.trading import Signal, SizingInstruction, Order, OrderIntent, Side
 
 
 class BacktestEngine:
@@ -157,3 +156,12 @@ class BacktestEngine:
             current_quantity=current_quantity,
             portfolio_value=cash + current_quantity * price
         )
+
+
+def side_from_signal(signal: Signal) -> Side:
+    if signal == Signal.BUY:
+        return Side.BUY
+    elif signal == Signal.SELL:
+        return Side.SELL
+    else:
+        raise ValueError("Invalid signal")
