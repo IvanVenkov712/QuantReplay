@@ -3,9 +3,12 @@ from datetime import datetime
 from enum import Enum
 from math import isfinite
 from numbers import Real
+from typing import TYPE_CHECKING
 
-from backtester.portfolio.position_sizing import SizingInstruction
 from backtester.strategies.base import Signal
+
+if TYPE_CHECKING:
+    from backtester.portfolio.position_sizing import SizingInstruction
 
 
 class Side(Enum):
@@ -55,7 +58,7 @@ class OrderIntent:
     symbol: str
     side: Side
     timestamp: datetime
-    sizing_instruction: SizingInstruction
+    sizing_instruction: "SizingInstruction"
 
     def __post_init__(self) -> None:
         _validate_symbol(self.symbol)
