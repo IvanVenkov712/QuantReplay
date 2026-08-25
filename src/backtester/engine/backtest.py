@@ -7,7 +7,7 @@ from backtester.engine.broker import Broker
 from backtester.exceptions.trading_errors import InsufficientError
 from backtester.portfolio.trade import Order, side_from_signal, Side, OrderIntent
 from backtester.strategies.base import Strategy, Signal
-from backtester.portfolio.position_sizing import SizingContext, PositionSizer
+from backtester.portfolio.position_sizing import SizingContext, PositionSizer, SizingInstruction
 
 
 class BacktestEngine:
@@ -24,7 +24,7 @@ class BacktestEngine:
             self,
             strategy: Strategy,
             broker: Broker,
-            sizer: PositionSizer,
+            instr: SizingInstruction,
             data: Sequence[Candle],
             symbol: str
     ):
@@ -48,7 +48,7 @@ class BacktestEngine:
         self._results = None
         self._strategy: Strategy = strategy
         self._broker = broker
-        self._sizer = sizer
+        self._instruction = instr
         self._data = validated_data
         self._symbol = symbol
 
@@ -133,6 +133,7 @@ class BacktestEngine:
                 symbol=self._symbol,
                 timestamp=candle.timestamp,
                 side=side,
+                sizing_instruction=self._instruction
             )
 
         else:
