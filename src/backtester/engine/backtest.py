@@ -116,25 +116,11 @@ class BacktestEngine:
         opening price as the execution price. The order retains the intent's
         timestamp so signal time remains distinct from execution time.
         """
-        context = ResolutionContext(
-            timestamp=candle.timestamp,
-            reference_price=candle.open,
-            cash=self._broker.portfolio.cash,
-            current_quantity=self._broker.portfolio.position_quantity(self._symbol),
-            portfolio_value=self._broker.portfolio.position_quantity(self._symbol) *
+        return self._resolver.resolve(
+            intent=intent,
+            context=self._create_context(candle.timestamp, candle.open)
         )
 
-        quantity = self._calculate_quantity(candle.open, intent.side)
-
-        if quantity <= 0:
-            return None
-
-        return Order(
-            symbol=self._symbol,
-            timestamp=intent.timestamp,
-            quantity=quantity,
-            side=intent.side
-        )
 
     def _create_order_intent(self, timestamp: datetime, signal: Signal) -> OrderIntent | None:
         if signal == Signal.BUY or signal == Signal.SELL:
@@ -160,24 +146,14 @@ class BacktestEngine:
             cash=self._broker.portfolio.cash
         )
 
-    def _calculate_quantity(self, price: float, side: Side) -> int:
-        return self._sizer.calculate_size(self._create_context(price), side)
-        # if price <= 0:
-        #     raise ValueError("Positive active price is expected")
-        #
-        # if side == Side.BUY:
-        #     return int(self._broker.portfolio.cash / price)
-        # elif side == Side.SELL:
-        #     return self._broker.portfolio.position_quantity(self._symbol)
-        # else:
-        #     raise ValueError("Unknown side")
-
-    def _create_context(self, price: float) -> SizingContext:
+    def _create_context(self, timestamp: datetime, price: float) -> ResolutionContext:
         current_quantity = self._broker.portfolio.position_quantity(self._symbol)
         cash = self._broker.portfolio.cash
-        return SizingContext(
-            cash=cash,
+
+        return ResolutionContext(
+            timestamp=timestamp,
+            reference_price=price,
+            cash=self._broker.portfolio.cash,
             current_quantity=current_quantity,
-            price=price,
             portfolio_value=cash + current_quantity * price
         )
