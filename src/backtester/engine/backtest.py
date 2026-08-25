@@ -1,9 +1,11 @@
+from datetime import datetime
 from typing import Sequence
 
 from backtester.data.models import Candle
 from backtester.data.validation import validate_candles_chronological
 from backtester.engine.backtest_result import BacktestResult, OrderExecution, BacktestRecord
 from backtester.engine.broker import Broker
+from backtester.engine.resolver import OrderResolver, ResolutionContext
 from backtester.exceptions.trading_errors import InsufficientError
 from backtester.portfolio.trade import Order, side_from_signal, Side, OrderIntent
 from backtester.strategies.base import Strategy, Signal
@@ -25,6 +27,7 @@ class BacktestEngine:
             strategy: Strategy,
             broker: Broker,
             instr: SizingInstruction,
+            resolver: OrderResolver,
             data: Sequence[Candle],
             symbol: str
     ):
@@ -49,6 +52,7 @@ class BacktestEngine:
         self._strategy: Strategy = strategy
         self._broker = broker
         self._instruction = instr
+        self._resolver = resolver
         self._data = validated_data
         self._symbol = symbol
 
@@ -81,7 +85,7 @@ class BacktestEngine:
 
             curr_candles.append(candle)
             signal = self._strategy.generate_signal(curr_candles)
-            order_intent = self._create_order_intent(candle, signal)
+            order_intent = self._create_order_intent(candle.timestamp, signal)
 
             records.append(self._create_record(candle, signal))
 
@@ -112,6 +116,13 @@ class BacktestEngine:
         opening price as the execution price. The order retains the intent's
         timestamp so signal time remains distinct from execution time.
         """
+        context = ResolutionContext(
+            timestamp=candle.timestamp,
+            reference_price=candle.open,
+            cash=self._broker.portfolio.cash,
+            current_quantity=self._broker.portfolio.position_quantity(self._symbol),
+            portfolio_value=self._broker.portfolio.position_quantity(self._symbol) *
+        )
 
         quantity = self._calculate_quantity(candle.open, intent.side)
 
@@ -125,13 +136,13 @@ class BacktestEngine:
             side=intent.side
         )
 
-    def _create_order_intent(self, candle: Candle, signal: Signal) -> OrderIntent | None:
+    def _create_order_intent(self, timestamp: datetime, signal: Signal) -> OrderIntent | None:
         if signal == Signal.BUY or signal == Signal.SELL:
             side = side_from_signal(signal)
 
             return OrderIntent(
                 symbol=self._symbol,
-                timestamp=candle.timestamp,
+                timestamp=timestamp,
                 side=side,
                 sizing_instruction=self._instruction
             )
