@@ -39,7 +39,7 @@ Default parameters:
 - end date: today's date;
 - data source: `YFinanceDataSource`;
 - initial capital: `10000`;
-- position sizing: `AllInAllOutSizer`;
+- position sizing: `all-in-all-out`;
 - commission: `NoCommissionModel`;
 - slippage: `ExecutionModel(rate=0.00%)`.
 
@@ -65,7 +65,7 @@ Period: 2021-08-19 to 2026-08-19
 Years parameter: 5
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
-Position sizing: AllInAllOutSizer
+Position sizing: all-in-all-out
 Commission: NoCommissionModel
 Slippage: ExecutionModel(rate=0.00%)
 
@@ -115,7 +115,7 @@ Period: 2021-08-19 to 2026-08-19
 Years parameter: 5
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
-Position sizing: AllInAllOutSizer
+Position sizing: all-in-all-out
 Commission: NoCommissionModel
 Slippage: ExecutionModel(rate=0.00%)
 
