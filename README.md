@@ -113,22 +113,21 @@ the size and direction of that difference can be interpreted in context.
 
 Position sizing converts a signal into a whole-share order quantity.
 
-| CLI name | Class | Behavior |
-| --- | --- | --- |
-| `all-in-all-out` | `AllInAllOutSizer` | Buys the maximum affordable whole shares and sells the entire position. |
-| `fixed` | `FixedSizer` | Uses explicit buy and sell share quantities. |
-| `percent` | `PercentSizer` | Uses a fraction of available cash for buys and a fraction of owned shares for sells. |
+| CLI name | Behavior |
+| --- | --- |
+| `all-in-all-out` | Buys the maximum affordable whole shares and sells the entire position. |
+| `fixed` | Uses explicit buy and sell share quantities. |
+| `percent` | Uses a fraction of available cash for buys and a fraction of owned shares for sells. |
 
-`AllInAllOutSizer` is the default. Percentage sizing does not target a
+All-in/all-out is the default. Percentage sizing does not target a
 percentage of total portfolio equity. Because the engine supports only whole
 shares, a valid sizing decision can produce a quantity of zero.
 
-The optional `--buffer-rate` wraps the selected policy in `BufferedSizer`. It
-limits buy quantities so that the configured fraction of current cash remains
-unspent, while sell quantities still come directly from the selected policy.
-For example, `--buffer-rate 0.05` reserves 5% of cash. This can reduce order
-rejections caused by commission or adverse slippage, but it is a cash reserve,
-not an exact prediction of execution costs.
+The optional `--buffer-rate` limits buy quantities so that the configured
+fraction of current cash remains unspent, while sell quantities still follow
+the selected policy. For example, `--buffer-rate 0.05` reserves 5% of cash.
+The quantity resolver also includes the configured commission and adverse
+slippage when checking how many shares fit within the remaining budget.
 
 ## Backtesting assumptions
 
@@ -161,14 +160,14 @@ once per executed trade. A proportional commission is a fraction of trade
 notional (`quantity * fill price`). Rates use decimal fractions, so `0.001`
 means `0.1%`.
 
-By default, position sizing does not reserve cash for commission or adverse
-slippage. In particular, an unbuffered `all-in-all-out` BUY can be rejected as
-unaffordable when either cost is non-zero. `--buffer-rate` provides an optional
-cash reserve, though the order can still be rejected if actual execution costs
-exceed it. The failed order remains visible in the backtest result, but it does
-not create a trade or change the portfolio. The CLI displays individual
-rejection details when there are at most 10 rejected orders; above that limit,
-it displays the rejection count without listing every order.
+All-in and percentage BUY quantities are resolved against a budget that
+already includes the configured commission and adverse slippage. Fixed BUY
+instructions remain exact and can be rejected when unaffordable unless a
+`--buffer-rate` is supplied; with a buffer, fixed quantities are capped to the
+affordable amount. A failed order remains visible in the backtest result, but
+it does not create a trade or change the portfolio. The CLI displays
+individual rejection details when there are at most 10 rejected orders; above
+that limit, it displays the rejection count without listing every order.
 
 ## Documentation
 

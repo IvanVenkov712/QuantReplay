@@ -9,7 +9,7 @@ from backtester.resolving.resolver import OrderResolver, ResolutionContext
 from backtester.exceptions.trading_errors import InsufficientError
 from backtester.sizing.policy import SizingPlan
 from backtester.strategies.base import Strategy
-from backtester.domain.trading import Signal, SizingInstruction, Order, OrderIntent, Side
+from backtester.domain.trading import Signal, Order, OrderIntent, Side
 
 
 class BacktestEngine:
@@ -38,9 +38,11 @@ class BacktestEngine:
                 into a buy, sell, or hold signal.
             broker: Broker responsible for order execution and portfolio
                 accounting.
-            sizer: Position-sizing policy that converts pending intents into
-                whole-share quantities using the execution-time portfolio
-                snapshot and next candle's opening price.
+            plan: Buy and sell sizing instructions attached to generated order
+                intents.
+            resolver: Component that converts pending intents into whole-share
+                orders using execution costs and the next candle's opening
+                portfolio snapshot.
             data: Chronologically ordered candles used by the simulation.
             symbol: Asset symbol traded by this engine.
         """
@@ -109,17 +111,17 @@ class BacktestEngine:
             return OrderExecution(order, False, e)
 
     def _create_order(self, intent: OrderIntent, candle: Candle) -> Order | None:
-        """Convert a buy or sell signal into an order timestamped at signal time.
+        """Convert a buy or sell signal into an execution-time order.
 
         The quantity is calculated from the portfolio state immediately before
         execution and the current candle's open. The simulation uses that same
-        opening price as the execution price. The order retains the current candle's timestamp
+        opening reference price for execution, and the order is timestamped at
+        the current candle.
         """
         return self._resolver.resolve(
             intent=intent,
             context=self._create_context(candle.timestamp, candle.open)
         )
-
 
     def _create_order_intent(self, timestamp: datetime, signal: Signal) -> OrderIntent | None:
         if signal == Signal.BUY or signal == Signal.SELL:
@@ -132,13 +134,11 @@ class BacktestEngine:
                 sizing_instruction=self._plan.instruction_for(side)
             )
 
-        else:
-            return None
-
+        return None
 
     def _create_record(self, candle: Candle, signal: Signal) -> BacktestRecord:
         """Create a per-candle snapshot valued at the current close."""
-        return  BacktestRecord(
+        return BacktestRecord(
             timestamp=candle.timestamp,
             generated_signal=signal,
             portfolio_value_at_close=self._broker.portfolio.value(prices={self._symbol: candle.close}),
@@ -152,7 +152,7 @@ class BacktestEngine:
         return ResolutionContext(
             timestamp=timestamp,
             reference_price=price,
-            cash=self._broker.portfolio.cash,
+            cash=cash,
             current_quantity=current_quantity,
             portfolio_value=cash + current_quantity * price
         )
