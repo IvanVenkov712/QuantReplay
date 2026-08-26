@@ -3,15 +3,14 @@ from unittest.mock import Mock
 
 import pytest
 
-from backtester.engine.broker import Broker, CommissionModel
-from backtester.engine.execution import ExecutionModel
+from backtester.execution.broker import Broker
+from backtester.execution.costs import CommissionModel, ExecutionModel
 from backtester.exceptions.trading_errors import (
     PriceNotFoundError,
     InsufficientFundsError,
     InsufficientPositionError,
 )
-from backtester.portfolio.trade import Order, Side, Trade
-
+from backtester.domain.trading import Side, Trade, Order
 
 ORDER_TIMESTAMP = datetime(2026, 1, 1, 9, 30)
 EXECUTION_TIMESTAMP = datetime(2026, 1, 1, 9, 31)

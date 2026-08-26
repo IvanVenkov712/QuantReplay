@@ -43,4 +43,3 @@ class Candle:
 
         if not self.low <= self.close <= self.high:
             raise ValueError("Candle close price must be between low and high.")
-

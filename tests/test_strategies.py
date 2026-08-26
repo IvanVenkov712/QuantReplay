@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from backtester.data.models import Candle
-from backtester.strategies.base import Signal
+from backtester.domain.market import Candle
+from backtester.domain.trading import Signal
 from backtester.strategies.mrma import MeanReversionStrategy
 from backtester.strategies.moving_average import MovingAverageCrossStrategy
 from backtester.strategies.rsi_simple import SimpleRSIStrategy, calculate_simple_rsi

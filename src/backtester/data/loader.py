@@ -6,7 +6,7 @@ import pandas as pd
 import yfinance as yf
 from pandas import DataFrame
 
-from backtester.data.models import Candle
+from backtester.domain.market import Candle
 
 REQUIRED_OHLCV_COLUMNS = ("open", "high", "low", "close", "volume")
 TIMESTAMP_COLUMNS = ("timestamp", "date", "datetime")

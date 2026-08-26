@@ -86,7 +86,13 @@ def period_returns(results: BacktestResult) -> List[float]:
     for prev, next in zip(results.records, results.records[1:]):
         v_prev = prev.portfolio_value_at_close
         v_curr = next.portfolio_value_at_close
-        t = v_curr / v_prev - 1
+        if isclose(v_prev, 0):
+            if isclose(v_curr, 0):
+                t = 0
+            else:
+                t = float("+inf")
+        else:
+            t = v_curr / v_prev - 1
         returns.append(t)
 
     return returns

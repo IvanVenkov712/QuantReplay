@@ -3,9 +3,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from backtester.data.models import Candle
 from backtester.data.validation import validate_candles_chronological
-
+from backtester.domain.market import Candle
 
 BASE_CANDLE = Candle(
     timestamp=datetime(2026, 1, 1),

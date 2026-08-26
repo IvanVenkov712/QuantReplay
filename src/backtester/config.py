@@ -51,6 +51,8 @@ _SECTION_OPTIONS = {
     "backtest": _BACKTEST_OPTIONS,
     "compare": {"benchmark"},
 }
+# ``buffer_rate`` modifies buy quantity resolution after the base sizing
+# instruction is selected, so it deliberately has no selector dependency.
 _SELECTOR_DEPENDENCIES = {
     "sizing": {"buy_size", "sell_size", "buy_percent", "sell_percent"},
     "commission_model": {"fixed_commission", "commission_rate"},

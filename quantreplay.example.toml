@@ -15,7 +15,8 @@ initial_capital = 10000.0
 sizing = "percent"
 buy_percent = 0.5
 sell_percent = 1.0
-# Optionally reserve this fraction of cash from buy orders for costs or liquidity.
+# Optionally wrap buy quantity resolution with a cash reserve. Affordability
+# still uses the configured commission and slippage models.
 buffer_rate = 0.01
 # For fixed sizing, replace sizing and the two percentage settings with:
 # sizing = "fixed"

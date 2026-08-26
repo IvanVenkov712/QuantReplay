@@ -1,13 +1,13 @@
 import pytest
 
-from backtester.portfolio.position_sizing import (
+from backtester.sizing.position_sizing import (
     AllInAllOutSizer,
     BufferedSizer,
     FixedSizer,
     PercentSizer,
     SizingContext,
 )
-from backtester.portfolio.trade import Side
+from backtester.domain.trading import Side
 
 
 def make_context(

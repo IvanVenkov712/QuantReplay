@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from backtester.portfolio.trade import Side
+from backtester.domain.trading import Side
+
 
 @dataclass(frozen=True)
 class SizingContext:

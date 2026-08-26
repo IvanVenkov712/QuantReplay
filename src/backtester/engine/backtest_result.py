@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Sequence
 
-from backtester.portfolio.trade import Trade, Order
-from backtester.strategies.base import Signal
+from backtester.domain.trading import Signal, Trade, Order
+
 
 @dataclass(frozen=True)
 class OrderExecution:

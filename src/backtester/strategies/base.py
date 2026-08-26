@@ -1,14 +1,9 @@
 from abc import ABC, abstractmethod
-from enum import Enum
 from typing import Sequence
 
-from backtester.data.models import Candle
+from backtester.domain.market import Candle
+from backtester.domain.trading import Signal
 
-
-class Signal(Enum):
-    BUY = "buy"
-    SELL = "sell"
-    HOLD = "hold"
 
 class Strategy(ABC):
 

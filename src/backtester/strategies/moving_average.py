@@ -1,7 +1,8 @@
 from typing import Sequence
 
-from backtester.data.models import Candle
-from backtester.strategies.base import Strategy, Signal
+from backtester.domain.market import Candle
+from backtester.strategies.base import Strategy
+from backtester.domain.trading import Signal
 
 
 class MovingAverageCrossStrategy(Strategy):

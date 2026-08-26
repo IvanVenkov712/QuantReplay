@@ -18,8 +18,7 @@ from backtester.metrics.metrics import (
     period_returns,
     total_return,
 )
-from backtester.portfolio.trade import Side, Trade
-from backtester.strategies.base import Signal
+from backtester.domain.trading import Side, Signal, Trade
 
 
 def make_result(
@@ -91,6 +90,12 @@ def test_period_returns_are_simple_returns_between_consecutive_records() -> None
     result = make_result([100, 120, 108])
 
     assert period_returns(result) == pytest.approx([0.2, -0.1])
+
+
+def test_period_returns_are_zero_after_portfolio_equity_reaches_zero() -> None:
+    result = make_result([100, 0, 0])
+
+    assert period_returns(result) == pytest.approx([-1, 0])
 
 
 def test_daily_average_is_mean_of_period_returns() -> None:

@@ -39,7 +39,7 @@ Default parameters:
 - end date: today's date;
 - data source: `YFinanceDataSource`;
 - initial capital: `10000`;
-- position sizing: `AllInAllOutSizer`;
+- position sizing: `all-in-all-out`;
 - commission: `NoCommissionModel`;
 - slippage: `ExecutionModel(rate=0.00%)`.
 
@@ -65,7 +65,7 @@ Period: 2021-08-19 to 2026-08-19
 Years parameter: 5
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
-Position sizing: AllInAllOutSizer
+Position sizing: all-in-all-out
 Commission: NoCommissionModel
 Slippage: ExecutionModel(rate=0.00%)
 
@@ -115,7 +115,7 @@ Period: 2021-08-19 to 2026-08-19
 Years parameter: 5
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
-Position sizing: AllInAllOutSizer
+Position sizing: all-in-all-out
 Commission: NoCommissionModel
 Slippage: ExecutionModel(rate=0.00%)
 
@@ -154,11 +154,12 @@ Number of trades                     4           1            3
 - `--commission-rate`: fraction of trade notional from `0` to `1`, required with `--commission-model proportional`
 - `--slippage-rate`: adverse fill-price fraction from `0` inclusive to `1` exclusive, default `0`
 
-## Buffered position sizing
+## Buffered quantity resolution
 
-`--buffer-rate` wraps the selected base policy in `BufferedSizer`. It caps buy
-orders to the whole shares affordable after reserving the configured fraction
-of current cash. It does not alter sell quantities.
+`--buffer-rate` caps buy orders to the whole shares affordable after reserving
+the configured fraction of current cash. The CLI implements this by wrapping
+the base `QuantityResolver` in `BufferQuantityResolver`; it does not alter sell
+quantities.
 
 ```powershell
 # Reserve 5% of cash while otherwise using all-in/all-out sizing
@@ -168,9 +169,10 @@ python -m backtester.cli backtest --buffer-rate 0.05
 python -m backtester.cli backtest --sizing percent --buy-percent 0.5 --sell-percent 1 --buffer-rate 0.02
 ```
 
-The buffer can leave room for commission or adverse slippage, but is not an
-exact execution-cost calculation. An order can still be rejected if its final
-cost exceeds the spendable cash.
+The base and buffered resolvers share one `BuyQuantityCapper`. Its affordability
+calculation uses the same commission and slippage models as the broker. For
+fixed sizing, specifying a buffer also allows the requested quantity to be
+reduced when it does not fit within the spendable cash.
 
 ## Commission and slippage
 
@@ -210,15 +212,15 @@ Commission-specific values are deliberately rejected with unrelated models.
 For example, `--fixed-commission` may only be supplied with
 `--commission-model fixed`.
 
-Position sizing uses the unadjusted next-candle open. Without `--buffer-rate`,
-it does not reserve cash for commission or slippage. Consequently, an
-order—especially an unbuffered `all-in-all-out` BUY—can be rejected when its
-final cost exceeds available cash. A rejected order is recorded as
-unsuccessful, but no trade is created and no commission is charged. The CLI
-lists signal time, side, quantity, symbol, and reason when a run has at most 10
-rejected orders. For larger rejection counts, it prints the total and omits the
-individual details. Comparison runs report strategy and benchmark rejections
-separately.
+Position sizing uses the next-candle open as its reference price. All-in and
+percentage BUY quantities include commission and adverse slippage in their
+budget checks, even without `--buffer-rate`. An unbuffered fixed BUY remains an
+exact request and can be rejected when its final cost exceeds available cash.
+A rejected order is recorded as unsuccessful, but no trade is created and no
+commission is charged. The CLI lists order time, side, quantity, symbol, and
+reason when a run has at most 10 rejected orders. For larger rejection counts,
+it prints the total and omits the individual details. Comparison runs report
+strategy and benchmark rejections separately.
 
 ## Strategy options
 

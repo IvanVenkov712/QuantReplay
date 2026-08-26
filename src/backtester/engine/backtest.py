@@ -1,13 +1,15 @@
+from datetime import datetime
 from typing import Sequence
 
-from backtester.data.models import Candle
+from backtester.domain.market import Candle
 from backtester.data.validation import validate_candles_chronological
 from backtester.engine.backtest_result import BacktestResult, OrderExecution, BacktestRecord
-from backtester.engine.broker import Broker
+from backtester.execution.broker import Broker
+from backtester.resolving.resolver import OrderResolver, ResolutionContext
 from backtester.exceptions.trading_errors import InsufficientError
-from backtester.portfolio.trade import Order, side_from_signal, Side, OrderIntent
-from backtester.strategies.base import Strategy, Signal
-from backtester.portfolio.position_sizing import SizingContext, PositionSizer
+from backtester.sizing.policy import SizingPlan
+from backtester.strategies.base import Strategy
+from backtester.domain.trading import Signal, Order, OrderIntent, Side
 
 
 class BacktestEngine:
@@ -24,7 +26,8 @@ class BacktestEngine:
             self,
             strategy: Strategy,
             broker: Broker,
-            sizer: PositionSizer,
+            plan: SizingPlan,
+            resolver: OrderResolver,
             data: Sequence[Candle],
             symbol: str
     ):
@@ -35,9 +38,11 @@ class BacktestEngine:
                 into a buy, sell, or hold signal.
             broker: Broker responsible for order execution and portfolio
                 accounting.
-            sizer: Position-sizing policy that converts pending intents into
-                whole-share quantities using the execution-time portfolio
-                snapshot and next candle's opening price.
+            plan: Buy and sell sizing instructions attached to generated order
+                intents.
+            resolver: Component that converts pending intents into whole-share
+                orders using execution costs and the next candle's opening
+                portfolio snapshot.
             data: Chronologically ordered candles used by the simulation.
             symbol: Asset symbol traded by this engine.
         """
@@ -48,7 +53,8 @@ class BacktestEngine:
         self._results = None
         self._strategy: Strategy = strategy
         self._broker = broker
-        self._sizer = sizer
+        self._plan = plan
+        self._resolver = resolver
         self._data = validated_data
         self._symbol = symbol
 
@@ -81,7 +87,7 @@ class BacktestEngine:
 
             curr_candles.append(candle)
             signal = self._strategy.generate_signal(curr_candles)
-            order_intent = self._create_order_intent(candle, signal)
+            order_intent = self._create_order_intent(candle.timestamp, signal)
 
             records.append(self._create_record(candle, signal))
 
@@ -105,67 +111,57 @@ class BacktestEngine:
             return OrderExecution(order, False, e)
 
     def _create_order(self, intent: OrderIntent, candle: Candle) -> Order | None:
-        """Convert a buy or sell signal into an order timestamped at signal time.
+        """Convert a buy or sell signal into an execution-time order.
 
         The quantity is calculated from the portfolio state immediately before
         execution and the current candle's open. The simulation uses that same
-        opening price as the execution price. The order retains the intent's
-        timestamp so signal time remains distinct from execution time.
+        opening reference price for execution, and the order is timestamped at
+        the current candle.
         """
-
-        quantity = self._calculate_quantity(candle.open, intent.side)
-
-        if quantity <= 0:
-            return None
-
-        return Order(
-            symbol=self._symbol,
-            timestamp=intent.timestamp,
-            quantity=quantity,
-            side=intent.side
+        return self._resolver.resolve(
+            intent=intent,
+            context=self._create_context(candle.timestamp, candle.open)
         )
 
-    def _create_order_intent(self, candle: Candle, signal: Signal) -> OrderIntent | None:
+    def _create_order_intent(self, timestamp: datetime, signal: Signal) -> OrderIntent | None:
         if signal == Signal.BUY or signal == Signal.SELL:
             side = side_from_signal(signal)
 
             return OrderIntent(
                 symbol=self._symbol,
-                timestamp=candle.timestamp,
+                timestamp=timestamp,
                 side=side,
+                sizing_instruction=self._plan.instruction_for(side)
             )
 
-        else:
-            return None
-
+        return None
 
     def _create_record(self, candle: Candle, signal: Signal) -> BacktestRecord:
         """Create a per-candle snapshot valued at the current close."""
-        return  BacktestRecord(
+        return BacktestRecord(
             timestamp=candle.timestamp,
             generated_signal=signal,
             portfolio_value_at_close=self._broker.portfolio.value(prices={self._symbol: candle.close}),
             cash=self._broker.portfolio.cash
         )
 
-    def _calculate_quantity(self, price: float, side: Side) -> int:
-        return self._sizer.calculate_size(self._create_context(price), side)
-        # if price <= 0:
-        #     raise ValueError("Positive active price is expected")
-        #
-        # if side == Side.BUY:
-        #     return int(self._broker.portfolio.cash / price)
-        # elif side == Side.SELL:
-        #     return self._broker.portfolio.position_quantity(self._symbol)
-        # else:
-        #     raise ValueError("Unknown side")
-
-    def _create_context(self, price: float) -> SizingContext:
+    def _create_context(self, timestamp: datetime, price: float) -> ResolutionContext:
         current_quantity = self._broker.portfolio.position_quantity(self._symbol)
         cash = self._broker.portfolio.cash
-        return SizingContext(
+
+        return ResolutionContext(
+            timestamp=timestamp,
+            reference_price=price,
             cash=cash,
             current_quantity=current_quantity,
-            price=price,
             portfolio_value=cash + current_quantity * price
         )
+
+
+def side_from_signal(signal: Signal) -> Side:
+    if signal == Signal.BUY:
+        return Side.BUY
+    elif signal == Signal.SELL:
+        return Side.SELL
+    else:
+        raise ValueError("Invalid signal")

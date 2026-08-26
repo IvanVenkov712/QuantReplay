@@ -1,58 +1,15 @@
-from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List
 
-from backtester.engine.execution import ExecutionModel
 from backtester.exceptions.trading_errors import (
     PriceNotFoundError,
     InsufficientFundsError,
     InsufficientPositionError,
 )
+from backtester.execution.costs import CommissionModel, ExecutionModel
 from backtester.portfolio.portfolio import Portfolio
-from backtester.portfolio.trade import Side, Trade, Order
+from backtester.domain.trading import Side, Trade, Order
 
-
-class CommissionModel(ABC):
-    @abstractmethod
-    def calculate(self, quantity: int, fill_price: float) -> float:
-        pass
-
-class NoCommissionModel(CommissionModel):
-    def calculate(self, quantity: int, fill_price: float) -> float:
-        if quantity <= 0:
-            raise ValueError("quantity must be positive")
-        if fill_price <= 0:
-            raise ValueError("fill_price must be positive")
-        return 0.0
-
-class FixedCommissionModel(CommissionModel):
-    _commission: float
-
-    def __init__(self, commission: float):
-        if commission < 0:
-            raise ValueError("Non-negative commission is required")
-        self._commission = commission
-
-    def calculate(self, quantity: int, fill_price: float) -> float:
-        if quantity <= 0:
-            raise ValueError("quantity must be positive")
-        if fill_price <= 0:
-            raise ValueError("fill_price must be positive")
-        return self._commission
-
-class ProportionalCommissionModel(CommissionModel):
-    _percent: float
-    def __init__(self, percent: float):
-        if not 0 <= percent <= 1:
-            raise ValueError("percent must be between 0 and 1")
-        self._percent = percent
-
-    def calculate(self, quantity: int, fill_price: float) -> float:
-        if quantity <= 0:
-            raise ValueError("quantity must be positive")
-        if fill_price <= 0:
-            raise ValueError("fill_price must be positive")
-        return quantity * fill_price * self._percent
 
 class Broker:
     __trades: List[Trade]

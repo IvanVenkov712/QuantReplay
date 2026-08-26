@@ -1,0 +1,422 @@
+from __future__ import annotations
+
+import argparse
+import math
+import sys
+from pathlib import Path
+from typing import Sequence
+
+from backtester.config import (
+    DEFAULT_CONFIG_PATH,
+    ConfigError,
+    config_to_cli_arguments,
+    load_config,
+)
+
+
+DEFAULT_SYMBOL = "SPY"
+DEFAULT_YEARS = 5
+DEFAULT_INITIAL_CAPITAL = 10_000.0
+DEFAULT_SHORT_WINDOW = 20
+DEFAULT_LONG_WINDOW = 50
+DEFAULT_BENCHMARK = "buy-and-hold"
+DEFAULT_SIZING = "all-in-all-out"
+DEFAULT_COMMISSION_MODEL = "none"
+DEFAULT_SLIPPAGE_RATE = 0.0
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse CLI and TOML options with explicit CLI values taking priority."""
+    raw_args = _normalize_command_args(list(sys.argv[1:] if argv is None else argv))
+
+    parser = _build_parser()
+    try:
+        config_path, is_explicit = _find_config_path(raw_args)
+        config = load_config(config_path, required=is_explicit)
+    except ConfigError as exc:
+        parser.error(str(exc))
+
+    command = raw_args[0]
+    config_args = config_to_cli_arguments(
+        config,
+        command,
+        cli_overrides=_find_cli_selector_overrides(raw_args[1:]),
+    )
+    args = parser.parse_args([command, *config_args, *raw_args[1:]])
+
+    if args.source == "csv" and args.csv_path is None:
+        parser.error("--csv-path is required when --source csv is used.")
+
+    _validate_sizing_args(parser, args)
+    _validate_commission_args(parser, args)
+
+    return args
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="quantreplay",
+        description="Run QuantReplay strategy backtests from the console.",
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    backtest_parser = subparsers.add_parser(
+        "backtest",
+        help="Run one strategy backtest and print its performance metrics.",
+    )
+    _add_common_arguments(backtest_parser)
+    _add_strategy_arguments(backtest_parser)
+    backtest_parser.set_defaults(command="backtest")
+
+    compare_parser = subparsers.add_parser(
+        "compare",
+        help="Compare one strategy against a benchmark strategy.",
+    )
+    _add_common_arguments(compare_parser)
+    _add_strategy_arguments(compare_parser)
+    compare_parser.add_argument(
+        "--benchmark",
+        choices=["buy-and-hold", "moving-average", "rsi", "mean-reversion"],
+        default=DEFAULT_BENCHMARK,
+        help="Benchmark strategy used for comparison. Default: buy-and-hold.",
+    )
+    compare_parser.set_defaults(command="compare")
+
+    return parser
+
+
+def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG_PATH,
+        help=(
+            "TOML configuration path. If omitted, quantreplay.toml in the "
+            "current working directory is used when present."
+        ),
+    )
+    parser.add_argument(
+        "--symbol",
+        default=DEFAULT_SYMBOL,
+        help=f"Asset symbol to test. Default: {DEFAULT_SYMBOL}.",
+    )
+    parser.add_argument(
+        "--years",
+        type=_positive_int,
+        default=DEFAULT_YEARS,
+        help=(
+            "Number of calendar years to load when --start is omitted. "
+            f"Default: {DEFAULT_YEARS}."
+        ),
+    )
+    parser.add_argument(
+        "--start",
+        help="Inclusive start date in YYYY-MM-DD format. Defaults to --years before --end.",
+    )
+    parser.add_argument(
+        "--end",
+        help="Exclusive end date in YYYY-MM-DD format. Default: today's date.",
+    )
+    parser.add_argument(
+        "--source",
+        choices=["yfinance", "csv"],
+        default="yfinance",
+        help="Market data source. Default: yfinance.",
+    )
+    parser.add_argument(
+        "--csv-path",
+        type=Path,
+        help="CSV file or directory used when --source csv is selected.",
+    )
+    parser.add_argument(
+        "--initial-capital",
+        type=_positive_float,
+        default=DEFAULT_INITIAL_CAPITAL,
+        help=f"Initial portfolio cash. Default: {DEFAULT_INITIAL_CAPITAL:.0f}.",
+    )
+    parser.add_argument(
+        "--sizing",
+        choices=["all-in-all-out", "fixed", "percent"],
+        default=DEFAULT_SIZING,
+        help=f"Position-sizing policy. Default: {DEFAULT_SIZING}.",
+    )
+    parser.add_argument(
+        "--buy-size",
+        type=_positive_int,
+        help="Whole shares bought per buy signal when --sizing fixed is used.",
+    )
+    parser.add_argument(
+        "--sell-size",
+        type=_positive_int,
+        help="Whole shares sold per sell signal when --sizing fixed is used.",
+    )
+    parser.add_argument(
+        "--buy-percent",
+        type=_percentage,
+        help="Fraction of available cash used per buy signal with --sizing percent.",
+    )
+    parser.add_argument(
+        "--sell-percent",
+        type=_percentage,
+        help="Fraction of owned shares sold per sell signal with --sizing percent.",
+    )
+    parser.add_argument(
+        "--buffer-rate",
+        type=_slippage_rate,
+        help=(
+            "Fraction of available cash reserved from buy orders. "
+            "May be combined with any position-sizing policy."
+        ),
+    )
+    parser.add_argument(
+        "--commission-model",
+        choices=["none", "fixed", "proportional"],
+        default=DEFAULT_COMMISSION_MODEL,
+        help=(
+            "Commission model applied to each trade. "
+            f"Default: {DEFAULT_COMMISSION_MODEL}."
+        ),
+    )
+    parser.add_argument(
+        "--fixed-commission",
+        type=_non_negative_float,
+        help="Cash commission per trade required with --commission-model fixed.",
+    )
+    parser.add_argument(
+        "--commission-rate",
+        type=_percentage,
+        help=(
+            "Fraction of trade notional charged as commission with "
+            "--commission-model proportional."
+        ),
+    )
+    parser.add_argument(
+        "--slippage-rate",
+        type=_slippage_rate,
+        default=DEFAULT_SLIPPAGE_RATE,
+        help=(
+            "Adverse fill-price adjustment as a fraction in [0, 1). "
+            f"Default: {DEFAULT_SLIPPAGE_RATE:.0f}."
+        ),
+    )
+
+
+def _add_strategy_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--strategy",
+        choices=["moving-average", "buy-and-hold", "rsi", "mean-reversion"],
+        default="moving-average",
+        help="Strategy to test. Default: moving-average.",
+    )
+    parser.add_argument(
+        "--short-window",
+        type=_positive_int,
+        default=DEFAULT_SHORT_WINDOW,
+        help=f"Short moving average window. Default: {DEFAULT_SHORT_WINDOW}.",
+    )
+    parser.add_argument(
+        "--long-window",
+        type=_positive_int,
+        default=DEFAULT_LONG_WINDOW,
+        help=f"Long moving average window. Default: {DEFAULT_LONG_WINDOW}.",
+    )
+    parser.add_argument(
+        "--rsi-period",
+        type=_positive_int,
+        default=14,
+        help="RSI lookback period. Default: 14.",
+    )
+    parser.add_argument(
+        "--rsi-min",
+        type=float,
+        default=30.0,
+        help="RSI buy threshold. Default: 30.",
+    )
+    parser.add_argument(
+        "--rsi-max",
+        type=float,
+        default=70.0,
+        help="RSI sell threshold. Default: 70.",
+    )
+    parser.add_argument(
+        "--mean-window",
+        type=_positive_int,
+        default=20,
+        help="Mean reversion average window. Default: 20.",
+    )
+    parser.add_argument(
+        "--mean-threshold",
+        type=float,
+        default=0.95,
+        help=(
+            "Mean reversion buy threshold as a fraction of the average. "
+            "Default: 0.95."
+        ),
+    )
+
+
+def _validate_sizing_args(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+) -> None:
+    fixed_values = (args.buy_size, args.sell_size)
+    percent_values = (args.buy_percent, args.sell_percent)
+
+    if args.sizing == "fixed" and any(value is None for value in fixed_values):
+        parser.error(
+            "--buy-size and --sell-size are required when --sizing fixed is used."
+        )
+    if args.sizing != "fixed" and any(value is not None for value in fixed_values):
+        parser.error("--buy-size and --sell-size may only be used with --sizing fixed.")
+
+    if args.sizing == "percent" and any(value is None for value in percent_values):
+        parser.error(
+            "--buy-percent and --sell-percent are required when --sizing percent is used."
+        )
+    if args.sizing != "percent" and any(
+        value is not None for value in percent_values
+    ):
+        parser.error(
+            "--buy-percent and --sell-percent may only be used with --sizing percent."
+        )
+
+
+def _validate_commission_args(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+) -> None:
+    if args.commission_model == "fixed" and args.fixed_commission is None:
+        parser.error(
+            "--fixed-commission is required when --commission-model fixed is used."
+        )
+    if args.commission_model != "fixed" and args.fixed_commission is not None:
+        parser.error(
+            "--fixed-commission may only be used with --commission-model fixed."
+        )
+
+    if args.commission_model == "proportional" and args.commission_rate is None:
+        parser.error(
+            "--commission-rate is required when "
+            "--commission-model proportional is used."
+        )
+    if args.commission_model != "proportional" and args.commission_rate is not None:
+        parser.error(
+            "--commission-rate may only be used with --commission-model proportional."
+        )
+
+
+def _find_config_path(arguments: Sequence[str]) -> tuple[Path, bool]:
+    """Return the final explicit --config value or the optional default path."""
+    config_path: Path | None = None
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument == "--config":
+            if index + 1 >= len(arguments) or arguments[index + 1].startswith("-"):
+                raise ConfigError("--config requires a file path.")
+            config_path = Path(arguments[index + 1])
+            index += 2
+            continue
+        if argument.startswith("--config="):
+            value = argument.partition("=")[2]
+            if not value:
+                raise ConfigError("--config requires a file path.")
+            config_path = Path(value)
+
+        index += 1
+
+    if config_path is None:
+        return DEFAULT_CONFIG_PATH, False
+
+    return config_path, True
+
+
+def _normalize_command_args(arguments: list[str]) -> list[str]:
+    """Insert the default command and allow --config before an explicit command."""
+    if not arguments:
+        return ["backtest"]
+    if arguments[0] in {"backtest", "compare"}:
+        return arguments
+
+    prefix_end = 0
+    while prefix_end < len(arguments):
+        argument = arguments[prefix_end]
+        if argument == "--config" and prefix_end + 1 < len(arguments):
+            prefix_end += 2
+            continue
+        if argument.startswith("--config="):
+            prefix_end += 1
+            continue
+        break
+
+    if prefix_end < len(arguments) and arguments[prefix_end] in {
+        "backtest",
+        "compare",
+    }:
+        command = arguments[prefix_end]
+        return [command, *arguments[:prefix_end], *arguments[prefix_end + 1 :]]
+
+    return ["backtest", *arguments]
+
+
+def _find_cli_selector_overrides(arguments: Sequence[str]) -> dict[str, str]:
+    """Find explicit CLI values that select models with dependent settings."""
+    overrides: dict[str, str] = {}
+    selectors = {"sizing", "commission_model"}
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument.startswith("--"):
+            option, separator, inline_value = argument[2:].partition("=")
+            name = option.replace("-", "_")
+            if name in selectors:
+                if separator:
+                    overrides[name] = inline_value
+                elif index + 1 < len(arguments):
+                    overrides[name] = arguments[index + 1]
+                    index += 1
+        index += 1
+
+    return overrides
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be a positive integer")
+
+    return parsed
+
+
+def _positive_float(value: str) -> float:
+    parsed = float(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be positive")
+
+    return parsed
+
+
+def _non_negative_float(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed < 0:
+        raise argparse.ArgumentTypeError("value must be a non-negative finite number")
+
+    return parsed
+
+
+def _percentage(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or not 0 <= parsed <= 1:
+        raise argparse.ArgumentTypeError("value must be between 0 and 1")
+
+    return parsed
+
+
+def _slippage_rate(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or not 0 <= parsed < 1:
+        raise argparse.ArgumentTypeError(
+            "value must be between 0 (inclusive) and 1 (exclusive)"
+        )
+
+    return parsed
