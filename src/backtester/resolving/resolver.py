@@ -13,6 +13,19 @@ class ResolutionContext:
     current_quantity: int
     portfolio_value: float
 
+    def __post_init__(self):
+        if self.cash < 0:
+            raise ValueError("cash cannot be negative")
+
+        if self.current_quantity < 0:
+            raise ValueError("current quantity cannot be negative")
+
+        if self.portfolio_value < self.cash:
+            raise ValueError("portfolio value cannot be less than cash")
+
+        if self.reference_price <= 0:
+            raise ValueError("price must be positive")
+
 class QuantityResolver:
     def __init__(self, estimator: ExecutionCostCalculator):
         self._estimator: ExecutionCostCalculator = estimator

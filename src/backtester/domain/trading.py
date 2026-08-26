@@ -109,7 +109,7 @@ def _validate_price(price: float) -> None:
         raise ValueError("Price must be positive.")
 
 def _validate_percent(value):
-    if not (isinstance(value, float | int) and 0 <= value <= 1):
+    if not (isinstance(value, float | int) and 0 <= value <= 1) or isinstance(value, bool):
         raise ValueError("value must be in [0, 1]")
 
 def _validate_commission(commission: float) -> None:
