@@ -126,8 +126,9 @@ shares, a valid sizing decision can produce a quantity of zero.
 The optional `--buffer-rate` limits buy quantities so that the configured
 fraction of current cash remains unspent, while sell quantities still follow
 the selected policy. For example, `--buffer-rate 0.05` reserves 5% of cash.
-The quantity resolver also includes the configured commission and adverse
-slippage when checking how many shares fit within the remaining budget.
+When configured, `BufferQuantityResolver` wraps the base `QuantityResolver`.
+Both use the same `BuyQuantityCapper`, which includes configured commission
+and adverse slippage when checking how many shares fit within the budget.
 
 ## Backtesting assumptions
 

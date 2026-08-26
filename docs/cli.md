@@ -154,10 +154,12 @@ Number of trades                     4           1            3
 - `--commission-rate`: fraction of trade notional from `0` to `1`, required with `--commission-model proportional`
 - `--slippage-rate`: adverse fill-price fraction from `0` inclusive to `1` exclusive, default `0`
 
-## Buffered position sizing
+## Buffered quantity resolution
 
 `--buffer-rate` caps buy orders to the whole shares affordable after reserving
-the configured fraction of current cash. It does not alter sell quantities.
+the configured fraction of current cash. The CLI implements this by wrapping
+the base `QuantityResolver` in `BufferQuantityResolver`; it does not alter sell
+quantities.
 
 ```powershell
 # Reserve 5% of cash while otherwise using all-in/all-out sizing
@@ -167,9 +169,10 @@ python -m backtester.cli backtest --buffer-rate 0.05
 python -m backtester.cli backtest --sizing percent --buy-percent 0.5 --sell-percent 1 --buffer-rate 0.02
 ```
 
-The affordability calculation uses the same commission and slippage models as
-the broker. For fixed sizing, specifying a buffer also allows the requested
-quantity to be reduced when it does not fit within the spendable cash.
+The base and buffered resolvers share one `BuyQuantityCapper`. Its affordability
+calculation uses the same commission and slippage models as the broker. For
+fixed sizing, specifying a buffer also allows the requested quantity to be
+reduced when it does not fit within the spendable cash.
 
 ## Commission and slippage
 

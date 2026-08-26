@@ -142,8 +142,9 @@ python -m backtester.cli backtest --config percent.toml --sizing fixed --buy-siz
 `buffer_rate` is independent of the base sizing selection. When present, it
 caps buys to leave the configured fraction of current cash unspent, while
 sells are unchanged. For example, `buffer_rate = 0.05` reserves 5% of cash.
-Buy affordability is calculated with the same commission and slippage models
-that the broker uses.
+The CLI applies it by wrapping the base `QuantityResolver` in a
+`BufferQuantityResolver`. Both resolvers share one `BuyQuantityCapper`, so buy
+affordability uses the same commission and slippage models as the broker.
 
 See the [CLI reference](cli.md) for all commands and options, or return to the
 [project README](../README.md).

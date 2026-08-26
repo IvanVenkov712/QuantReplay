@@ -48,7 +48,12 @@ from backtester.metrics.metrics import (
     total_return,
 )
 from backtester.portfolio.portfolio import Portfolio
-from backtester.resolving.resolver import OrderResolver, QuantityResolver
+from backtester.resolving.resolver import (
+    BufferQuantityResolver,
+    BuyQuantityCapper,
+    OrderResolver,
+    QuantityResolver,
+)
 from backtester.sizing.policy import SizingPlan
 from backtester.strategies.base import Strategy
 from backtester.strategies.buy_n_hold import BuyAndHoldStrategy
@@ -532,10 +537,15 @@ def _create_order_resolver(
         execution_model=execution_model,
         commission_model=commission_model,
     )
-    quantity_resolver = QuantityResolver(
-        estimator=cost_calculator,
-        buy_cash_buffer_rate=buffer_rate,
-    )
+    buy_quantity_capper = BuyQuantityCapper(cost_calculator)
+    quantity_resolver = QuantityResolver(buy_quantity_capper)
+
+    if buffer_rate is not None:
+        quantity_resolver = BufferQuantityResolver(
+            resolver=quantity_resolver,
+            capper=buy_quantity_capper,
+            buffer_rate=buffer_rate,
+        )
 
     return OrderResolver(quantity_resolver)
 
@@ -770,7 +780,11 @@ def _describe_sizing(args: argparse.Namespace) -> str:
         raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
 
     if args.buffer_rate is not None:
-        return f"BufferedSizer({description}, buffer={args.buffer_rate:.2%})"
+        return (
+            "BufferQuantityResolver("
+            f"{description}, buffer={args.buffer_rate:.2%}"
+            ")"
+        )
 
     return description
 

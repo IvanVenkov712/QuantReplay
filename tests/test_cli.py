@@ -324,7 +324,7 @@ def test_create_sizing_plan_uses_selected_policy(
     assert cli._create_sizing_plan(args) == expected_plan
 
 
-def test_create_order_resolver_applies_configured_cash_buffer() -> None:
+def test_create_order_resolver_composes_cost_capper_and_cash_buffer() -> None:
     args = cli._parse_args(["--buffer-rate", "0.25"])
     plan = cli._create_sizing_plan(args)
     resolver = cli._create_order_resolver(
@@ -725,7 +725,8 @@ slippage_rate = 0.1
     assert exit_code == 0
     assert captured.err == ""
     assert (
-        "Position sizing: BufferedSizer(FixedSizer(buy=1, sell=1), buffer=5.00%)"
+        "Position sizing: BufferQuantityResolver("
+        "FixedSizer(buy=1, sell=1), buffer=5.00%)"
         in captured.out
     )
     assert "Commission: FixedCommissionModel(per_trade=5.00)" in captured.out
@@ -796,7 +797,8 @@ def test_main_applies_and_prints_buffered_position_sizing(
     assert exit_code == 0
     assert captured.err == ""
     assert (
-        "Position sizing: BufferedSizer(AllInAllOutSizer, buffer=5.00%)"
+        "Position sizing: BufferQuantityResolver("
+        "AllInAllOutSizer, buffer=5.00%)"
         in captured.out
     )
 
