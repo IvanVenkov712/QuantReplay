@@ -4,11 +4,38 @@ from pathlib import Path
 
 import pytest
 
-from backtester import cli
+from backtester.cli import commands, main
+from backtester.cli.arguments import (
+    DEFAULT_COMMISSION_MODEL,
+    DEFAULT_CONFIG_PATH,
+    DEFAULT_INITIAL_CAPITAL,
+    DEFAULT_LONG_WINDOW,
+    DEFAULT_SHORT_WINDOW,
+    DEFAULT_SIZING,
+    DEFAULT_SLIPPAGE_RATE,
+    DEFAULT_SYMBOL,
+    DEFAULT_YEARS,
+    parse_args,
+)
+from backtester.cli.commands import resolve_date_range
+from backtester.cli.factories import (
+    create_commission_model,
+    create_execution_model,
+    create_order_resolver,
+    create_sizing_plan,
+)
+from backtester.cli.reporting import (
+    MAX_REJECTED_ORDER_DETAILS,
+    format_metric_value,
+    print_metric_comparison,
+    print_rejected_orders,
+)
 from backtester.engine.backtest_result import BacktestResult, OrderExecution
 from backtester.execution.costs import NoCommissionModel, FixedCommissionModel, ProportionalCommissionModel, \
     ExecutionModel
 from backtester.exceptions.trading_errors import InsufficientFundsError
+from backtester.metrics.benchmark_comparison import get_differences
+from backtester.metrics.metrics import MetricData
 from backtester.resolving.resolver import ResolutionContext
 from backtester.sizing.policy import SizingPlan
 from backtester.domain.trading import (
@@ -23,27 +50,27 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
-    args = cli._parse_args([])
+    args = parse_args([])
 
     assert args.command == "backtest"
-    assert args.config == cli.DEFAULT_CONFIG_PATH
-    assert args.symbol == cli.DEFAULT_SYMBOL
-    assert args.years == cli.DEFAULT_YEARS
+    assert args.config == DEFAULT_CONFIG_PATH
+    assert args.symbol == DEFAULT_SYMBOL
+    assert args.years == DEFAULT_YEARS
     assert args.source == "yfinance"
-    assert args.initial_capital == cli.DEFAULT_INITIAL_CAPITAL
-    assert args.sizing == cli.DEFAULT_SIZING
+    assert args.initial_capital == DEFAULT_INITIAL_CAPITAL
+    assert args.sizing == DEFAULT_SIZING
     assert args.buy_size is None
     assert args.sell_size is None
     assert args.buy_percent is None
     assert args.sell_percent is None
     assert args.buffer_rate is None
-    assert args.commission_model == cli.DEFAULT_COMMISSION_MODEL
+    assert args.commission_model == DEFAULT_COMMISSION_MODEL
     assert args.fixed_commission is None
     assert args.commission_rate is None
-    assert args.slippage_rate == cli.DEFAULT_SLIPPAGE_RATE
+    assert args.slippage_rate == DEFAULT_SLIPPAGE_RATE
     assert args.strategy == "moving-average"
-    assert args.short_window == cli.DEFAULT_SHORT_WINDOW
-    assert args.long_window == cli.DEFAULT_LONG_WINDOW
+    assert args.short_window == DEFAULT_SHORT_WINDOW
+    assert args.long_window == DEFAULT_LONG_WINDOW
 
 
 def test_parse_args_loads_explicit_toml_configuration(tmp_path: Path) -> None:
@@ -67,7 +94,7 @@ rsi_max = 75.0
 """,
     )
 
-    args = cli._parse_args(["--config", str(config_path)])
+    args = parse_args(["--config", str(config_path)])
 
     assert args.config == config_path
     assert args.symbol == "AAPL"
@@ -83,7 +110,7 @@ rsi_max = 75.0
     assert args.rsi_period == 10
     assert args.rsi_min == 25
     assert args.rsi_max == 75
-    assert args.short_window == cli.DEFAULT_SHORT_WINDOW
+    assert args.short_window == DEFAULT_SHORT_WINDOW
 
 
 def test_cli_options_override_toml_and_toml_overrides_defaults(
@@ -99,7 +126,7 @@ initial_capital = 25000.0
 """,
     )
 
-    args = cli._parse_args(
+    args = parse_args(
         [
             "--config",
             str(config_path),
@@ -131,7 +158,7 @@ commission_rate = 0.001
 """,
     )
 
-    args = cli._parse_args(
+    args = parse_args(
         [
             "--config",
             str(config_path),
@@ -165,9 +192,9 @@ def test_parse_args_loads_default_config_from_current_directory(
     _write_config(tmp_path, "[backtest]\nsymbol = 'AAPL'\n", "quantreplay.toml")
     monkeypatch.chdir(tmp_path)
 
-    args = cli._parse_args([])
+    args = parse_args([])
 
-    assert args.config == cli.DEFAULT_CONFIG_PATH
+    assert args.config == DEFAULT_CONFIG_PATH
     assert args.symbol == "AAPL"
 
 
@@ -184,7 +211,7 @@ benchmark = "rsi"
 """,
     )
 
-    args = cli._parse_args(["compare", "--config", str(config_path)])
+    args = parse_args(["compare", "--config", str(config_path)])
 
     assert args.command == "compare"
     assert args.symbol == "MSFT"
@@ -198,7 +225,7 @@ def test_config_option_may_precede_explicit_compare_command(tmp_path: Path) -> N
         "[backtest]\nsymbol = 'MSFT'\n[compare]\nbenchmark = 'rsi'\n",
     )
 
-    args = cli._parse_args(["--config", str(config_path), "compare"])
+    args = parse_args(["--config", str(config_path), "compare"])
 
     assert args.command == "compare"
     assert args.symbol == "MSFT"
@@ -212,7 +239,7 @@ def test_parse_args_rejects_missing_explicit_config_file(
     missing_path = tmp_path / "missing.toml"
 
     with pytest.raises(SystemExit) as exc_info:
-        cli._parse_args(["--config", str(missing_path)])
+        parse_args(["--config", str(missing_path)])
 
     assert exc_info.value.code == 2
     assert "Configuration file does not exist" in capsys.readouterr().err
@@ -225,7 +252,7 @@ def test_toml_values_use_the_same_argparse_validation(
     config_path = _write_config(tmp_path, "[backtest]\nyears = 0\n")
 
     with pytest.raises(SystemExit) as exc_info:
-        cli._parse_args(["--config", str(config_path)])
+        parse_args(["--config", str(config_path)])
 
     assert exc_info.value.code == 2
     assert "value must be a positive integer" in capsys.readouterr().err
@@ -234,7 +261,7 @@ def test_toml_values_use_the_same_argparse_validation(
 def test_parse_args_accepts_backtest_options_without_explicit_command() -> None:
     csv_path = Path("prices.csv")
 
-    args = cli._parse_args(
+    args = parse_args(
         [
             "--source",
             "csv",
@@ -267,7 +294,7 @@ def test_parse_args_accepts_backtest_options_without_explicit_command() -> None:
 
 
 def test_parse_args_accepts_compare_command_and_benchmark() -> None:
-    args = cli._parse_args(
+    args = parse_args(
         [
             "compare",
             "--strategy",
@@ -319,15 +346,15 @@ def test_create_sizing_plan_uses_selected_policy(
     arguments: list[str],
     expected_plan: SizingPlan,
 ) -> None:
-    args = cli._parse_args(arguments)
+    args = parse_args(arguments)
 
-    assert cli._create_sizing_plan(args) == expected_plan
+    assert create_sizing_plan(args) == expected_plan
 
 
 def test_create_order_resolver_composes_cost_capper_and_cash_buffer() -> None:
-    args = cli._parse_args(["--buffer-rate", "0.25"])
-    plan = cli._create_sizing_plan(args)
-    resolver = cli._create_order_resolver(
+    args = parse_args(["--buffer-rate", "0.25"])
+    plan = create_sizing_plan(args)
+    resolver = create_order_resolver(
         execution_model=ExecutionModel(slippage_rate=0),
         commission_model=NoCommissionModel(),
         buffer_rate=args.buffer_rate,
@@ -379,15 +406,15 @@ def test_create_commission_model_uses_selected_policy(
     arguments: list[str],
     expected_type: type,
 ) -> None:
-    args = cli._parse_args(arguments)
+    args = parse_args(arguments)
 
-    assert isinstance(cli._create_commission_model(args), expected_type)
+    assert isinstance(create_commission_model(args), expected_type)
 
 
 def test_create_execution_model_uses_selected_slippage_rate() -> None:
-    args = cli._parse_args(["--slippage-rate", "0.01"])
+    args = parse_args(["--slippage-rate", "0.01"])
 
-    model = cli._create_execution_model(args)
+    model = create_execution_model(args)
 
     assert isinstance(model, ExecutionModel)
     assert model.calculate_fill_price(100, Side.BUY) == pytest.approx(101)
@@ -420,7 +447,7 @@ def test_parse_args_rejects_incomplete_or_irrelevant_sizing_options(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
-        cli._parse_args(arguments)
+        parse_args(arguments)
 
     assert exc_info.value.code == 2
     assert message in capsys.readouterr().err
@@ -453,7 +480,7 @@ def test_parse_args_rejects_incomplete_or_irrelevant_commission_options(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
-        cli._parse_args(arguments)
+        parse_args(arguments)
 
     assert exc_info.value.code == 2
     assert message in capsys.readouterr().err
@@ -465,7 +492,7 @@ def test_parse_args_rejects_percentage_outside_zero_to_one(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
-        cli._parse_args(
+        parse_args(
             [
                 "--sizing",
                 "percent",
@@ -486,7 +513,7 @@ def test_parse_args_rejects_invalid_slippage_rate(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
-        cli._parse_args(["--slippage-rate", value])
+        parse_args(["--slippage-rate", value])
 
     assert exc_info.value.code == 2
     assert "value must be between 0 (inclusive) and 1 (exclusive)" in (
@@ -500,7 +527,7 @@ def test_parse_args_rejects_invalid_buffer_rate(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
-        cli._parse_args(["--buffer-rate", value])
+        parse_args(["--buffer-rate", value])
 
     assert exc_info.value.code == 2
     assert "value must be between 0 (inclusive) and 1 (exclusive)" in (
@@ -514,7 +541,7 @@ def test_parse_args_rejects_invalid_fixed_commission(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
-        cli._parse_args(
+        parse_args(
             ["--commission-model", "fixed", "--fixed-commission", value]
         )
 
@@ -528,7 +555,7 @@ def test_csv_source_requires_csv_path(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
-        cli._parse_args([command, "--source", "csv"])
+        parse_args([command, "--source", "csv"])
 
     assert exc_info.value.code == 2
     assert "--csv-path is required when --source csv is used" in capsys.readouterr().err
@@ -549,14 +576,14 @@ def test_parse_args_rejects_non_positive_values(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
-        cli._parse_args([option, value])
+        parse_args([option, value])
 
     assert exc_info.value.code == 2
     assert message in capsys.readouterr().err
 
 
 def test_resolve_date_range_handles_leap_day_when_subtracting_years() -> None:
-    assert cli._resolve_date_range(None, "2024-02-29", 1) == (
+    assert resolve_date_range(None, "2024-02-29", 1) == (
         "2023-02-28",
         "2024-02-29",
     )
@@ -564,7 +591,7 @@ def test_resolve_date_range_handles_leap_day_when_subtracting_years() -> None:
 
 def test_resolve_date_range_rejects_start_on_or_after_end() -> None:
     with pytest.raises(ValueError, match="Start date must be before end date"):
-        cli._resolve_date_range("2024-01-02", "2024-01-02", 5)
+        resolve_date_range("2024-01-02", "2024-01-02", 5)
 
 
 def test_resolve_date_range_uses_today_when_end_is_omitted(
@@ -575,9 +602,9 @@ def test_resolve_date_range_uses_today_when_end_is_omitted(
         def today(cls) -> "FixedDate":
             return cls(2026, 8, 19)
 
-    monkeypatch.setattr(cli, "date", FixedDate)
+    monkeypatch.setattr(commands, "date", FixedDate)
 
-    assert cli._resolve_date_range(None, None, 2) == (
+    assert resolve_date_range(None, None, 2) == (
         "2024-08-19",
         "2026-08-19",
     )
@@ -588,7 +615,7 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
 ) -> None:
     csv_path = FIXTURES_DIR / "cli_two_candles.csv"
 
-    exit_code = cli.main(
+    exit_code = main(
         [
             "backtest",
             "--source",
@@ -617,7 +644,7 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
     assert "Period: 2024-01-01 to 2024-01-03" in captured.out
     assert f"Data source: CSVDataSource({csv_path})" in captured.out
     assert "Initial capital: 10,000.00" in captured.out
-    assert "Position sizing: AllInAllOutSizer" in captured.out
+    assert "Position sizing: all-in-all-out" in captured.out
     assert "Commission: NoCommissionModel" in captured.out
     assert "Slippage: ExecutionModel(rate=0.00%)" in captured.out
     assert "Performance metrics" in captured.out
@@ -641,7 +668,7 @@ def test_main_accepts_supported_csv_timestamp_aliases(
         encoding="utf-8",
     )
 
-    exit_code = cli.main(
+    exit_code = main(
         [
             "backtest",
             "--source",
@@ -685,7 +712,7 @@ initial_capital = 10000.0
 """,
     )
 
-    exit_code = cli.main(["--config", str(config_path)])
+    exit_code = main(["--config", str(config_path)])
 
     captured = capsys.readouterr()
     assert exit_code == 0
@@ -719,16 +746,12 @@ slippage_rate = 0.1
 """,
     )
 
-    exit_code = cli.main(["--config", str(config_path)])
+    exit_code = main(["--config", str(config_path)])
 
     captured = capsys.readouterr()
     assert exit_code == 0
     assert captured.err == ""
-    assert (
-        "Position sizing: BufferQuantityResolver("
-        "FixedSizer(buy=1, sell=1), buffer=5.00%)"
-        in captured.out
-    )
+    assert "Position sizing: fixed (buy=1, sell=1), buffer=5.00%" in captured.out
     assert "Commission: FixedCommissionModel(per_trade=5.00)" in captured.out
     assert "Slippage: ExecutionModel(rate=10.00%)" in captured.out
     assert "Total return: -0.05%" in captured.out
@@ -740,7 +763,7 @@ def test_main_runs_backtest_with_fixed_position_sizing(
 ) -> None:
     csv_path = FIXTURES_DIR / "cli_two_candles.csv"
 
-    exit_code = cli.main(
+    exit_code = main(
         [
             "backtest",
             "--source",
@@ -765,7 +788,7 @@ def test_main_runs_backtest_with_fixed_position_sizing(
     captured = capsys.readouterr()
     assert exit_code == 0
     assert captured.err == ""
-    assert "Position sizing: FixedSizer(buy=1, sell=1)" in captured.out
+    assert "Position sizing: fixed (buy=1, sell=1)" in captured.out
     assert "Total return: 0.10%" in captured.out
     assert "Number of trades: 1" in captured.out
 
@@ -775,7 +798,7 @@ def test_main_applies_and_prints_buffered_position_sizing(
 ) -> None:
     csv_path = FIXTURES_DIR / "cli_two_candles.csv"
 
-    exit_code = cli.main(
+    exit_code = main(
         [
             "backtest",
             "--source",
@@ -796,11 +819,7 @@ def test_main_applies_and_prints_buffered_position_sizing(
     captured = capsys.readouterr()
     assert exit_code == 0
     assert captured.err == ""
-    assert (
-        "Position sizing: BufferQuantityResolver("
-        "AllInAllOutSizer, buffer=5.00%)"
-        in captured.out
-    )
+    assert "Position sizing: all-in-all-out, buffer=5.00%" in captured.out
 
 
 def test_main_applies_and_prints_fixed_commission_and_slippage(
@@ -808,7 +827,7 @@ def test_main_applies_and_prints_fixed_commission_and_slippage(
 ) -> None:
     csv_path = FIXTURES_DIR / "cli_two_candles.csv"
 
-    exit_code = cli.main(
+    exit_code = main(
         [
             "backtest",
             "--source",
@@ -850,7 +869,7 @@ def test_main_sizes_all_in_order_within_execution_cost_budget(
 ) -> None:
     csv_path = FIXTURES_DIR / "cli_two_candles.csv"
 
-    exit_code = cli.main(
+    exit_code = main(
         [
             "backtest",
             "--source",
@@ -892,18 +911,18 @@ def test_rejected_order_details_are_omitted_above_display_limit() -> None:
             success=False,
             reason=InsufficientFundsError(),
         )
-        for _ in range(cli.MAX_REJECTED_ORDER_DETAILS + 1)
+        for _ in range(MAX_REJECTED_ORDER_DETAILS + 1)
     ]
     result = BacktestResult(records=[], trades=[], orders=rejected_orders)
     output = StringIO()
 
-    cli._print_rejected_orders(output, "Rejected orders", result)
+    print_rejected_orders(output, "Rejected orders", result)
 
     report = output.getvalue()
     assert f"Rejected orders: {len(rejected_orders)}" in report
     assert (
         "Details omitted because the rejected-order limit is "
-        f"{cli.MAX_REJECTED_ORDER_DETAILS}."
+        f"{MAX_REJECTED_ORDER_DETAILS}."
     ) in report
     assert "Order time" not in report
 
@@ -913,7 +932,7 @@ def test_main_compares_strategy_with_benchmark_using_same_csv_data(
 ) -> None:
     csv_path = FIXTURES_DIR / "cli_two_candles.csv"
 
-    exit_code = cli.main(
+    exit_code = main(
         [
             "compare",
             "--source",
@@ -952,16 +971,16 @@ def test_main_compares_strategy_with_benchmark_using_same_csv_data(
 def test_print_metric_comparison_shows_strategy_benchmark_and_difference() -> None:
     output = StringIO()
     strategy_metrics = {
-        "total_return": cli.MetricData("Total return", 0.25),
-        "number_of_trades": cli.MetricData("Number of trades", 3),
+        "total_return": MetricData("Total return", 0.25),
+        "number_of_trades": MetricData("Number of trades", 3),
     }
     benchmark_metrics = {
-        "total_return": cli.MetricData("Total return", 0.20),
-        "number_of_trades": cli.MetricData("Number of trades", 1),
+        "total_return": MetricData("Total return", 0.20),
+        "number_of_trades": MetricData("Number of trades", 1),
     }
-    differences = cli.get_differences(strategy_metrics, benchmark_metrics)
+    differences = get_differences(strategy_metrics, benchmark_metrics)
 
-    cli._print_metric_comparison(
+    print_metric_comparison(
         output,
         strategy_metrics,
         benchmark_metrics,
@@ -980,7 +999,7 @@ def test_main_reports_runtime_errors_and_returns_nonzero_exit_code(
 ) -> None:
     csv_path = FIXTURES_DIR / "cli_one_candle.csv"
 
-    exit_code = cli.main(
+    exit_code = main(
         [
             "--source",
             "csv",
@@ -1017,7 +1036,7 @@ def test_format_metric_value_uses_metric_specific_formatting(
     value: float,
     expected: str,
 ) -> None:
-    assert cli._format_metric_value(name, value) == expected
+    assert format_metric_value(name, value) == expected
 
 
 def _write_config(
