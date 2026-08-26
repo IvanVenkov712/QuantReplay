@@ -7,9 +7,25 @@ import pytest
 from backtester.domain.market import Candle
 from backtester.engine.backtest import BacktestEngine
 from backtester.exceptions.trading_errors import InsufficientFundsError
-from backtester.sizing.position_sizing import PositionSizer, SizingContext
-from backtester.domain.trading import Side, Signal, Trade, Order
+from backtester.resolving.resolver import OrderResolver, ResolutionContext
+from backtester.sizing.policy import SizingPlan
+from backtester.domain.trading import (
+    Order,
+    OrderIntent,
+    Side,
+    Signal,
+    SizingInstruction,
+    SizingMode,
+    Trade,
+)
 from backtester.strategies.base import Strategy
+
+
+ALL_IN_INSTRUCTION = SizingInstruction(mode=SizingMode.ALL_IN, value=None)
+DEFAULT_SIZING_PLAN = SizingPlan(
+    buy=ALL_IN_INSTRUCTION,
+    sell=ALL_IN_INSTRUCTION,
+)
 
 
 class ScriptedStrategy(Strategy):
@@ -73,16 +89,33 @@ def make_broker_mock(
     return broker
 
 
-def make_sizer_mock(*quantities: int) -> Mock:
-    sizer = Mock(spec=PositionSizer)
+def make_resolver_mock(*quantities: int) -> Mock:
+    resolver = Mock(spec=OrderResolver)
     configured_quantities = quantities or (10,)
 
     if len(configured_quantities) == 1:
-        sizer.calculate_size.return_value = configured_quantities[0]
+        pending_quantities = None
     else:
-        sizer.calculate_size.side_effect = configured_quantities
+        pending_quantities = iter(configured_quantities)
 
-    return sizer
+    def resolve(intent: OrderIntent, context: ResolutionContext) -> Order | None:
+        quantity = (
+            configured_quantities[0]
+            if pending_quantities is None
+            else next(pending_quantities)
+        )
+        if quantity <= 0:
+            return None
+
+        return Order(
+            symbol=intent.symbol,
+            side=intent.side,
+            quantity=quantity,
+            timestamp=context.timestamp,
+        )
+
+    resolver.resolve.side_effect = resolve
+    return resolver
 
 
 def make_candles(prices: Sequence[tuple[float, float]]) -> list[Candle]:
@@ -108,15 +141,17 @@ def make_engine(
     signals: Sequence[Signal],
     candles: Sequence[Candle],
     broker: Mock | None = None,
-    sizer: Mock | None = None,
+    resolver: Mock | None = None,
+    plan: SizingPlan = DEFAULT_SIZING_PLAN,
 ) -> tuple[BacktestEngine, ScriptedStrategy, Mock]:
     strategy = ScriptedStrategy(signals)
     broker = broker or make_broker_mock()
-    sizer = sizer or make_sizer_mock()
+    resolver = resolver or make_resolver_mock()
     engine = BacktestEngine(
         strategy=strategy,
         broker=broker,
-        sizer=sizer,
+        plan=plan,
+        resolver=resolver,
         data=candles,
         symbol="AAPL",
     )
@@ -161,12 +196,12 @@ def test_hold_strategy_creates_records_without_orders_or_trades() -> None:
     broker.execute.assert_not_called()
 
 
-def test_buy_signal_creates_no_order_when_sizer_returns_zero() -> None:
+def test_buy_signal_creates_no_order_when_resolver_returns_none() -> None:
     candles = make_candles([(100, 100), (90, 90)])
     broker = make_broker_mock(make_portfolio_mock(cash=99))
-    sizer = make_sizer_mock(0)
+    resolver = make_resolver_mock(0)
     engine, _, broker = make_engine(
-        [Signal.BUY, Signal.HOLD], candles, broker, sizer
+        [Signal.BUY, Signal.HOLD], candles, broker, resolver
     )
 
     result = engine.run()
@@ -188,7 +223,7 @@ def test_buy_signal_is_executed_on_next_candle_open() -> None:
         symbol="AAPL",
         side=Side.BUY,
         quantity=10,
-        timestamp=candles[0].timestamp,
+        timestamp=candles[1].timestamp,
     )
     broker.execute.assert_called_once_with(
         result.orders[0].order,
@@ -203,19 +238,27 @@ def test_pending_intent_sizes_order_from_portfolio_and_next_open() -> None:
     broker = make_broker_mock(
         make_portfolio_mock(cash=1_000, position_quantity=4)
     )
-    sizer = make_sizer_mock(3)
-    engine, _, _ = make_engine([Signal.BUY, Signal.HOLD], candles, broker, sizer)
+    resolver = make_resolver_mock(3)
+    engine, _, _ = make_engine(
+        [Signal.BUY, Signal.HOLD], candles, broker, resolver
+    )
 
     engine.run()
 
-    sizer.calculate_size.assert_called_once_with(
-        SizingContext(
+    resolver.resolve.assert_called_once_with(
+        intent=OrderIntent(
+            symbol="AAPL",
+            side=Side.BUY,
+            timestamp=candles[0].timestamp,
+            sizing_instruction=ALL_IN_INSTRUCTION,
+        ),
+        context=ResolutionContext(
+            timestamp=candles[1].timestamp,
             cash=1_000,
             current_quantity=4,
             portfolio_value=1_280,
-            price=70,
+            reference_price=70,
         ),
-        Side.BUY,
     )
 
 
@@ -230,11 +273,11 @@ def test_buy_signal_on_last_candle_is_not_executed() -> None:
     broker.execute.assert_not_called()
 
 
-def test_sell_signal_creates_no_order_when_sizer_returns_zero() -> None:
+def test_sell_signal_creates_no_order_when_resolver_returns_none() -> None:
     candles = make_candles([(20, 20), (25, 25)])
-    sizer = make_sizer_mock(0)
+    resolver = make_resolver_mock(0)
     engine, _, broker = make_engine(
-        [Signal.SELL, Signal.HOLD], candles, sizer=sizer
+        [Signal.SELL, Signal.HOLD], candles, resolver=resolver
     )
 
     result = engine.run()
@@ -247,9 +290,9 @@ def test_sell_signal_creates_no_order_when_sizer_returns_zero() -> None:
 def test_sell_signal_is_executed_on_next_candle_open() -> None:
     candles = make_candles([(20, 20), (25, 30)])
     broker = make_broker_mock(make_portfolio_mock(cash=100, position_quantity=5))
-    sizer = make_sizer_mock(5)
+    resolver = make_resolver_mock(5)
     engine, _, broker = make_engine(
-        [Signal.SELL, Signal.HOLD], candles, broker, sizer
+        [Signal.SELL, Signal.HOLD], candles, broker, resolver
     )
 
     result = engine.run()
@@ -260,7 +303,7 @@ def test_sell_signal_is_executed_on_next_candle_open() -> None:
         symbol="AAPL",
         side=Side.SELL,
         quantity=5,
-        timestamp=candles[0].timestamp,
+        timestamp=candles[1].timestamp,
     )
     broker.execute.assert_called_once_with(
         result.orders[0].order,
@@ -296,7 +339,7 @@ def test_failed_pending_order_does_not_stop_current_candle_signal() -> None:
         [Signal.BUY, Signal.BUY, Signal.HOLD],
         candles,
         broker,
-        make_sizer_mock(10, 2),
+        make_resolver_mock(10, 2),
     )
 
     result = engine.run()
@@ -304,8 +347,8 @@ def test_failed_pending_order_does_not_stop_current_candle_signal() -> None:
     assert [order.success for order in result.orders] == [False, True]
     assert isinstance(result.orders[0].reason, InsufficientFundsError)
     assert [call_args.args[0] for call_args in broker.execute.call_args_list] == [
-        Order("AAPL", Side.BUY, quantity=10, timestamp=candles[0].timestamp),
-        Order("AAPL", Side.BUY, quantity=2, timestamp=candles[1].timestamp),
+        Order("AAPL", Side.BUY, quantity=10, timestamp=candles[1].timestamp),
+        Order("AAPL", Side.BUY, quantity=2, timestamp=candles[2].timestamp),
     ]
     assert result.trades == [
         Trade(
@@ -382,8 +425,8 @@ def test_pending_order_executes_before_current_candle_signal_is_generated() -> N
     result = engine.run()
 
     assert [call_args.args[0] for call_args in broker.execute.call_args_list] == [
-        Order("AAPL", Side.BUY, quantity=10, timestamp=candles[0].timestamp),
-        Order("AAPL", Side.SELL, quantity=10, timestamp=candles[1].timestamp),
+        Order("AAPL", Side.BUY, quantity=10, timestamp=candles[1].timestamp),
+        Order("AAPL", Side.SELL, quantity=10, timestamp=candles[2].timestamp),
     ]
     assert result.orders[1].success is True
 
@@ -422,8 +465,8 @@ def test_buy_hold_sell_sequence_emits_expected_pending_orders() -> None:
     result = engine.run()
 
     assert [call_args.args[0] for call_args in broker.execute.call_args_list] == [
-        Order("AAPL", Side.BUY, quantity=10, timestamp=candles[0].timestamp),
-        Order("AAPL", Side.SELL, quantity=10, timestamp=candles[2].timestamp),
+        Order("AAPL", Side.BUY, quantity=10, timestamp=candles[1].timestamp),
+        Order("AAPL", Side.SELL, quantity=10, timestamp=candles[3].timestamp),
     ]
     assert [call_args.args[1] for call_args in broker.execute.call_args_list] == [
         {"AAPL": 90},
