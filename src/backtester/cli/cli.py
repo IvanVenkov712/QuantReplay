@@ -767,12 +767,12 @@ def _describe_data_source(args: argparse.Namespace) -> str:
 
 def _describe_sizing(args: argparse.Namespace) -> str:
     if args.sizing == "all-in-all-out":
-        description = "AllInAllOutSizer"
+        description = "all-in-all-out"
     elif args.sizing == "fixed":
-        description = f"FixedSizer(buy={args.buy_size}, sell={args.sell_size})"
+        description = f"fixed (buy={args.buy_size}, sell={args.sell_size})"
     elif args.sizing == "percent":
         description = (
-            "PercentSizer("
+            "percent ("
             f"buy={args.buy_percent:.2%}, sell={args.sell_percent:.2%}"
             ")"
         )
@@ -780,11 +780,7 @@ def _describe_sizing(args: argparse.Namespace) -> str:
         raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
 
     if args.buffer_rate is not None:
-        return (
-            "BufferQuantityResolver("
-            f"{description}, buffer={args.buffer_rate:.2%}"
-            ")"
-        )
+        return f"{description}, buffer={args.buffer_rate:.2%}"
 
     return description
 
