@@ -26,17 +26,28 @@ class ResolutionContext:
         if self.reference_price <= 0:
             raise ValueError("price must be positive")
 
-class QuantityResolver:
-    def __init__(
-            self,
-            estimator: ExecutionCostCalculator,
-            buy_cash_buffer_rate: float | None = None,
-    ):
-        if buy_cash_buffer_rate is not None and not 0 <= buy_cash_buffer_rate < 1:
-            raise ValueError("buy_cash_buffer_rate must be in [0, 1)")
+class BuyQuantityCapper:
+    def __init__(self, cost_calculator: ExecutionCostCalculator):
+        self._cost_calculator: ExecutionCostCalculator = cost_calculator
 
-        self._estimator: ExecutionCostCalculator = estimator
-        self._buy_cash_buffer_rate = buy_cash_buffer_rate
+    def cap(self,
+            budget: float,
+            reference_price: float,
+            max_quantity: int | None) -> int:
+        quantity = int(budget // reference_price) + 1
+
+        if max_quantity is not None:
+            quantity = min(quantity, max_quantity)
+
+        while quantity > 0 and self._cost_calculator.estimate_buy_cost(quantity, reference_price) > budget:
+            quantity -= 1
+
+        return quantity
+
+
+class QuantityResolver:
+    def __init__(self, capper: BuyQuantityCapper):
+        self._capper: BuyQuantityCapper = capper
 
     def resolve_quantity(self, side: Side, instr: SizingInstruction, context: ResolutionContext) -> int:
         if side == Side.BUY:
@@ -52,15 +63,7 @@ class QuantityResolver:
             reference_price: float,
             max_quantity: int | None = None,
     ) -> int:
-        quantity = int(budget // reference_price) + 1
-
-        if max_quantity is not None:
-            quantity = min(quantity, max_quantity)
-
-        while quantity > 0 and self._estimator.estimate_buy_cost(quantity, reference_price) > budget:
-            quantity -= 1
-
-        return quantity
+        return self._capper.cap(budget, reference_price, max_quantity)
 
     def _resolve_buy_quantity(self, instruction: SizingInstruction, context: ResolutionContext) -> int:
         if instruction.mode == SizingMode.ALL_IN:
@@ -70,45 +73,26 @@ class QuantityResolver:
         elif instruction.mode == SizingMode.UP_TO:
             return self._resolve_buy_quantity_up_to(instruction.value, context)
         elif instruction.mode == SizingMode.FIXED:
-            return self._resolve_buy_quantity_fixed(instruction.value, context)
+            return instruction.value
         else:
             raise ValueError("Invalid sizing instruction")
 
     def _resolve_buy_quantity_all_in(self, context: ResolutionContext) -> int:
         return self._resolve_affordable_quantity(
-            self._maximum_buy_budget(context),
+            context.cash,
             context.reference_price,
         )
 
     def _resolve_buy_quantity_percent(self, percent: float, context: ResolutionContext):
-        budget = min(context.cash * percent, self._maximum_buy_budget(context))
+        budget = context.cash * percent
         return self._resolve_affordable_quantity(budget, context.reference_price)
 
     def _resolve_buy_quantity_up_to(self, max_q: int, context: ResolutionContext):
         return self._resolve_affordable_quantity(
-            self._maximum_buy_budget(context),
+            context.cash,
             context.reference_price,
             max_q,
         )
-
-    def _resolve_buy_quantity_fixed(self, quantity: int, context: ResolutionContext) -> int:
-        # A plain FIXED instruction remains an exact request and may be rejected
-        # by the broker. Supplying a buffer explicitly turns it into an
-        # affordability cap, matching the previous BufferedSizer behavior.
-        if self._buy_cash_buffer_rate is None:
-            return quantity
-
-        return self._resolve_affordable_quantity(
-            self._maximum_buy_budget(context),
-            context.reference_price,
-            quantity,
-        )
-
-    def _maximum_buy_budget(self, context: ResolutionContext) -> float:
-        if self._buy_cash_buffer_rate is None:
-            return context.cash
-
-        return context.cash * (1 - self._buy_cash_buffer_rate)
 
     def _resolve_sell_quantity(self, instruction: SizingInstruction, context: ResolutionContext) -> int:
         if instruction.mode == SizingMode.FIXED:
@@ -121,6 +105,28 @@ class QuantityResolver:
             return int(context.current_quantity * instruction.value)
         else:
             raise ValueError("Invalid sizing instruction")
+
+class BufferQuantityResolver(QuantityResolver):
+    def __init__(self, resolver: QuantityResolver, capper:BuyQuantityCapper, buffer_rate: float):
+        if not (isinstance(buffer_rate, float) and 0 <= buffer_rate < 1):
+            raise ValueError("buffer_rate must be float in [0, 1)")
+        self._resolver = resolver
+        self._capper = capper
+        self._buffer_rate = buffer_rate
+
+    def resolve_quantity(self, side: Side, instr: SizingInstruction, context: ResolutionContext) -> int:
+        requested_quantity = self._resolver.resolve_quantity(side, instr, context)
+
+        if side == Side.SELL or requested_quantity <= 0:
+            return requested_quantity
+
+        buffered_budget = context.cash * (1 - self._buffer_rate)
+
+        return self._capper.cap(
+            budget=buffered_budget,
+            reference_price=context.reference_price,
+            max_quantity=requested_quantity,
+        )
 
 class OrderResolver:
     def __init__(self, q_resolver: QuantityResolver):
