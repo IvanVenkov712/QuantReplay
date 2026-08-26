@@ -1,6 +1,5 @@
-from collections.abc import Callable
 from datetime import datetime, timedelta
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -35,20 +34,25 @@ def make_context(
 
 def make_quantity_resolver(
     *,
-    buy_cost: Callable[[int, float], float] | None = None,
-    buffer_rate: float | None = None,
-) -> QuantityResolver:
-    cost_calculator = Mock(spec=ExecutionCostCalculator)
-    cost_calculator.estimate_buy_cost.side_effect = (
-        buy_cost or (lambda quantity, reference_price: quantity * reference_price)
-    )
-    capper = BuyQuantityCapper(cost_calculator)
-    resolver = QuantityResolver(capper)
+    capped_quantity: int = 0,
+) -> tuple[QuantityResolver, Mock]:
+    capper = Mock(spec=BuyQuantityCapper)
+    capper.cap.return_value = capped_quantity
+    return QuantityResolver(capper), capper
 
-    if buffer_rate is None:
-        return resolver
 
-    return BufferQuantityResolver(resolver, capper, buffer_rate)
+def make_buffer_quantity_resolver(
+    *,
+    requested_quantity: int,
+    capped_quantity: int,
+    buffer_rate: float,
+) -> tuple[BufferQuantityResolver, Mock, Mock]:
+    resolver = Mock(spec=QuantityResolver)
+    resolver.resolve_quantity.return_value = requested_quantity
+    capper = Mock(spec=BuyQuantityCapper)
+    capper.cap.return_value = capped_quantity
+    buffered_resolver = BufferQuantityResolver(resolver, capper, buffer_rate)
+    return buffered_resolver, resolver, capper
 
 
 def instruction(mode: SizingMode, value: int | float | None) -> SizingInstruction:
@@ -101,24 +105,96 @@ def test_estimate_sell_cost_returns_commission_at_the_sell_fill_price() -> None:
     commission_model.calculate.assert_called_once_with(10, 99.0)
 
 
-def test_all_in_buy_reduces_quantity_until_slippage_and_commission_are_affordable() -> None:
-    resolver = make_quantity_resolver(
-        buy_cost=lambda quantity, _reference_price: quantity * 101.0 + 1.0,
+def test_buy_quantity_capper_returns_the_largest_affordable_quantity() -> None:
+    cost_calculator = Mock(spec=ExecutionCostCalculator)
+    cost_calculator.estimate_buy_cost.side_effect = (
+        lambda quantity, reference_price: quantity * reference_price
+    )
+    capper = BuyQuantityCapper(cost_calculator)
+
+    quantity = capper.cap(
+        budget=1_000.0,
+        reference_price=100.0,
+        max_quantity=None,
     )
 
-    quantity = resolver.resolve_quantity(
-        Side.BUY,
-        instruction(SizingMode.ALL_IN, None),
-        make_context(cash=1_000.0, reference_price=100.0),
+    assert quantity == 10
+    assert cost_calculator.estimate_buy_cost.call_args_list == [
+        call(11, 100.0),
+        call(10, 100.0),
+    ]
+
+
+def test_buy_quantity_capper_accounts_for_execution_costs() -> None:
+    cost_calculator = Mock(spec=ExecutionCostCalculator)
+    cost_calculator.estimate_buy_cost.side_effect = (
+        lambda quantity, _reference_price: quantity * 101.0 + 1.0
+    )
+    capper = BuyQuantityCapper(cost_calculator)
+
+    quantity = capper.cap(
+        budget=1_000.0,
+        reference_price=100.0,
+        max_quantity=None,
     )
 
     assert quantity == 9
 
 
-def test_all_in_buy_returns_zero_when_one_share_is_unaffordable() -> None:
-    resolver = make_quantity_resolver(
-        buy_cost=lambda quantity, reference_price: quantity * reference_price + 1.0,
+def test_buy_quantity_capper_respects_max_quantity() -> None:
+    cost_calculator = Mock(spec=ExecutionCostCalculator)
+    cost_calculator.estimate_buy_cost.side_effect = (
+        lambda quantity, reference_price: quantity * reference_price
     )
+    capper = BuyQuantityCapper(cost_calculator)
+
+    quantity = capper.cap(
+        budget=1_000.0,
+        reference_price=100.0,
+        max_quantity=3,
+    )
+
+    assert quantity == 3
+    cost_calculator.estimate_buy_cost.assert_called_once_with(3, 100.0)
+
+
+def test_buy_quantity_capper_returns_zero_when_one_unit_is_unaffordable() -> None:
+    cost_calculator = Mock(spec=ExecutionCostCalculator)
+    cost_calculator.estimate_buy_cost.side_effect = (
+        lambda quantity, reference_price: quantity * reference_price + 1.0
+    )
+    capper = BuyQuantityCapper(cost_calculator)
+
+    quantity = capper.cap(
+        budget=100.0,
+        reference_price=100.0,
+        max_quantity=None,
+    )
+
+    assert quantity == 0
+    assert cost_calculator.estimate_buy_cost.call_args_list == [
+        call(2, 100.0),
+        call(1, 100.0),
+    ]
+
+
+def test_all_in_buy_uses_cash_as_the_affordability_budget() -> None:
+    resolver, capper = make_quantity_resolver(capped_quantity=9)
+    sizing_instruction = instruction(SizingMode.ALL_IN, None)
+    context = make_context(cash=1_000.0, reference_price=100.0)
+
+    quantity = resolver.resolve_quantity(
+        Side.BUY,
+        sizing_instruction,
+        context,
+    )
+
+    assert quantity == 9
+    capper.cap.assert_called_once_with(1_000.0, 100.0, None)
+
+
+def test_all_in_buy_preserves_zero_result_from_capper() -> None:
+    resolver, capper = make_quantity_resolver(capped_quantity=0)
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
@@ -127,6 +203,7 @@ def test_all_in_buy_returns_zero_when_one_share_is_unaffordable() -> None:
     )
 
     assert quantity == 0
+    capper.cap.assert_called_once_with(100.0, 100.0, None)
 
 
 @pytest.mark.parametrize("buffer_rate", [-0.01, 1.0, 1.01])
@@ -137,23 +214,47 @@ def test_buffer_quantity_resolver_rejects_invalid_buffer_rate(
         ValueError,
         match=r"buffer_rate.*\[0, 1\)",
     ):
-        make_quantity_resolver(buffer_rate=buffer_rate)
+        make_buffer_quantity_resolver(
+            requested_quantity=10,
+            capped_quantity=10,
+            buffer_rate=buffer_rate,
+        )
 
 
 def test_buffer_quantity_resolver_accepts_zero_as_an_integer() -> None:
-    resolver = make_quantity_resolver(buffer_rate=0)
+    resolver, base_resolver, capper = make_buffer_quantity_resolver(
+        requested_quantity=10,
+        capped_quantity=10,
+        buffer_rate=0,
+    )
+    sizing_instruction = instruction(SizingMode.ALL_IN, None)
+    context = make_context(cash=1_000.0, reference_price=100.0)
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
-        instruction(SizingMode.ALL_IN, None),
-        make_context(cash=1_000.0, reference_price=100.0),
+        sizing_instruction,
+        context,
     )
 
     assert quantity == 10
+    base_resolver.resolve_quantity.assert_called_once_with(
+        Side.BUY,
+        sizing_instruction,
+        context,
+    )
+    capper.cap.assert_called_once_with(
+        budget=1_000.0,
+        reference_price=100.0,
+        max_quantity=10,
+    )
 
 
-def test_all_in_buy_reserves_the_configured_cash_buffer() -> None:
-    resolver = make_quantity_resolver(buffer_rate=0.25)
+def test_all_in_buy_passes_buffered_cash_to_capper() -> None:
+    resolver, _, capper = make_buffer_quantity_resolver(
+        requested_quantity=16,
+        capped_quantity=12,
+        buffer_rate=0.25,
+    )
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
@@ -162,10 +263,15 @@ def test_all_in_buy_reserves_the_configured_cash_buffer() -> None:
     )
 
     assert quantity == 12
+    capper.cap.assert_called_once_with(
+        budget=750.0,
+        reference_price=60.0,
+        max_quantity=16,
+    )
 
 
 def test_percent_buy_uses_the_requested_fraction_of_available_cash() -> None:
-    resolver = make_quantity_resolver()
+    resolver, capper = make_quantity_resolver(capped_quantity=4)
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
@@ -174,17 +280,23 @@ def test_percent_buy_uses_the_requested_fraction_of_available_cash() -> None:
     )
 
     assert quantity == 4
+    capper.cap.assert_called_once_with(500.0, 120.0, None)
 
 
 @pytest.mark.parametrize(
-    ("percent", "expected_quantity"),
-    [(0.5, 8), (0.9, 12)],
+    ("percent", "requested_quantity", "expected_quantity"),
+    [(0.5, 8, 8), (0.9, 15, 12)],
 )
-def test_percent_buy_uses_the_smaller_of_percent_and_buffer_budgets(
+def test_percent_buy_passes_buffer_budget_and_requested_quantity_to_capper(
     percent: float,
+    requested_quantity: int,
     expected_quantity: int,
 ) -> None:
-    resolver = make_quantity_resolver(buffer_rate=0.25)
+    resolver, _, capper = make_buffer_quantity_resolver(
+        requested_quantity=requested_quantity,
+        capped_quantity=expected_quantity,
+        buffer_rate=0.25,
+    )
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
@@ -193,10 +305,15 @@ def test_percent_buy_uses_the_smaller_of_percent_and_buffer_budgets(
     )
 
     assert quantity == expected_quantity
+    capper.cap.assert_called_once_with(
+        budget=750.0,
+        reference_price=60.0,
+        max_quantity=requested_quantity,
+    )
 
 
-def test_up_to_buy_caps_an_otherwise_affordable_quantity() -> None:
-    resolver = make_quantity_resolver()
+def test_up_to_buy_passes_requested_max_quantity_to_capper() -> None:
+    resolver, capper = make_quantity_resolver(capped_quantity=3)
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
@@ -205,10 +322,11 @@ def test_up_to_buy_caps_an_otherwise_affordable_quantity() -> None:
     )
 
     assert quantity == 3
+    capper.cap.assert_called_once_with(1_000.0, 100.0, 3)
 
 
-def test_up_to_buy_still_respects_available_cash() -> None:
-    resolver = make_quantity_resolver()
+def test_up_to_buy_uses_available_cash_as_the_affordability_budget() -> None:
+    resolver, capper = make_quantity_resolver(capped_quantity=4)
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
@@ -217,10 +335,11 @@ def test_up_to_buy_still_respects_available_cash() -> None:
     )
 
     assert quantity == 4
+    capper.cap.assert_called_once_with(450.0, 100.0, 20)
 
 
 def test_fixed_buy_returns_the_requested_quantity_without_affordability_capping() -> None:
-    resolver = make_quantity_resolver()
+    resolver, capper = make_quantity_resolver()
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
@@ -229,10 +348,15 @@ def test_fixed_buy_returns_the_requested_quantity_without_affordability_capping(
     )
 
     assert quantity == 12
+    capper.cap.assert_not_called()
 
 
-def test_fixed_buy_is_affordability_capped_when_buffer_is_explicit() -> None:
-    resolver = make_quantity_resolver(buffer_rate=0.25)
+def test_fixed_buy_is_capped_against_the_buffered_budget() -> None:
+    resolver, _, capper = make_buffer_quantity_resolver(
+        requested_quantity=20,
+        capped_quantity=12,
+        buffer_rate=0.25,
+    )
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
@@ -241,6 +365,11 @@ def test_fixed_buy_is_affordability_capped_when_buffer_is_explicit() -> None:
     )
 
     assert quantity == 12
+    capper.cap.assert_called_once_with(
+        budget=750.0,
+        reference_price=60.0,
+        max_quantity=20,
+    )
 
 
 @pytest.mark.parametrize(
@@ -257,7 +386,7 @@ def test_sell_quantity_resolves_each_sizing_mode(
     sizing_instruction: SizingInstruction,
     expected_quantity: int,
 ) -> None:
-    resolver = make_quantity_resolver()
+    resolver, capper = make_quantity_resolver()
 
     quantity = resolver.resolve_quantity(
         Side.SELL,
@@ -266,10 +395,11 @@ def test_sell_quantity_resolves_each_sizing_mode(
     )
 
     assert quantity == expected_quantity
+    capper.cap.assert_not_called()
 
 
 def test_resolve_quantity_rejects_unknown_side() -> None:
-    resolver = make_quantity_resolver()
+    resolver, capper = make_quantity_resolver()
 
     with pytest.raises(ValueError, match="invalid side"):
         resolver.resolve_quantity(  # type: ignore[arg-type]
@@ -278,15 +408,19 @@ def test_resolve_quantity_rejects_unknown_side() -> None:
             make_context(),
         )
 
+    capper.cap.assert_not_called()
+
 
 @pytest.mark.parametrize("side", [Side.BUY, Side.SELL])
 def test_resolve_quantity_rejects_unknown_sizing_mode(side: Side) -> None:
-    resolver = make_quantity_resolver()
+    resolver, capper = make_quantity_resolver()
     invalid_instruction = Mock(spec=SizingInstruction)
     invalid_instruction.mode = "invalid"
 
     with pytest.raises(ValueError, match="Invalid sizing instruction"):
         resolver.resolve_quantity(side, invalid_instruction, make_context())
+
+    capper.cap.assert_not_called()
 
 
 def test_order_resolver_builds_an_order_from_the_resolved_quantity() -> None:
