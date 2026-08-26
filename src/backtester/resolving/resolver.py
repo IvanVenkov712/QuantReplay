@@ -108,7 +108,7 @@ class QuantityResolver:
 
 class BufferQuantityResolver(QuantityResolver):
     def __init__(self, resolver: QuantityResolver, capper:BuyQuantityCapper, buffer_rate: float):
-        if not (isinstance(buffer_rate, float) and 0 <= buffer_rate < 1):
+        if not 0 <= buffer_rate < 1:
             raise ValueError("buffer_rate must be float in [0, 1)")
         self._resolver = resolver
         self._capper = capper
