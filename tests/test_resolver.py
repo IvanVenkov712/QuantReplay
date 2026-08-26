@@ -6,6 +6,8 @@ import pytest
 
 from backtester.execution.costs import CommissionModel, ExecutionModel, ExecutionCostCalculator
 from backtester.resolving.resolver import (
+    BufferQuantityResolver,
+    BuyQuantityCapper,
     OrderResolver,
     QuantityResolver,
     ResolutionContext,
@@ -34,16 +36,19 @@ def make_context(
 def make_quantity_resolver(
     *,
     buy_cost: Callable[[int, float], float] | None = None,
-    buy_cash_buffer_rate: float | None = None,
+    buffer_rate: float | None = None,
 ) -> QuantityResolver:
-    estimator = Mock(spec=ExecutionCostCalculator)
-    estimator.estimate_buy_cost.side_effect = (
+    cost_calculator = Mock(spec=ExecutionCostCalculator)
+    cost_calculator.estimate_buy_cost.side_effect = (
         buy_cost or (lambda quantity, reference_price: quantity * reference_price)
     )
-    return QuantityResolver(
-        estimator,
-        buy_cash_buffer_rate=buy_cash_buffer_rate,
-    )
+    capper = BuyQuantityCapper(cost_calculator)
+    resolver = QuantityResolver(capper)
+
+    if buffer_rate is None:
+        return resolver
+
+    return BufferQuantityResolver(resolver, capper, buffer_rate)
 
 
 def instruction(mode: SizingMode, value: int | float | None) -> SizingInstruction:
@@ -125,18 +130,30 @@ def test_all_in_buy_returns_zero_when_one_share_is_unaffordable() -> None:
 
 
 @pytest.mark.parametrize("buffer_rate", [-0.01, 1.0, 1.01])
-def test_quantity_resolver_rejects_invalid_buy_cash_buffer_rate(
+def test_buffer_quantity_resolver_rejects_invalid_buffer_rate(
     buffer_rate: float,
 ) -> None:
     with pytest.raises(
         ValueError,
-        match=r"buy_cash_buffer_rate must be in \[0, 1\)",
+        match=r"buffer_rate.*\[0, 1\)",
     ):
-        make_quantity_resolver(buy_cash_buffer_rate=buffer_rate)
+        make_quantity_resolver(buffer_rate=buffer_rate)
+
+
+def test_buffer_quantity_resolver_accepts_zero_as_an_integer() -> None:
+    resolver = make_quantity_resolver(buffer_rate=0)
+
+    quantity = resolver.resolve_quantity(
+        Side.BUY,
+        instruction(SizingMode.ALL_IN, None),
+        make_context(cash=1_000.0, reference_price=100.0),
+    )
+
+    assert quantity == 10
 
 
 def test_all_in_buy_reserves_the_configured_cash_buffer() -> None:
-    resolver = make_quantity_resolver(buy_cash_buffer_rate=0.25)
+    resolver = make_quantity_resolver(buffer_rate=0.25)
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
@@ -167,7 +184,7 @@ def test_percent_buy_uses_the_smaller_of_percent_and_buffer_budgets(
     percent: float,
     expected_quantity: int,
 ) -> None:
-    resolver = make_quantity_resolver(buy_cash_buffer_rate=0.25)
+    resolver = make_quantity_resolver(buffer_rate=0.25)
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
@@ -215,7 +232,7 @@ def test_fixed_buy_returns_the_requested_quantity_without_affordability_capping(
 
 
 def test_fixed_buy_is_affordability_capped_when_buffer_is_explicit() -> None:
-    resolver = make_quantity_resolver(buy_cash_buffer_rate=0.25)
+    resolver = make_quantity_resolver(buffer_rate=0.25)
 
     quantity = resolver.resolve_quantity(
         Side.BUY,
