@@ -7,6 +7,7 @@ from backtester.engine.backtest_result import BacktestResult, OrderExecution, Ba
 from backtester.execution.broker import Broker
 from backtester.resolving.resolver import OrderResolver, ResolutionContext
 from backtester.exceptions.trading_errors import InsufficientError
+from backtester.sizing.policy import SizingPlan
 from backtester.strategies.base import Strategy
 from backtester.domain.trading import Signal, SizingInstruction, Order, OrderIntent, Side
 
@@ -25,7 +26,7 @@ class BacktestEngine:
             self,
             strategy: Strategy,
             broker: Broker,
-            instr: SizingInstruction,
+            plan: SizingPlan,
             resolver: OrderResolver,
             data: Sequence[Candle],
             symbol: str
@@ -50,7 +51,7 @@ class BacktestEngine:
         self._results = None
         self._strategy: Strategy = strategy
         self._broker = broker
-        self._instruction = instr
+        self._plan = plan
         self._resolver = resolver
         self._data = validated_data
         self._symbol = symbol
@@ -128,7 +129,7 @@ class BacktestEngine:
                 symbol=self._symbol,
                 timestamp=timestamp,
                 side=side,
-                sizing_instruction=self._instruction
+                sizing_instruction=self._plan.instruction_for(side)
             )
 
         else:
