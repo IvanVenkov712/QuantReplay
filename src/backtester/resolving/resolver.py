@@ -30,19 +30,30 @@ class BuyQuantityCapper:
     def __init__(self, cost_calculator: ExecutionCostCalculator):
         self._cost_calculator: ExecutionCostCalculator = cost_calculator
 
-    def cap(self,
-            budget: float,
-            reference_price: float,
-            max_quantity: int | None) -> int:
+    def cap(self, budget: float, reference_price: float, max_quantity: int | None) -> int:
+
         quantity = int(budget // reference_price) + 1
 
         if max_quantity is not None:
             quantity = min(quantity, max_quantity)
 
-        while quantity > 0 and self._cost_calculator.estimate_buy_cost(quantity, reference_price) > budget:
-            quantity -= 1
+        left = 1
+        right = quantity
 
-        return quantity
+        while left <= right:
+            middle = left + int((right - left) // 2)
+            cost = self._cost_calculator.estimate_buy_cost(middle, reference_price)
+            if cost > budget:
+                right = middle - 1
+            else:
+                left = middle + 1
+                
+        return right
+
+
+        # while quantity > 0 and self._cost_calculator.estimate_buy_cost(quantity, reference_price) > budget:
+        #    quantity -= 1
+        # return quantity
 
 
 class QuantityResolver:

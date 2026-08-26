@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
 import pytest
 
@@ -119,10 +119,6 @@ def test_buy_quantity_capper_returns_the_largest_affordable_quantity() -> None:
     )
 
     assert quantity == 10
-    assert cost_calculator.estimate_buy_cost.call_args_list == [
-        call(11, 100.0),
-        call(10, 100.0),
-    ]
 
 
 def test_buy_quantity_capper_accounts_for_execution_costs() -> None:
@@ -155,14 +151,17 @@ def test_buy_quantity_capper_respects_max_quantity() -> None:
     )
 
     assert quantity == 3
-    cost_calculator.estimate_buy_cost.assert_called_once_with(3, 100.0)
 
 
 def test_buy_quantity_capper_returns_zero_when_one_unit_is_unaffordable() -> None:
     cost_calculator = Mock(spec=ExecutionCostCalculator)
-    cost_calculator.estimate_buy_cost.side_effect = (
-        lambda quantity, reference_price: quantity * reference_price + 1.0
-    )
+
+    def estimate_buy_cost(quantity: int, reference_price: float) -> float:
+        if quantity <= 0:
+            raise ValueError("quantity must be positive")
+        return quantity * reference_price + 1.0
+
+    cost_calculator.estimate_buy_cost.side_effect = estimate_buy_cost
     capper = BuyQuantityCapper(cost_calculator)
 
     quantity = capper.cap(
@@ -172,10 +171,6 @@ def test_buy_quantity_capper_returns_zero_when_one_unit_is_unaffordable() -> Non
     )
 
     assert quantity == 0
-    assert cost_calculator.estimate_buy_cost.call_args_list == [
-        call(2, 100.0),
-        call(1, 100.0),
-    ]
 
 
 def test_all_in_buy_uses_cash_as_the_affordability_budget() -> None:
