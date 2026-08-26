@@ -11,11 +11,9 @@ The project is primarily an educational and portfolio project. Its goals are:
 3. Learn basic quantitative finance concepts through implementation.
 4. Produce a project substantial enough to demonstrate in a CV / GitHub portfolio.
 
-This is NOT intended to become a production trading platform or a high-frequency trading system.
+To become a production trading platform or a high-frequency trading system is not one of our immediate goals for now.
 
 Prefer clarity, correctness, and educational value over unnecessary sophistication.
-
----
 
 ## Core Project Scope
 
@@ -42,8 +40,6 @@ Initial strategies may include:
 
 Do not add advanced quantitative techniques unless explicitly requested.
 
----
-
 ## Architecture
 
 Prefer a modular architecture similar to:
@@ -67,6 +63,7 @@ Examples:
 
 - Candle
 - Order
+- OrderIntent
 - Trade
 - Position
 - Portfolio
@@ -74,8 +71,6 @@ Examples:
 - BacktestResult
 
 However, do not introduce classes merely for the sake of having more classes.
-
----
 
 ## Development Philosophy
 
@@ -94,8 +89,6 @@ When generating code:
 
 A slightly longer implementation that is easy to understand is preferred over a compact but obscure implementation.
 
----
-
 ## AI Assistance Rules
 
 Do not automatically implement large features end-to-end unless explicitly asked.
@@ -107,7 +100,7 @@ For non-trivial changes:
 3. Point out important financial or statistical assumptions.
 4. Then implement the requested change.
 
-When there are multiple reasonable architectures, explain the trade-offs instead of silently choosing the most sophisticated one.
+When there are multiple reasonable architectures, explain the trade-offs instead of silently choosing one on some unknown to me criteria.
 
 The author wants to understand important project logic.
 
@@ -120,10 +113,10 @@ Be especially careful when modifying:
 - financial metrics;
 - strategy signal timing;
 - anything that could introduce look-ahead bias.
+Generally avoid modifying or generating code in these areas. Prefer explanation.
 
 Boilerplate, repetitive code, tests, typing, documentation, parsing, and similar mechanical work may be generated more aggressively.
 
----
 
 ## Backtesting Correctness
 
@@ -168,7 +161,6 @@ Do not hide assumptions.
 
 Do not silently forward-fill or otherwise alter financial data unless explicitly intended.
 
----
 
 ## Financial Conventions
 
@@ -194,8 +186,6 @@ For example:
 - win rate.
 
 Do not assume that two formulas with the same common metric name are necessarily identical.
-
----
 
 ## Python Style
 
@@ -224,7 +214,6 @@ Avoid mutable default arguments.
 
 Prefer explicit dependencies over global state.
 
----
 
 ## Dependencies
 
@@ -285,7 +274,9 @@ over tests whose expected values are difficult to independently verify.
 
 Bug fixes should normally include a regression test.
 
----
+Always prefer mocks over a real implementation for the dependencies of the tested component. Data classes are not necessary to be mocked.
+
+Avoid writing complicated mocks replicating the real implementations. Prefer creating the simplest possible mocks even if having to make a separate mock for each test.
 
 ## Data Handling
 
@@ -306,8 +297,6 @@ Expected fields will typically include:
 
 The exact schema should be centralized rather than duplicated throughout the codebase.
 
----
-
 ## Strategy Design
 
 Strategies should define trading logic, not manage portfolio accounting.
@@ -320,8 +309,6 @@ The backtesting engine / portfolio components should decide how that signal affe
 
 Avoid coupling strategies directly to CSV files, plotting libraries, or API clients.
 
----
-
 ## Performance
 
 Do not optimize prematurely.
@@ -331,8 +318,6 @@ A straightforward loop over candles is acceptable for the initial version of the
 Readability and correct simulation semantics are more important than vectorization.
 
 Vectorized implementations can be introduced later where appropriate and benchmarked against the reference implementation.
-
----
 
 ## Error Handling
 
@@ -349,8 +334,6 @@ Examples:
 - invalid commission configuration.
 
 Do not silently recover from states that likely indicate a programming error.
-
----
 
 ## Documentation
 
@@ -372,8 +355,6 @@ The README should eventually explain:
 - testing;
 - limitations.
 
----
-
 ## Git / Change Scope
 
 Keep changes focused.
@@ -383,8 +364,6 @@ Do not refactor unrelated code while implementing a small feature unless necessa
 Avoid changing public APIs without a reason.
 
 When making a substantial architectural change, explain why it is preferable to the existing design.
-
----
 
 ## Things to Avoid
 
@@ -401,8 +380,6 @@ Do NOT:
 - silently introduce look-ahead bias;
 - assume profitable historical performance means a strategy is actually good.
 
----
-
 ## When Unsure
 
 When a requested change involves a meaningful financial assumption, prefer making that assumption explicit.
@@ -413,7 +390,7 @@ For example:
 
 Do not silently choose behavior that can materially change backtest results.
 
-When implementation complexity begins to grow substantially, prefer the simplest design that supports the current requirements.
+When implementation complexity begins to grow substantially, prefer the simplest design that supports the current requirements. Yet good design is highly valuable.
 
 ## Learning Boundaries
 
