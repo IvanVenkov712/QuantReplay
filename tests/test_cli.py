@@ -9,14 +9,15 @@ from backtester.engine.backtest_result import BacktestResult, OrderExecution
 from backtester.execution.costs import NoCommissionModel, FixedCommissionModel, ProportionalCommissionModel, \
     ExecutionModel
 from backtester.exceptions.trading_errors import InsufficientFundsError
-from backtester.sizing.position_sizing import (
-    AllInAllOutSizer,
-    BufferedSizer,
-    FixedSizer,
-    PercentSizer,
-    SizingContext,
+from backtester.resolving.resolver import ResolutionContext
+from backtester.sizing.policy import SizingPlan
+from backtester.domain.trading import (
+    Order,
+    OrderIntent,
+    Side,
+    SizingInstruction,
+    SizingMode,
 )
-from backtester.domain.trading import Side, Order
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -282,12 +283,21 @@ def test_parse_args_accepts_compare_command_and_benchmark() -> None:
 
 
 @pytest.mark.parametrize(
-    ("arguments", "expected_type"),
+    ("arguments", "expected_plan"),
     [
-        ([], AllInAllOutSizer),
+        (
+            [],
+            SizingPlan(
+                buy=SizingInstruction(mode=SizingMode.ALL_IN, value=None),
+                sell=SizingInstruction(mode=SizingMode.ALL_IN, value=None),
+            ),
+        ),
         (
             ["--sizing", "fixed", "--buy-size", "3", "--sell-size", "2"],
-            FixedSizer,
+            SizingPlan(
+                buy=SizingInstruction(mode=SizingMode.FIXED, value=3),
+                sell=SizingInstruction(mode=SizingMode.FIXED, value=2),
+            ),
         ),
         (
             [
@@ -298,33 +308,52 @@ def test_parse_args_accepts_compare_command_and_benchmark() -> None:
                 "--sell-percent",
                 "0.25",
             ],
-            PercentSizer,
+            SizingPlan(
+                buy=SizingInstruction(mode=SizingMode.PERCENT, value=0.4),
+                sell=SizingInstruction(mode=SizingMode.PERCENT, value=0.25),
+            ),
         ),
     ],
 )
-def test_create_sizer_uses_selected_policy(
+def test_create_sizing_plan_uses_selected_policy(
     arguments: list[str],
-    expected_type: type,
+    expected_plan: SizingPlan,
 ) -> None:
     args = cli._parse_args(arguments)
 
-    assert isinstance(cli._create_sizer(args), expected_type)
+    assert cli._create_sizing_plan(args) == expected_plan
 
 
-def test_create_sizer_wraps_selected_policy_with_cash_buffer() -> None:
+def test_create_order_resolver_applies_configured_cash_buffer() -> None:
     args = cli._parse_args(["--buffer-rate", "0.25"])
-
-    sizer = cli._create_sizer(args)
-    context = SizingContext(
+    plan = cli._create_sizing_plan(args)
+    resolver = cli._create_order_resolver(
+        execution_model=ExecutionModel(slippage_rate=0),
+        commission_model=NoCommissionModel(),
+        buffer_rate=args.buffer_rate,
+    )
+    context = ResolutionContext(
+        timestamp=datetime(2024, 1, 2),
         cash=1_000,
         current_quantity=10,
         portfolio_value=1_600,
-        price=60,
+        reference_price=60,
+    )
+    buy_intent = OrderIntent(
+        symbol="AAPL",
+        side=Side.BUY,
+        timestamp=datetime(2024, 1, 1),
+        sizing_instruction=plan.buy,
+    )
+    sell_intent = OrderIntent(
+        symbol="AAPL",
+        side=Side.SELL,
+        timestamp=datetime(2024, 1, 1),
+        sizing_instruction=plan.sell,
     )
 
-    assert isinstance(sizer, BufferedSizer)
-    assert sizer.calculate_size(context, Side.BUY) == 12
-    assert sizer.calculate_size(context, Side.SELL) == 10
+    assert resolver.resolve(buy_intent, context).quantity == 12
+    assert resolver.resolve(sell_intent, context).quantity == 10
 
 
 @pytest.mark.parametrize(
@@ -666,6 +695,45 @@ initial_capital = 10000.0
     assert "Total return: 10.00%" in captured.out
 
 
+def test_main_wires_toml_sizing_buffer_and_execution_costs(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = (FIXTURES_DIR / "cli_two_candles.csv").as_posix()
+    config_path = _write_config(
+        tmp_path,
+        f"""
+[backtest]
+source = "csv"
+csv_path = "{csv_path}"
+start = "2024-01-01"
+end = "2024-01-03"
+strategy = "buy-and-hold"
+sizing = "fixed"
+buy_size = 1
+sell_size = 1
+buffer_rate = 0.05
+commission_model = "fixed"
+fixed_commission = 5.0
+slippage_rate = 0.1
+""",
+    )
+
+    exit_code = cli.main(["--config", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert (
+        "Position sizing: BufferedSizer(FixedSizer(buy=1, sell=1), buffer=5.00%)"
+        in captured.out
+    )
+    assert "Commission: FixedCommissionModel(per_trade=5.00)" in captured.out
+    assert "Slippage: ExecutionModel(rate=10.00%)" in captured.out
+    assert "Total return: -0.05%" in captured.out
+    assert "Number of trades: 1" in captured.out
+
+
 def test_main_runs_backtest_with_fixed_position_sizing(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -775,7 +843,7 @@ def test_main_applies_and_prints_fixed_commission_and_slippage(
     assert "Number of trades: 1" in captured.out
 
 
-def test_main_displays_affordability_rejection_details(
+def test_main_sizes_all_in_order_within_execution_cost_budget(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     csv_path = FIXTURES_DIR / "cli_two_candles.csv"
@@ -805,12 +873,9 @@ def test_main_displays_affordability_rejection_details(
     captured = capsys.readouterr()
     assert exit_code == 0
     assert captured.err == ""
-    assert "Number of trades: 0" in captured.out
-    assert "Rejected orders: 1" in captured.out
-    assert (
-        "- Signal time 2024-01-01 00:00:00 | BUY 100 AAPL | "
-        "InsufficientFundsError: Not enough cash"
-    ) in captured.out
+    assert "Number of trades: 1" in captured.out
+    assert "Total return: 9.80%" in captured.out
+    assert "Rejected orders" not in captured.out
 
 
 def test_rejected_order_details_are_omitted_above_display_limit() -> None:
@@ -838,7 +903,7 @@ def test_rejected_order_details_are_omitted_above_display_limit() -> None:
         "Details omitted because the rejected-order limit is "
         f"{cli.MAX_REJECTED_ORDER_DETAILS}."
     ) in report
-    assert "Signal time" not in report
+    assert "Order time" not in report
 
 
 def test_main_compares_strategy_with_benchmark_using_same_csv_data(

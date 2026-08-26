@@ -21,11 +21,18 @@ from backtester.data.loader import (
 )
 from backtester.engine.backtest import BacktestEngine
 from backtester.engine.backtest_result import BacktestResult
+from backtester.domain.trading import SizingInstruction, SizingMode
 from backtester.execution.broker import (
     Broker,
 )
-from backtester.execution.costs import CommissionModel, NoCommissionModel, FixedCommissionModel, \
-    ProportionalCommissionModel, ExecutionModel
+from backtester.execution.costs import (
+    CommissionModel,
+    ExecutionCostCalculator,
+    ExecutionModel,
+    FixedCommissionModel,
+    NoCommissionModel,
+    ProportionalCommissionModel,
+)
 from backtester.metrics.benchmark_comparison import get_differences
 from backtester.metrics.metrics import (
     MetricData,
@@ -41,13 +48,8 @@ from backtester.metrics.metrics import (
     total_return,
 )
 from backtester.portfolio.portfolio import Portfolio
-from backtester.sizing.position_sizing import (
-    AllInAllOutSizer,
-    BufferedSizer,
-    FixedSizer,
-    PercentSizer,
-    PositionSizer,
-)
+from backtester.resolving.resolver import OrderResolver, QuantityResolver
+from backtester.sizing.policy import SizingPlan
 from backtester.strategies.base import Strategy
 from backtester.strategies.buy_n_hold import BuyAndHoldStrategy
 from backtester.strategies.moving_average import MovingAverageCrossStrategy
@@ -354,18 +356,20 @@ def _run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         candles=candles,
         symbol=args.symbol,
         initial_capital=args.initial_capital,
-        sizer=_create_sizer(args),
+        sizing_plan=_create_sizing_plan(args),
         execution_model=_create_execution_model(args),
         commission_model=_create_commission_model(args),
+        buffer_rate=args.buffer_rate,
     )
     benchmark_result = _run_backtest_with_candles(
         strategy=_create_strategy(args.benchmark, args),
         candles=candles,
         symbol=args.symbol,
         initial_capital=args.initial_capital,
-        sizer=_create_sizer(args),
+        sizing_plan=_create_sizing_plan(args),
         execution_model=_create_execution_model(args),
         commission_model=_create_commission_model(args),
+        buffer_rate=args.buffer_rate,
     )
 
     analyzer = _create_performance_analyzer()
@@ -424,9 +428,10 @@ def _run_backtest(
         candles=candles,
         symbol=args.symbol,
         initial_capital=args.initial_capital,
-        sizer=_create_sizer(args),
+        sizing_plan=_create_sizing_plan(args),
         execution_model=_create_execution_model(args),
         commission_model=_create_commission_model(args),
+        buffer_rate=args.buffer_rate,
     )
 
 
@@ -435,9 +440,10 @@ def _run_backtest_with_candles(
     candles: Sequence,
     symbol: str,
     initial_capital: float,
-    sizer: PositionSizer,
+    sizing_plan: SizingPlan,
     execution_model: ExecutionModel,
     commission_model: CommissionModel,
+    buffer_rate: float | None,
 ) -> BacktestResult:
     broker = Broker(
         Portfolio(cash=initial_capital),
@@ -447,7 +453,12 @@ def _run_backtest_with_candles(
     return BacktestEngine(
         strategy=strategy,
         broker=broker,
-        sizer=sizer,
+        plan=sizing_plan,
+        resolver=_create_order_resolver(
+            execution_model=execution_model,
+            commission_model=commission_model,
+            buffer_rate=buffer_rate,
+        ),
         data=candles,
         symbol=symbol,
     ).run()
@@ -484,23 +495,49 @@ def _create_strategy(name: str, args: argparse.Namespace) -> Strategy:
     raise ValueError(f"Unknown strategy: {name}.")
 
 
-def _create_sizer(args: argparse.Namespace) -> PositionSizer:
+def _create_sizing_plan(args: argparse.Namespace) -> SizingPlan:
     if args.sizing == "all-in-all-out":
-        sizer: PositionSizer = AllInAllOutSizer()
+        buy_instruction = SizingInstruction(mode=SizingMode.ALL_IN, value=None)
+        sell_instruction = SizingInstruction(mode=SizingMode.ALL_IN, value=None)
     elif args.sizing == "fixed":
-        sizer = FixedSizer(buy_size=args.buy_size, sell_size=args.sell_size)
+        buy_instruction = SizingInstruction(
+            mode=SizingMode.FIXED,
+            value=args.buy_size,
+        )
+        sell_instruction = SizingInstruction(
+            mode=SizingMode.FIXED,
+            value=args.sell_size,
+        )
     elif args.sizing == "percent":
-        sizer = PercentSizer(
-            percent_buy=args.buy_percent,
-            percent_sell=args.sell_percent,
+        buy_instruction = SizingInstruction(
+            mode=SizingMode.PERCENT,
+            value=args.buy_percent,
+        )
+        sell_instruction = SizingInstruction(
+            mode=SizingMode.PERCENT,
+            value=args.sell_percent,
         )
     else:
         raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
 
-    if args.buffer_rate is not None:
-        return BufferedSizer(sizer=sizer, buffer_rate=args.buffer_rate)
+    return SizingPlan(buy=buy_instruction, sell=sell_instruction)
 
-    return sizer
+
+def _create_order_resolver(
+    execution_model: ExecutionModel,
+    commission_model: CommissionModel,
+    buffer_rate: float | None,
+) -> OrderResolver:
+    cost_calculator = ExecutionCostCalculator(
+        execution_model=execution_model,
+        commission_model=commission_model,
+    )
+    quantity_resolver = QuantityResolver(
+        estimator=cost_calculator,
+        buy_cash_buffer_rate=buffer_rate,
+    )
+
+    return OrderResolver(quantity_resolver)
 
 
 def _create_execution_model(args: argparse.Namespace) -> ExecutionModel:
@@ -664,7 +701,7 @@ def _print_rejected_orders(
     for execution in rejected_orders:
         order = execution.order
         print(
-            "- Signal time "
+            "- Order time "
             f"{order.timestamp.isoformat(sep=' ')} | "
             f"{order.side.value.upper()} {order.quantity} {order.symbol} | "
             f"{_format_rejection_reason(execution.reason)}",
