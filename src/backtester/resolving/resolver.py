@@ -143,6 +143,3 @@ class OrderResolver:
             timestamp=context.timestamp,
             quantity=quantity
         )
-
-
-
