@@ -1,3 +1,5 @@
+"""Factories that translate parsed CLI settings into backtest components."""
+
 from __future__ import annotations
 
 import argparse
@@ -39,6 +41,7 @@ from backtester.strategies.rsi_simple import SimpleRSIStrategy
 
 
 def create_performance_analyzer() -> PerformanceAnalyzer:
+    """Create an analyzer containing the standard QuantReplay metrics."""
     analyzer = PerformanceAnalyzer()
     analyzer.add_metric_func("total_return", "Total return", total_return)
     analyzer.add_metric_func("annualized_return", "Annualized return", annualized_return)
@@ -61,6 +64,7 @@ def create_performance_analyzer() -> PerformanceAnalyzer:
 
 
 def create_strategy(name: str, args: argparse.Namespace) -> Strategy:
+    """Create the named strategy from parsed CLI parameters."""
     if name == "moving-average":
         return MovingAverageCrossStrategy(args.short_window, args.long_window)
     if name == "buy-and-hold":
@@ -74,6 +78,7 @@ def create_strategy(name: str, args: argparse.Namespace) -> Strategy:
 
 
 def create_sizing_plan(args: argparse.Namespace) -> SizingPlan:
+    """Create buy and sell sizing instructions from parsed CLI parameters."""
     if args.sizing == "all-in-all-out":
         buy_instruction = SizingInstruction(mode=SizingMode.ALL_IN, value=None)
         sell_instruction = SizingInstruction(mode=SizingMode.ALL_IN, value=None)
@@ -106,6 +111,7 @@ def create_order_resolver(
     commission_model: CommissionModel,
     buffer_rate: float | None,
 ) -> OrderResolver:
+    """Create a cost-aware order resolver with an optional cash buffer."""
     cost_calculator = ExecutionCostCalculator(
         execution_model=execution_model,
         commission_model=commission_model,
@@ -124,10 +130,12 @@ def create_order_resolver(
 
 
 def create_execution_model(args: argparse.Namespace) -> ExecutionModel:
+    """Create the adverse-slippage execution model selected by the CLI."""
     return ExecutionModel(slippage_rate=args.slippage_rate)
 
 
 def create_commission_model(args: argparse.Namespace) -> CommissionModel:
+    """Create the commission model selected by the CLI."""
     if args.commission_model == "none":
         return NoCommissionModel()
     if args.commission_model == "fixed":
@@ -139,6 +147,7 @@ def create_commission_model(args: argparse.Namespace) -> CommissionModel:
 
 
 def create_data_source(args: argparse.Namespace) -> DataSource:
+    """Create the historical data source selected by the CLI."""
     if args.source == "yfinance":
         return YFinanceDataSource()
     if args.source == "csv":

@@ -1,3 +1,5 @@
+"""High-level workflows executed by QuantReplay CLI commands."""
+
 from __future__ import annotations
 
 import argparse
@@ -18,6 +20,7 @@ from backtester.strategies.base import Strategy
 
 
 def run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
+    """Run one configured backtest and print its parameters and results."""
     start, end = resolve_date_range(args.start, args.end, args.years)
     strategy = factories.create_strategy(args.strategy, args)
     result = _run_backtest(args, strategy, start, end)
@@ -43,6 +46,7 @@ def run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
 
 
 def run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
+    """Run a strategy and benchmark over identical data and print differences."""
     start, end = resolve_date_range(args.start, args.end, args.years)
     data_source = factories.create_data_source(args)
     data = data_source.load(args.symbol, start, end)
@@ -170,6 +174,12 @@ def resolve_date_range(
     end_arg: str | None,
     years: int,
 ) -> tuple[str, str]:
+    """Resolve an inclusive start and exclusive end date for data loading.
+
+    Missing end dates default to today. A missing start is derived by
+    subtracting ``years`` from the end, with February 29 adjusted to February
+    28 when the target year is not a leap year.
+    """
     end = date.fromisoformat(end_arg) if end_arg else date.today()
     start = date.fromisoformat(start_arg) if start_arg else _subtract_years(end, years)
 

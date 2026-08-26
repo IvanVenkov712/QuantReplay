@@ -1,3 +1,5 @@
+"""Chronological backtest orchestration with next-candle-open execution."""
+
 from datetime import datetime
 from typing import Sequence
 
@@ -159,6 +161,7 @@ class BacktestEngine:
 
 
 def side_from_signal(signal: Signal) -> Side:
+    """Map a buy or sell signal to its corresponding order side."""
     if signal == Signal.BUY:
         return Side.BUY
     elif signal == Signal.SELL:

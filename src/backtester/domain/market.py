@@ -1,3 +1,5 @@
+"""Validated market-data domain models."""
+
 from dataclasses import dataclass
 from datetime import datetime
 from math import isfinite
@@ -6,6 +8,8 @@ from numbers import Real
 
 @dataclass(frozen=True)
 class Candle:
+    """Immutable, validated OHLCV observation for one trading period."""
+
     timestamp: datetime
     open: float
     high: float

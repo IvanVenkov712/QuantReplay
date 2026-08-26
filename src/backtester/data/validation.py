@@ -1,3 +1,5 @@
+"""Validation helpers for chronological market data."""
+
 from itertools import pairwise
 from typing import Sequence
 

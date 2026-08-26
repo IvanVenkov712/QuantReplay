@@ -1,3 +1,5 @@
+"""Command-line application entry point."""
+
 from __future__ import annotations
 
 import sys

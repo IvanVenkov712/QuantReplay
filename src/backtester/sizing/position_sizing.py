@@ -1,3 +1,5 @@
+"""Whole-share position-sizing policies based on a portfolio snapshot."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -31,13 +33,16 @@ class PositionSizer(ABC):
 
     @abstractmethod
     def calculate_size_buy(self, context: SizingContext) -> int:
+        """Return the requested whole-share quantity for a buy signal."""
         pass
 
     @abstractmethod
     def calculate_size_sell(self, context: SizingContext) -> int:
+        """Return the requested whole-share quantity for a sell signal."""
         pass
 
     def calculate_size(self, context: SizingContext, side: Side) -> int:
+        """Dispatch to the buy or sell sizing rule for ``side``."""
         if side == Side.BUY:
             return self.calculate_size_buy(context)
         elif side == Side.SELL:
@@ -59,18 +64,22 @@ class FixedSizer(PositionSizer):
         self._sell_size: int = sell_size
 
     def calculate_size_buy(self, context: SizingContext) -> int:
+        """Return the configured buy quantity."""
         return self._buy_size
 
     def calculate_size_sell(self, context: SizingContext) -> int:
+        """Return the configured sell quantity."""
         return self._sell_size
 
 class AllInAllOutSizer(PositionSizer):
     """Buy the affordable whole shares or sell the entire current position."""
 
     def calculate_size_buy(self, context: SizingContext) -> int:
+        """Return the whole shares affordable at the unadjusted price."""
         return int(context.cash // context.price)
 
     def calculate_size_sell(self, context: SizingContext) -> int:
+        """Return the entire currently owned quantity."""
         return context.current_quantity
 
 class PercentSizer(PositionSizer):
@@ -87,9 +96,11 @@ class PercentSizer(PositionSizer):
         self._percent_sell = percent_sell
 
     def calculate_size_buy(self, context: SizingContext) -> int:
+        """Return whole shares purchasable with the configured cash fraction."""
         return int(self._percent_buy * context.cash // context.price)
 
     def calculate_size_sell(self, context: SizingContext) -> int:
+        """Return the truncated configured fraction of the current position."""
         return int(context.current_quantity * self._percent_sell)
 
 class BufferedSizer(PositionSizer):
@@ -103,6 +114,7 @@ class BufferedSizer(PositionSizer):
         self._buffer_rate = buffer_rate
 
     def calculate_size_buy(self, context: SizingContext) -> int:
+        """Cap the wrapped buy quantity using cash left after the buffer."""
         requested_quantity = self._sizer.calculate_size_buy(context)
         spendable_cash = context.cash * (1 - self._buffer_rate)
         maximum_affordable = int(spendable_cash // context.price)
@@ -110,4 +122,5 @@ class BufferedSizer(PositionSizer):
         return min(requested_quantity, maximum_affordable)
 
     def calculate_size_sell(self, context: SizingContext) -> int:
+        """Delegate sell sizing without applying a cash buffer."""
         return self._sizer.calculate_size_sell(context)

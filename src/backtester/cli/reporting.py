@@ -1,3 +1,5 @@
+"""Plain-text formatting and reporting for CLI backtest results."""
+
 from __future__ import annotations
 
 import argparse
@@ -36,6 +38,7 @@ def print_parameters(
     commission_name: str,
     slippage_name: str,
 ) -> None:
+    """Print the effective parameters of a backtest or comparison."""
     print(title, file=output)
     print(f"Strategy: {strategy_name}", file=output)
     if benchmark_name is not None:
@@ -56,6 +59,7 @@ def print_metrics(
     title: str,
     metrics: dict[str, MetricData],
 ) -> None:
+    """Print labeled metric values in analyzer registration order."""
     print(title, file=output)
     for name, data in metrics.items():
         print(f"{data.label}: {format_metric_value(name, data.result)}", file=output)
@@ -113,6 +117,7 @@ def print_rejected_orders(
     title: str,
     result: BacktestResult,
 ) -> None:
+    """Print a bounded summary of orders rejected during a backtest."""
     rejected_orders = [execution for execution in result.orders if not execution.success]
     if not rejected_orders:
         return
@@ -149,6 +154,7 @@ def _format_rejection_reason(reason: Exception | None) -> str:
 
 
 def format_metric_value(name: str, value: float) -> str:
+    """Format a metric according to its semantic type for CLI output."""
     if isinstance(value, float) and not math.isfinite(value):
         return "N/A"
 
@@ -166,6 +172,7 @@ def _format_money(value: float) -> str:
 
 
 def describe_strategy(name: str, args: argparse.Namespace) -> str:
+    """Return a concise description of a configured strategy."""
     if name == "moving-average":
         return f"MovingAverageCrossStrategy({args.short_window}, {args.long_window})"
     if name == "buy-and-hold":
@@ -185,6 +192,7 @@ def describe_strategy(name: str, args: argparse.Namespace) -> str:
 
 
 def describe_data_source(args: argparse.Namespace) -> str:
+    """Return a concise description of the configured data source."""
     if args.source == "yfinance":
         return "YFinanceDataSource"
 
@@ -192,6 +200,7 @@ def describe_data_source(args: argparse.Namespace) -> str:
 
 
 def describe_sizing(args: argparse.Namespace) -> str:
+    """Return a concise description of sizing and any cash buffer."""
     if args.sizing == "all-in-all-out":
         description = "all-in-all-out"
     elif args.sizing == "fixed":
@@ -212,6 +221,7 @@ def describe_sizing(args: argparse.Namespace) -> str:
 
 
 def describe_commission(args: argparse.Namespace) -> str:
+    """Return a concise description of the configured commission model."""
     if args.commission_model == "none":
         return "NoCommissionModel"
     if args.commission_model == "fixed":
@@ -227,4 +237,5 @@ def describe_commission(args: argparse.Namespace) -> str:
 
 
 def describe_slippage(args: argparse.Namespace) -> str:
+    """Return a concise description of the configured slippage rate."""
     return f"ExecutionModel(rate={args.slippage_rate:.2%})"

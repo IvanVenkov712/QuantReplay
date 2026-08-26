@@ -1,3 +1,5 @@
+"""Moving-average mean-reversion strategy."""
+
 from typing import Sequence
 
 from backtester.domain.market import Candle
@@ -6,6 +8,8 @@ from backtester.domain.trading import Signal
 
 
 class MeanReversionStrategy(Strategy):
+    """Buy below a fraction of the rolling mean and sell at or above it."""
+
     def __init__(self, window: int, threshold: float):
         if not window > 0:
             raise ValueError("window must be positive integer")
@@ -18,6 +22,7 @@ class MeanReversionStrategy(Strategy):
 
     def generate_signal(
         self, candles: Sequence[Candle]) -> Signal:
+        """Generate a signal from the latest close and rolling close mean."""
 
         if len(candles) < self.__window:
             return Signal.HOLD

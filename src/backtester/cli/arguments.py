@@ -1,3 +1,5 @@
+"""Argument parsing and cross-option validation for the QuantReplay CLI."""
+
 from __future__ import annotations
 
 import argparse

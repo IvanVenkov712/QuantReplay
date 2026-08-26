@@ -1,3 +1,5 @@
+"""Resolve signal-time order intents into execution-time share quantities."""
+
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -7,6 +9,8 @@ from backtester.domain.trading import Side, SizingMode, SizingInstruction, Order
 
 @dataclass(frozen=True)
 class ResolutionContext:
+    """Execution-time portfolio snapshot used to size an order intent."""
+
     timestamp: datetime
     reference_price: float
     cash: float
@@ -27,10 +31,17 @@ class ResolutionContext:
             raise ValueError("price must be positive")
 
 class BuyQuantityCapper:
+    """Find the largest whole-share buy that fits an execution-cost budget."""
+
     def __init__(self, cost_calculator: ExecutionCostCalculator):
         self._cost_calculator: ExecutionCostCalculator = cost_calculator
 
     def cap(self, budget: float, reference_price: float, max_quantity: int | None) -> int:
+        """Return an affordable quantity, optionally limited by ``max_quantity``.
+
+        Affordability includes the configured buy slippage and commission. A
+        zero result means that no positive whole-share quantity fits the budget.
+        """
 
         quantity = int(budget // reference_price) + 1
 
@@ -57,10 +68,19 @@ class BuyQuantityCapper:
 
 
 class QuantityResolver:
+    """Resolve sizing instructions against an execution-time portfolio state.
+
+    All-in, percent, and up-to buys are capped by estimated execution costs.
+    Fixed buys retain their requested quantity and may therefore be rejected by
+    the broker when unaffordable. Sell quantities never exceed the current
+    position except in fixed mode, where the broker performs that validation.
+    """
+
     def __init__(self, capper: BuyQuantityCapper):
         self._capper: BuyQuantityCapper = capper
 
     def resolve_quantity(self, side: Side, instr: SizingInstruction, context: ResolutionContext) -> int:
+        """Convert one side and sizing instruction into a whole-share quantity."""
         if side == Side.BUY:
             return self._resolve_buy_quantity(instr, context)
         elif side == Side.SELL:
@@ -118,6 +138,8 @@ class QuantityResolver:
             raise ValueError("Invalid sizing instruction")
 
 class BufferQuantityResolver(QuantityResolver):
+    """Cap requested buys so a configured fraction of cash remains reserved."""
+
     def __init__(self, resolver: QuantityResolver, capper:BuyQuantityCapper, buffer_rate: float):
         if not 0 <= buffer_rate < 1:
             raise ValueError("buffer_rate must be float in [0, 1)")
@@ -126,6 +148,7 @@ class BufferQuantityResolver(QuantityResolver):
         self._buffer_rate = buffer_rate
 
     def resolve_quantity(self, side: Side, instr: SizingInstruction, context: ResolutionContext) -> int:
+        """Resolve a quantity and apply the cash buffer to positive buys only."""
         requested_quantity = self._resolver.resolve_quantity(side, instr, context)
 
         if side == Side.SELL or requested_quantity <= 0:
@@ -140,10 +163,13 @@ class BufferQuantityResolver(QuantityResolver):
         )
 
 class OrderResolver:
+    """Convert order intents into positive-quantity executable orders."""
+
     def __init__(self, q_resolver: QuantityResolver):
         self._q_resolver: QuantityResolver = q_resolver
 
     def resolve(self, intent: OrderIntent, context: ResolutionContext) -> Order | None:
+        """Resolve ``intent`` or return ``None`` when its quantity is not positive."""
         quantity = self._q_resolver.resolve_quantity(intent.side, intent.sizing_instruction, context)
         if quantity <= 0:
             return None

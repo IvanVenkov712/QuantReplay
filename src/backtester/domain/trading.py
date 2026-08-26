@@ -1,3 +1,5 @@
+"""Trading signals, sizing instructions, orders, and fills."""
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
@@ -5,15 +7,21 @@ from math import isfinite
 from numbers import Real
 
 class Signal(Enum):
+    """Action proposed by a strategy after observing available candles."""
+
     BUY = "buy"
     SELL = "sell"
     HOLD = "hold"
 
 class Side(Enum):
+    """Direction of an order or executed trade."""
+
     BUY = "buy"
     SELL = "sell"
 
 class SizingMode(Enum):
+    """Rule used to translate an order intent into a share quantity."""
+
     FIXED = auto()
     PERCENT = auto()
     ALL_IN = auto()
@@ -21,6 +29,8 @@ class SizingMode(Enum):
 
 @dataclass(frozen=True)
 class SizingInstruction:
+    """Sizing mode and its validated parameter, when the mode requires one."""
+
     value: int | float | None
     mode: SizingMode
 
@@ -37,6 +47,8 @@ class SizingInstruction:
 
 @dataclass(frozen=True)
 class OrderIntent:
+    """Signal-time request whose quantity will be determined at execution."""
+
     symbol: str
     side: Side
     timestamp: datetime
@@ -49,6 +61,8 @@ class OrderIntent:
 
 @dataclass(frozen=True)
 class Order:
+    """Validated request to buy or sell a positive whole-share quantity."""
+
     symbol: str
     side: Side
     quantity: int
@@ -62,6 +76,8 @@ class Order:
 
 @dataclass(frozen=True)
 class Trade:
+    """Immutable record of a successfully executed order."""
+
     symbol: str
     side: Side
     quantity: int

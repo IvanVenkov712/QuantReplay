@@ -1,3 +1,5 @@
+"""Simple moving-average crossover strategy."""
+
 from typing import Sequence
 
 from backtester.domain.market import Candle
@@ -6,6 +8,12 @@ from backtester.domain.trading import Signal
 
 
 class MovingAverageCrossStrategy(Strategy):
+    """Trade when a short close-price average crosses a longer average.
+
+    A cross above produces a buy and a cross below produces a sell. Signals
+    remain on hold until both current and previous windows are available.
+    """
+
     def __init__(self, short_window: int, long_window: int):
         if short_window <= 0 or long_window <= 0:
             raise ValueError("Window sizes must be positive")
@@ -17,6 +25,7 @@ class MovingAverageCrossStrategy(Strategy):
         self.long_window: int = long_window
 
     def generate_signal(self, candles: Sequence[Candle]) -> Signal:
+        """Generate a crossover signal from the latest available closes."""
         if len(candles) < self.long_window + 1:
             return Signal.HOLD
 

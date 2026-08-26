@@ -1,3 +1,5 @@
+"""Long-only cash, position, and mark-to-market portfolio accounting."""
+
 from collections.abc import Mapping
 from math import isfinite
 from numbers import Real
@@ -18,27 +20,33 @@ class Portfolio:
 
     @property
     def cash(self) -> float:
+        """Return the portfolio's uninvested cash."""
         return self._cash
 
     @cash.setter
     def cash(self, value: float) -> None:
+        """Set cash to a finite, non-negative value."""
         self._validate_cash(value)
         self._cash = float(value)
 
     @property
     def positions(self) -> dict[str, int]:
+        """Return a copy of symbol-to-whole-share positions."""
         return self._positions.copy()
 
     def position_quantity(self, symbol: str) -> int:
+        """Return the owned quantity for ``symbol``, or zero when absent."""
         self._validate_symbol(symbol)
         return self._positions.get(symbol, 0)
 
     def add_position(self, symbol: str, quantity: int) -> None:
+        """Add a positive whole-share quantity to a position."""
         self._validate_symbol(symbol)
         self._validate_quantity(quantity, "Position quantity")
         self._positions[symbol] = self.position_quantity(symbol) + quantity
 
     def remove_position(self, symbol: str, quantity: int) -> None:
+        """Remove owned shares, deleting the position when it reaches zero."""
         self._validate_symbol(symbol)
         self._validate_quantity(quantity, "Position quantity")
 
@@ -53,6 +61,7 @@ class Portfolio:
             self._positions[symbol] = remaining
 
     def value(self, prices: Mapping[str, float]) -> float:
+        """Return cash plus the market value of every open position."""
         total = self.cash
         for symbol, quantity in self._positions.items():
             if symbol not in prices:

@@ -1,3 +1,5 @@
+"""Long-only broker execution and portfolio-accounting service."""
+
 from datetime import datetime
 from typing import List
 
@@ -12,6 +14,8 @@ from backtester.domain.trading import Side, Trade, Order
 
 
 class Broker:
+    """Execute validated orders and apply successful fills to a portfolio."""
+
     __trades: List[Trade]
     __portfolio: Portfolio
     __execution_model: ExecutionModel
@@ -28,10 +32,12 @@ class Broker:
 
     @property
     def portfolio(self) -> Portfolio:
+        """Return the portfolio maintained by this broker."""
         return self.__portfolio
 
     @property
     def trades(self) -> List[Trade]:
+        """Return a copy of the successful trade history."""
         return self.__trades.copy()
 
     def _buy(self, order: Order, fill_price: float, commission: float) -> None:
@@ -62,6 +68,12 @@ class Broker:
         self.__portfolio.remove_position(order.symbol, order.quantity)
 
     def execute(self, order: Order, prices: dict[str, float], timestamp: datetime) -> Trade:
+        """Execute an order using the supplied reference price and timestamp.
+
+        Slippage is applied to the reference price before commission and
+        portfolio updates are calculated. Failed orders do not enter the trade
+        history.
+        """
         if not order.symbol in prices:
             raise PriceNotFoundError
 

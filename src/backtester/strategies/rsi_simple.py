@@ -1,3 +1,5 @@
+"""Simple, non-smoothed relative strength index strategy."""
+
 from math import isclose
 from typing import Sequence
 
@@ -7,6 +9,7 @@ from backtester.domain.trading import Signal
 
 
 def calculate_simple_rsi(n: int, candles: Sequence[Candle]) -> float:
+    """Calculate RSI from simple average gains and losses over ``n`` changes."""
 
     deltas = [
         curr.close - prev.close for
@@ -28,6 +31,8 @@ def calculate_simple_rsi(n: int, candles: Sequence[Candle]) -> float:
     return rsi
 
 class SimpleRSIStrategy(Strategy):
+    """Buy below the lower RSI threshold and sell above the upper threshold."""
+
     def __init__(self, n: int = 14, min: float= 30, max: float= 70):
         if n <= 1:
             raise ValueError("n must be greater than 1")
@@ -41,6 +46,7 @@ class SimpleRSIStrategy(Strategy):
 
     def generate_signal(
         self, candles: Sequence[Candle]) -> Signal:
+        """Generate a threshold signal from the latest simple RSI value."""
 
         if len(candles) < self.__n + 1:
             return Signal.HOLD

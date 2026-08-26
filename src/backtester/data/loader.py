@@ -1,3 +1,5 @@
+"""Load, normalize, validate, and convert historical OHLCV data."""
+
 from abc import ABC, abstractmethod
 from math import isfinite
 from pathlib import Path
@@ -25,6 +27,7 @@ class YFinanceDataSource(DataSource):
     """Load adjusted daily OHLCV data from Yahoo Finance."""
 
     def load(self, symbol: str, start: str, end: str) -> DataFrame | None:
+        """Download and normalize adjusted daily candles for one symbol."""
         start_timestamp, end_timestamp = parse_date_range(start, end)
 
         data = yf.download(
@@ -55,6 +58,7 @@ class CSVDataSource(DataSource):
         self.__path: Path = path
 
     def load(self, symbol: str, start: str, end: str) -> DataFrame | None:
+        """Load and normalize one symbol over the requested half-open range."""
         start_timestamp, end_timestamp = parse_date_range(start, end)
         csv_path = self.__resolve_csv_path(symbol)
 
@@ -79,11 +83,13 @@ class CSVDataSource(DataSource):
 
 
 def normalize_yfinance_data(data: DataFrame, symbol: str) -> DataFrame:
+    """Flatten a Yahoo Finance frame and normalize its date column name."""
     normalized = normalize_column_names(select_symbol_columns(data, symbol).reset_index())
     return normalized.rename(columns={"datetime": "date", "index": "date"})
 
 
 def select_symbol_columns(data: DataFrame, symbol: str) -> DataFrame:
+    """Select one symbol from multi-level columns, leaving flat frames unchanged."""
     if not isinstance(data.columns, pd.MultiIndex):
         return data
 
@@ -95,6 +101,7 @@ def select_symbol_columns(data: DataFrame, symbol: str) -> DataFrame:
 
 
 def normalize_column_names(data: DataFrame) -> DataFrame:
+    """Return a copy with lowercase, underscore-separated column names."""
     normalized = data.copy()
     normalized.columns = [
         str(column).lower().replace(" ", "_") for column in normalized.columns
@@ -104,6 +111,7 @@ def normalize_column_names(data: DataFrame) -> DataFrame:
 
 
 def find_timestamp_column(data: DataFrame) -> str:
+    """Return the first recognized timestamp column or raise ``ValueError``."""
     for column in TIMESTAMP_COLUMNS:
         if column in data.columns:
             return column
@@ -115,6 +123,7 @@ def find_timestamp_column(data: DataFrame) -> str:
 
 
 def parse_date_range(start: str, end: str) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """Parse and validate an inclusive-start, exclusive-end date range."""
     start_timestamp = pd.Timestamp(start)
     end_timestamp = pd.Timestamp(end)
 
