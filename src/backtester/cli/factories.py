@@ -37,7 +37,7 @@ from backtester.strategies.base import Strategy
 from backtester.strategies.buy_n_hold import BuyAndHoldStrategy
 from backtester.strategies.moving_average import MovingAverageCrossStrategy
 from backtester.strategies.mrma import MeanReversionStrategy
-from backtester.strategies.rsi_simple import SimpleRSIStrategy
+from backtester.strategies.rsi_simple import RSIStrategy
 
 
 def create_performance_analyzer() -> PerformanceAnalyzer:
@@ -70,7 +70,7 @@ def create_strategy(name: str, args: argparse.Namespace) -> Strategy:
     if name == "buy-and-hold":
         return BuyAndHoldStrategy()
     if name == "rsi":
-        return SimpleRSIStrategy(args.rsi_period, args.rsi_min, args.rsi_max)
+        return RSIStrategy(args.rsi_period, args.rsi_min, args.rsi_max)
     if name == "mean-reversion":
         return MeanReversionStrategy(args.mean_window, args.mean_threshold)
 

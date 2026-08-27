@@ -6,7 +6,7 @@ from backtester.domain.market import Candle
 from backtester.domain.trading import Signal
 from backtester.strategies.mrma import MeanReversionStrategy
 from backtester.strategies.moving_average import MovingAverageCrossStrategy
-from backtester.strategies.rsi_simple import SimpleRSIStrategy, calculate_simple_rsi
+from backtester.strategies.rsi_simple import RSIStrategy, calculate_simple_rsi
 
 
 def make_candles(closes: list[float]) -> list[Candle]:
@@ -138,7 +138,7 @@ def test_mean_reversion_holds_when_price_is_between_threshold_and_average() -> N
 @pytest.mark.parametrize("n", [1, 0, -1])
 def test_simple_rsi_rejects_periods_smaller_than_two(n: int) -> None:
     with pytest.raises(ValueError, match="n must be greater than 1"):
-        SimpleRSIStrategy(n=n)
+        RSIStrategy(n=n)
 
 
 @pytest.mark.parametrize(
@@ -154,7 +154,7 @@ def test_simple_rsi_rejects_invalid_thresholds(
     maximum: float,
 ) -> None:
     with pytest.raises(ValueError, match="0 <= min <= max <= 100"):
-        SimpleRSIStrategy(n=3, min=minimum, max=maximum)
+        RSIStrategy(n=3, min=minimum, max=maximum)
 
 
 def test_calculate_simple_rsi_uses_average_gains_and_losses() -> None:
@@ -182,7 +182,7 @@ def test_calculate_simple_rsi_uses_only_the_last_n_periods() -> None:
 
 
 def test_simple_rsi_holds_until_enough_candles_for_period() -> None:
-    strategy = SimpleRSIStrategy(n=3, min=30, max=70)
+    strategy = RSIStrategy(n=3, min=30, max=70)
 
     signal = strategy.generate_signal(make_candles([100, 95, 90]))
 
@@ -190,7 +190,7 @@ def test_simple_rsi_holds_until_enough_candles_for_period() -> None:
 
 
 def test_simple_rsi_buys_when_rsi_is_below_minimum_threshold() -> None:
-    strategy = SimpleRSIStrategy(n=3, min=30, max=70)
+    strategy = RSIStrategy(n=3, min=30, max=70)
 
     signal = strategy.generate_signal(make_candles([100, 95, 90, 85]))
 
@@ -198,7 +198,7 @@ def test_simple_rsi_buys_when_rsi_is_below_minimum_threshold() -> None:
 
 
 def test_simple_rsi_sells_when_rsi_is_above_maximum_threshold() -> None:
-    strategy = SimpleRSIStrategy(n=3, min=30, max=70)
+    strategy = RSIStrategy(n=3, min=30, max=70)
 
     signal = strategy.generate_signal(make_candles([100, 105, 110, 115]))
 
@@ -206,7 +206,7 @@ def test_simple_rsi_sells_when_rsi_is_above_maximum_threshold() -> None:
 
 
 def test_simple_rsi_holds_when_rsi_is_between_thresholds() -> None:
-    strategy = SimpleRSIStrategy(n=3, min=30, max=70)
+    strategy = RSIStrategy(n=3, min=30, max=70)
 
     signal = strategy.generate_signal(make_candles([100, 110, 100, 100]))
 
