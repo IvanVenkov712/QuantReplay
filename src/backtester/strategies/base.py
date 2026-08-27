@@ -15,4 +15,8 @@ class Strategy(ABC):
         """Return a signal using only the supplied chronological candles."""
         pass
 
+    @abstractmethod
+    def reset(self):
+        pass
+
 

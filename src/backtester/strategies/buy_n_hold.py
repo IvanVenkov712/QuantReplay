@@ -20,3 +20,6 @@ class BuyAndHoldStrategy(Strategy):
             return Signal.BUY
 
         return Signal.HOLD
+
+    def reset(self):
+        self._buy_signal_generated = False

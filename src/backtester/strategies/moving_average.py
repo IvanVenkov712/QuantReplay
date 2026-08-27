@@ -43,7 +43,7 @@ class MovingAverageCrossStrategy(Strategy):
 
         new_long_avg = self._long_sum / self._long_window_len
         new_short_avg = self._short_sum / self._short_window_len
-        
+
         if old_short_avg >= old_long_avg and new_short_avg < new_long_avg:
             return Signal.SELL
 
@@ -64,3 +64,12 @@ class MovingAverageCrossStrategy(Strategy):
         self._short_sum += price
         self._long_window.append(price)
         self._short_window.append(price)
+
+    def reset(self):
+        self._long_sum: float = 0
+        self._short_sum: float = 0
+
+        self._long_window = deque(maxlen=self._long_window_len)
+        self._short_window = deque(maxlen=self._short_window_len)
+
+        self._counter = 0
