@@ -140,7 +140,8 @@ class ExponentialRSICalculator(RSICalculator):
 
 class WilderRSICalculator(RSICalculator):
     def __init__(self, window_size: int = 14):
+        smoothing = (window_size + 1) / window_size
         super().__init__(
-            lambda size: ExponentialMovingAverageCalculator(size, 1),
+            lambda size: ExponentialMovingAverageCalculator(size, smoothing),
             window_size
         )

@@ -5,7 +5,8 @@ from typing import Callable
 from backtester.domain.market import Candle
 from backtester.domain.trading import Signal
 from backtester.strategies.base import Strategy
-from backtester.strategies.calculators import RSICalculator, CutlerRSICalculator, ExponentialRSICalculator
+from backtester.strategies.calculators import RSICalculator, CutlerRSICalculator, ExponentialRSICalculator, \
+    WilderRSICalculator
 
 
 # class RSICalculator(ABC):
@@ -125,7 +126,7 @@ class WilderRSIStrategy(RSIStrategy):
                  max: float = 70,
                  window_size: int = 14):
         super().__init__(
-            lambda size: ExponentialRSICalculator(size, 1),
+            lambda size: WilderRSICalculator(size),
             min,
             max,
             window_size
