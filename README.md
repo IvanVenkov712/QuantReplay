@@ -6,7 +6,7 @@ a backtesting engine, strategies, portfolio accounting, trade execution, and
 performance metrics fit together without hiding the core logic inside a large
 external framework.
 
-It is an educational project, not a live trading bot or investment advice.
+It is an educational project, not a live trading bot or investment advice yet.
 
 ## Features
 
