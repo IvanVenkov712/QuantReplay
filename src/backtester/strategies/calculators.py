@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import deque
+from math import isclose
+from typing import Callable
 
 
 class Calculator(ABC):
@@ -10,6 +12,7 @@ class Calculator(ABC):
     @abstractmethod
     def reset(self):
         pass
+
 
 class MovingAverageCalculator(Calculator, ABC):
     def __init__(self, window_size):
@@ -22,7 +25,8 @@ class MovingAverageCalculator(Calculator, ABC):
     def window_size(self) -> int:
         return self._window_size
 
-class SimpleMovingAverage(MovingAverageCalculator):
+
+class SimpleMovingAverageCalculator(MovingAverageCalculator):
 
     def __init__(self, window_size: int):
         super().__init__(window_size)
@@ -47,14 +51,15 @@ class SimpleMovingAverage(MovingAverageCalculator):
         self._window.clear()
         self._sum = 0.0
 
-class ExponentialMovingAverage(MovingAverageCalculator):
+
+class ExponentialMovingAverageCalculator(MovingAverageCalculator):
     def __init__(self, window_size: int, smoothing: float = 2):
         super().__init__(window_size)
         if not 0 < smoothing < window_size + 1:
             raise ValueError("smoothing must be in (0, window_size + 1)")
         self._window = deque(maxlen=window_size)
         self._filled = False
-        self._curr: float | None= None
+        self._curr: float | None = None
         self._factor = smoothing / (1 + self.window_size)
 
     def next_value(self, value: float) -> float | None:
@@ -75,3 +80,66 @@ class ExponentialMovingAverage(MovingAverageCalculator):
         self._window.clear()
         self._filled = False
         self._curr = None
+
+
+class RSICalculator(Calculator):
+    def __init__(self,
+                 factory: Callable[[int], MovingAverageCalculator],
+                 window_size: int = 14
+                 ):
+
+        if not (isinstance(window_size, int) and not isinstance(window_size, bool) and window_size > 1):
+            raise ValueError("positive integer is expected for window size")
+
+        self._u_calc = factory(window_size)
+        self._d_calc = factory(window_size)
+        self._prev_value: float | None = None
+
+    def next_value(self, value: float) -> float | None:
+        if self._prev_value is None:
+            self._prev_value = value
+            return None
+
+        delta = value - self._prev_value
+        u_move = max(0, delta)
+        d_move = max(0, -delta)
+        avg_u = self._u_calc.next_value(u_move)
+        avg_d = self._d_calc.next_value(d_move)
+
+        if avg_u is None or avg_d is None:
+            return None
+
+        if isclose(avg_d, 0):
+            if isclose(avg_u, 0):
+                return 50
+            return 100
+        rs = avg_u / avg_d
+        rsi = 100 - (100 / (1 + rs))
+        return rsi
+
+    def reset(self):
+        self._prev_value = None
+        self._u_calc.reset()
+        self._d_calc.reset()
+
+
+class SimpleRSICalculator(RSICalculator):
+    def __init__(self, window_size: int = 14):
+        super().__init__(
+            lambda size: SimpleMovingAverageCalculator(size),
+            window_size
+        )
+
+class ExponentialRSICalculator(RSICalculator):
+    def __init__(self, window_size: int = 14):
+        super().__init__(
+            lambda size: ExponentialMovingAverageCalculator(size),
+            window_size
+        )
+
+class WilderRSICalculator(RSICalculator):
+    def __init__(self, window_size: int = 14):
+        super().__init__(
+            lambda size: ExponentialMovingAverageCalculator(size, 1),
+            window_size
+        )
