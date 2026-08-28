@@ -37,7 +37,7 @@ from backtester.strategies.base import Strategy
 from backtester.strategies.buy_n_hold import BuyAndHoldStrategy
 from backtester.strategies.moving_average import MovingAverageCrossStrategy
 from backtester.strategies.mrma import MeanReversionStrategy
-from backtester.strategies.rsi_simple import RSIStrategy
+from backtester.strategies.rsi_strategies import RSIStrategy
 
 
 def create_performance_analyzer() -> PerformanceAnalyzer:

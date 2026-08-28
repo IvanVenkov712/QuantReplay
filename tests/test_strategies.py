@@ -6,7 +6,7 @@ from backtester.domain.market import Candle
 from backtester.domain.trading import Signal
 from backtester.strategies.mrma import MeanReversionStrategy
 from backtester.strategies.moving_average import MovingAverageCrossStrategy
-from backtester.strategies.rsi_simple import RSIStrategy, calculate_simple_rsi
+from backtester.strategies.rsi_strategies import RSIStrategy, calculate_simple_rsi
 
 
 def make_candles(closes: list[float]) -> list[Candle]:
