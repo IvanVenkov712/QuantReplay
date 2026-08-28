@@ -30,7 +30,8 @@ commission_rate = 0.001
 # fixed_commission = 2.50
 slippage_rate = 0.0005
 
-strategy = "moving-average"
+# See docs/strategies.md for every canonical strategy name and its parameters.
+strategy = "simple-moving-average"
 short_window = 20
 long_window = 50
 rsi_period = 14

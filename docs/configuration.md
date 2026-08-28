@@ -71,7 +71,7 @@ commission_model = "proportional"
 commission_rate = 0.001
 slippage_rate = 0.0005
 
-strategy = "moving-average"
+strategy = "simple-moving-average"
 short_window = 10
 long_window = 40
 
@@ -83,7 +83,9 @@ benchmark = "buy-and-hold"
 
 `[backtest]` contains all settings shared by both commands, including the
 strategy under test. Consequently, `compare` uses the same data, portfolio,
-execution, and strategy settings as `backtest`.
+execution, and strategy settings as `backtest`. Strategy parameters are shared
+between the strategy and benchmark; there are no benchmark-specific window or
+threshold keys.
 
 Supported keys are:
 
@@ -98,16 +100,27 @@ Supported keys are:
 | RSI | `rsi_period`, `rsi_min`, `rsi_max` |
 | Mean reversion | `mean_window`, `mean_threshold` |
 
+All strategy parameter keys may coexist in one file. A run uses only the keys
+relevant to its selected strategy; the others remain available for a later CLI
+override.
+
+### Strategy values
+
+The `strategy` and `benchmark` values support:
+
+- `buy-and-hold`;
+- `simple-moving-average` and `exponential-moving-average`;
+- `cutler-rsi`, `exponential-rsi`, and `wilder-rsi`;
+- `simple-mean-reversion` and `exponential-mean-reversion`.
+
+The original `moving-average`, `rsi`, and `mean-reversion` values remain
+supported as aliases. See the [Strategy reference](strategies.md) for the exact
+mapping, formulas, constraints, signal timing, and warm-up behavior.
+
 ### The `[compare]` table
 
 `[compare]` contains only `benchmark`. It is applied by the `compare` command
 and ignored by `backtest`.
-
-The `strategy` and `benchmark` values support `buy-and-hold`,
-`simple-moving-average`, `exponential-moving-average`, `cutler-rsi`,
-`exponential-rsi`, `wilder-rsi`, `simple-mean-reversion`, and
-`exponential-mean-reversion`. The original `moving-average`, `rsi`, and
-`mean-reversion` names remain supported as aliases.
 
 ## TOML value types
 
@@ -132,6 +145,11 @@ Related settings must form a complete model. For example:
 - optional `buffer_rate` accepts `[0, 1)` and may be combined with any sizing policy;
 - `commission_model = "fixed"` requires `fixed_commission`;
 - `commission_model = "proportional"` requires `commission_rate`.
+
+Strategy constructors also enforce family-specific relationships such as
+`short_window < long_window`, `rsi_period > 1`, ordered RSI thresholds within
+`[0, 100]`, and a mean-reversion threshold within `[0, 1]`. These failures are
+reported by the CLI before a backtest begins.
 
 If a CLI option changes `sizing` or `commission_model`, TOML-only parameters
 belonging to the old selection are discarded. Required parameters for the new

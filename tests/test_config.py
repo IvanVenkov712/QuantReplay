@@ -16,7 +16,7 @@ def test_example_configuration_is_valid() -> None:
     config = load_config(PROJECT_ROOT / "quantreplay.example.toml", required=True)
 
     assert config["backtest"]["symbol"] == "SPY"
-    assert config["backtest"]["strategy"] == "moving-average"
+    assert config["backtest"]["strategy"] == "simple-moving-average"
     assert config["compare"]["benchmark"] == "buy-and-hold"
 
 

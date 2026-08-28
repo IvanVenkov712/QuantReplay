@@ -83,5 +83,15 @@ rows, fill missing values, remove duplicate timestamps, resample candles, or
 otherwise repair invalid market data automatically. Invalid input fails with a
 clear error so that changes to financial data remain explicit.
 
+The CLI requires at least two candles after symbol and date filtering because
+its standard metric report needs more than one portfolio observation.
+
+CSV timestamps are not restricted to daily frequency and may be irregular.
+However, metrics whose current names include “daily,” plus annual volatility
+and annual Sharpe ratio, treat each consecutive candle as one period and use a
+fixed 252-period annualization factor. Do not interpret those values as daily
+or annual statistics for intraday or irregular CSV data. See
+[Performance metrics](metrics.md) for the exact convention.
+
 See the [CLI reference](cli.md) for all source and date options, or return to
 the [project README](../README.md).

@@ -1,10 +1,16 @@
 # CLI reference
 
-The console interface is implemented in `src/backtester/cli.py` and can be run
-as a Python module:
+The console interface is implemented in the `src/backtester/cli/` package. It
+can be run as a Python module:
 
 ```powershell
 python -m backtester.cli backtest
+```
+
+An editable installation also provides the equivalent `quantreplay` command:
+
+```powershell
+quantreplay backtest
 ```
 
 If no command is provided, the CLI runs `backtest` with its default parameters.
@@ -33,7 +39,8 @@ metrics registered with `PerformanceAnalyzer`.
 
 Default parameters:
 
-- strategy: `SimpleMovingAverageCrossStrategy(20, 50)`;
+- strategy selector: `moving-average`, the backward-compatible alias for
+  `SimpleMovingAverageCrossStrategy(20, 50)`;
 - asset: `SPY`;
 - period length: five calendar years;
 - end date: today's date;
@@ -52,16 +59,17 @@ python -m backtester.cli backtest
 Run with custom parameters:
 
 ```powershell
-python -m backtester.cli backtest --strategy moving-average --short-window 10 --long-window 40 --symbol AAPL --years 3 --initial-capital 25000 --sizing percent --buy-percent 0.5 --sell-percent 1 --commission-model proportional --commission-rate 0.001 --slippage-rate 0.0005
+python -m backtester.cli backtest --strategy simple-moving-average --short-window 10 --long-window 40 --symbol AAPL --years 3 --initial-capital 25000 --sizing percent --buy-percent 0.5 --sell-percent 1 --commission-model proportional --commission-rate 0.001 --slippage-rate 0.0005
 ```
 
-Output uses the format `label: result`:
+Output uses the format `label: result`. The dates and metric values below are
+illustrative:
 
 ```text
 Backtest parameters
 Strategy: SimpleMovingAverageCrossStrategy(20, 50)
 Asset: SPY
-Period: 2021-08-19 to 2026-08-19
+Period: <resolved-start-date> to <resolved-end-date>
 Years parameter: 5
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
@@ -101,7 +109,7 @@ strategy metric - benchmark metric
 Example:
 
 ```powershell
-python -m backtester.cli compare --strategy moving-average --benchmark buy-and-hold --symbol SPY
+python -m backtester.cli compare --strategy simple-moving-average --benchmark buy-and-hold --symbol SPY
 ```
 
 Example output:
@@ -111,7 +119,7 @@ Benchmark comparison parameters
 Strategy: SimpleMovingAverageCrossStrategy(20, 50)
 Benchmark: BuyAndHoldStrategy
 Asset: SPY
-Period: 2021-08-19 to 2026-08-19
+Period: <resolved-start-date> to <resolved-end-date>
 Years parameter: 5
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
@@ -153,6 +161,10 @@ Number of trades                     4           1            3
 - `--fixed-commission`: non-negative cash amount per executed trade, required with `--commission-model fixed`
 - `--commission-rate`: fraction of trade notional from `0` to `1`, required with `--commission-model proportional`
 - `--slippage-rate`: adverse fill-price fraction from `0` inclusive to `1` exclusive, default `0`
+
+The requested range is half-open: `--start` is included and `--end` is
+excluded. When `--start` is supplied, `--years` does not affect the resolved
+start date, although the CLI still prints the configured years parameter.
 
 ## Buffered quantity resolution
 
@@ -224,26 +236,24 @@ strategy and benchmark rejections separately.
 
 ## Strategy options
 
-- `--strategy buy-and-hold`: buys once and holds the position
-- `--strategy simple-moving-average`: simple moving-average crossover using
-  `--short-window` and `--long-window`
-- `--strategy exponential-moving-average`: standard exponential moving-average
-  crossover using `--short-window` and `--long-window`
-- `--strategy cutler-rsi`: Cutler RSI using `--rsi-period`, `--rsi-min`, and
-  `--rsi-max`
-- `--strategy exponential-rsi`: standard exponentially averaged RSI using
-  `--rsi-period`, `--rsi-min`, and `--rsi-max`
-- `--strategy wilder-rsi`: Wilder RSI using `--rsi-period`, `--rsi-min`, and
-  `--rsi-max`
-- `--strategy simple-mean-reversion`: simple moving-average mean reversion using
-  `--mean-window` and `--mean-threshold`
-- `--strategy exponential-mean-reversion`: standard exponential moving-average
-  mean reversion using `--mean-window` and `--mean-threshold`
+| CLI names | Relevant options |
+| --- | --- |
+| `buy-and-hold` | None |
+| `simple-moving-average`, `exponential-moving-average` | `--short-window`, `--long-window` |
+| `cutler-rsi`, `exponential-rsi`, `wilder-rsi` | `--rsi-period`, `--rsi-min`, `--rsi-max` |
+| `simple-mean-reversion`, `exponential-mean-reversion` | `--mean-window`, `--mean-threshold` |
 
 The original names `moving-average`, `rsi`, and `mean-reversion` remain aliases
 for the simple moving-average, Cutler RSI, and simple mean-reversion strategies.
 The `compare` command accepts every strategy name and alias through
-`--benchmark`; its default is `buy-and-hold`.
+`--benchmark`; its default is `buy-and-hold`. Strategy-specific options are
+shared by the strategy and benchmark. For example, a comparison between the
+simple and exponential crossover strategies uses the same short and long
+windows for both.
+
+See the [Strategy reference](strategies.md) for indicator formulas, exact
+signal boundaries, parameter constraints, warm-up periods, examples, and test
+coverage for every available strategy.
 
 For input formats and validation, see [Market data](data.md). Return to the
 [project README](../README.md).
