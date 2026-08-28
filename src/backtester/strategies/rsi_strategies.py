@@ -111,10 +111,10 @@ class ExponentialRSIStrategy(RSIStrategy):
     def __init__(self,
                  min: float = 30,
                  max: float = 70,
-                 window_size: int = 14,
-                 smoothing: float= 2):
+                 window_size: int = 14):
+
         super().__init__(
-            lambda size: ExponentialRSICalculator(size, smoothing),
+            lambda size: ExponentialRSICalculator(size),
             min,
             max,
             window_size
