@@ -28,21 +28,6 @@ DEFAULT_SIZING_PLAN = SizingPlan(
 )
 
 
-class ScriptedStrategy(Strategy):
-    def __init__(self, signals: Sequence[Signal]):
-        self._signals = list(signals)
-        self.received_lengths: list[int] = []
-
-    def generate_signal(self, candles: Sequence[Candle]) -> Signal:
-        self.received_lengths.append(len(candles))
-        signal_index = len(candles) - 1
-
-        if signal_index >= len(self._signals):
-            return Signal.HOLD
-
-        return self._signals[signal_index]
-
-
 def make_portfolio_mock(
     cash: float = 1_000,
     *,
@@ -143,8 +128,9 @@ def make_engine(
     broker: Mock | None = None,
     resolver: Mock | None = None,
     plan: SizingPlan = DEFAULT_SIZING_PLAN,
-) -> tuple[BacktestEngine, ScriptedStrategy, Mock]:
-    strategy = ScriptedStrategy(signals)
+) -> tuple[BacktestEngine, Mock, Mock]:
+    strategy = Mock(spec=Strategy)
+    strategy.on_candle.side_effect = list(signals)
     broker = broker or make_broker_mock()
     resolver = resolver or make_resolver_mock()
     engine = BacktestEngine(
@@ -167,7 +153,7 @@ def test_empty_data_produces_empty_result_without_calling_strategy() -> None:
     assert result.records == []
     assert result.orders == []
     assert result.trades == []
-    assert strategy.received_lengths == []
+    strategy.on_candle.assert_not_called()
     broker.execute.assert_not_called()
 
 
@@ -431,7 +417,7 @@ def test_pending_order_executes_before_current_candle_signal_is_generated() -> N
     assert result.orders[1].success is True
 
 
-def test_strategy_receives_only_candles_available_so_far() -> None:
+def test_strategy_receives_each_candle_in_chronological_order() -> None:
     candles = make_candles([(10, 10), (11, 11), (12, 12)])
     engine, strategy, _ = make_engine(
         [Signal.HOLD, Signal.HOLD, Signal.HOLD],
@@ -440,7 +426,7 @@ def test_strategy_receives_only_candles_available_so_far() -> None:
 
     engine.run()
 
-    assert strategy.received_lengths == [1, 2, 3]
+    assert strategy.on_candle.call_args_list == [call(candle) for candle in candles]
 
 
 def test_buy_hold_sell_sequence_emits_expected_pending_orders() -> None:

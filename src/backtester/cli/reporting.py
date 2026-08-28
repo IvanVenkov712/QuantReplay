@@ -173,18 +173,41 @@ def _format_money(value: float) -> str:
 
 def describe_strategy(name: str, args: argparse.Namespace) -> str:
     """Return a concise description of a configured strategy."""
-    if name == "moving-average":
-        return f"MovingAverageCrossStrategy({args.short_window}, {args.long_window})"
+    if name in {"moving-average", "simple-moving-average"}:
+        return (
+            "SimpleMovingAverageCrossStrategy("
+            f"{args.short_window}, {args.long_window})"
+        )
+    if name == "exponential-moving-average":
+        return (
+            "ExponentialMovingAverageCrossStrategy("
+            f"{args.short_window}, {args.long_window})"
+        )
     if name == "buy-and-hold":
         return "BuyAndHoldStrategy"
-    if name == "rsi":
+    if name in {"rsi", "cutler-rsi"}:
         return (
-            f"SimpleRSIStrategy(period={args.rsi_period}, "
+            f"CutlerRSIStrategy(period={args.rsi_period}, "
             f"min={args.rsi_min}, max={args.rsi_max})"
         )
-    if name == "mean-reversion":
+    if name == "exponential-rsi":
         return (
-            f"MeanReversionStrategy(window={args.mean_window}, "
+            f"ExponentialRSIStrategy(period={args.rsi_period}, "
+            f"min={args.rsi_min}, max={args.rsi_max})"
+        )
+    if name == "wilder-rsi":
+        return (
+            f"WilderRSIStrategy(period={args.rsi_period}, "
+            f"min={args.rsi_min}, max={args.rsi_max})"
+        )
+    if name in {"mean-reversion", "simple-mean-reversion"}:
+        return (
+            f"SimpleMeanReversionStrategy(window={args.mean_window}, "
+            f"threshold={args.mean_threshold})"
+        )
+    if name == "exponential-mean-reversion":
+        return (
+            f"ExponentialMeanReversionStrategy(window={args.mean_window}, "
             f"threshold={args.mean_threshold})"
         )
 

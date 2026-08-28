@@ -11,9 +11,12 @@ class Strategy(ABC):
     """Generate trading signals from market history available so far."""
 
     @abstractmethod
-    def generate_signal(
-        self, candles: Sequence[Candle]) -> Signal:
+    def on_candle(self, candle: Candle) -> Signal:
         """Return a signal using only the supplied chronological candles."""
+        pass
+
+    @abstractmethod
+    def reset(self):
         pass
 
 

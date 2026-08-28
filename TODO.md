@@ -1,20 +1,57 @@
-No critical flaw appeared in the normal daily-data CLI path. I found one material correctness risk and two reproducible edge-case failures.
+# Known issues and follow-up work
 
-- **High when using non-daily CSV data:** volatility and Sharpe calculations always assume 252 daily observations per year ([metrics.py](/C:/Users/ivanv/FMI/QuantReplay/src/backtester/metrics/metrics.py:103)), while the CSV loader accepts arbitrary or irregular timestamp intervals ([loader.py](/C:/Users/ivanv/FMI/QuantReplay/src/backtester/data/loader.py:161)). Hourly and daily versions of the same returns therefore report identical annual volatility. Either restrict input to daily candles or make periods-per-year explicit.
+This file contains actionable work that is intentionally deferred. Verification
+results and completed review notes belong in pull requests or commit messages,
+not in this backlog.
 
-- **Medium:** annualized return can overflow and abort metric reporting ([metrics.py](/C:/Users/ivanv/FMI/QuantReplay/src/backtester/metrics/metrics.py:89)). A valid two-candle, one-day backtest growing from `1` to `10` raises `OverflowError` at the exponentiation. Log-space calculation with an explicit infinity/N/A policy would avoid the crash.
+## Financial and statistical correctness
 
-- **Medium, library API only:** `Portfolio(cash=0)` is accepted ([portfolio.py](/C:/Users/ivanv/FMI/QuantReplay/src/backtester/portfolio/portfolio.py:77)), but maximum drawdown divides by zero when the first portfolio value is zero ([metrics.py](/C:/Users/ivanv/FMI/QuantReplay/src/backtester/metrics/metrics.py:142)). The CLI prevents zero initial capital, but direct engine use does not.
+- [ ] Make candle frequency explicit for volatility and Sharpe calculations.
+  CSV input currently permits intraday and irregular observations, while annual
+  volatility and annual Sharpe ratio always assume 252 periods per year. Either
+  restrict these metrics to daily candles or make `periods_per_year`
+  configurable.
+- [ ] Prevent annualized-return overflow for extreme growth over very short
+  elapsed intervals. Prefer a log-space calculation with an explicit infinity
+  or `N/A` policy.
+- [ ] Define maximum drawdown when the running peak is zero. The library permits
+  a zero-value portfolio even though the CLI requires positive initial capital.
 
-Lower-priority concerns include mutable lists inside the nominally frozen `BacktestResult`, incomplete integer validation for strategy window parameters, and an obsolete second position-sizing implementation that is disconnected from the engine.
+## Engine and public API
 
-Positive results:
+- [ ] Validate that `Strategy.on_candle()` returns a `Signal`; invalid values
+  must fail clearly instead of being treated like `HOLD`.
+- [ ] Define ownership of stateful backtest dependencies. Either require a fresh
+  strategy and broker for every engine, or reset strategy state and isolate the
+  broker trade history used by each result.
+- [ ] Convert sequences stored in frozen `BacktestResult` instances to tuples so
+  results are deeply immutable.
+- [ ] Validate fixed commissions as finite, non-negative numbers at model
+  construction time.
+- [ ] Apply complete integer, range, and relationship validation to strategy
+  parameters at the CLI boundary instead of relying partly on constructors.
+- [ ] Expand `BacktestRecord` if result auditing or visualization needs explicit
+  position quantity, position market value, and signal-to-execution linkage.
 
-- All **284 tests passed**.
-- Coverage is **93%**.
-- `pip check` reported no dependency conflicts.
-- Local SPY backtest and benchmark-comparison commands completed successfully.
-- I found no look-ahead bias or normal-path cash/position accounting error.
-- The worktree remains unchanged.
+## Architecture cleanup
 
-I did not exercise live Yahoo Finance retrieval; the audit used repository CSV data.
+- [ ] Remove or migrate the unused sizing implementation in
+  `src/backtester/sizing/position_sizing.py`; the engine uses sizing
+  instructions and quantity resolvers.
+- [ ] Remove superseded strategy code: `_MovingAverageCrossStrategy`,
+  `_MeanReversionStrategy`, and the commented RSI implementation.
+- [ ] Decide whether empty placeholders such as `strategies/breakout.py` and the
+  `reporting` package should be implemented or removed.
+- [ ] Review currently unused concepts, including `SizingMode.UP_TO`,
+  `ResolutionContext.portfolio_value`, and
+  `ExecutionCostCalculator.estimate_sell_cost()`.
+
+## Tooling and utilities
+
+- [ ] Refactor `data_download.py` behind functions and a `main` guard. Accept
+  symbols, dates, and output paths explicitly instead of downloading and
+  overwriting tracked files when the module is imported.
+- [ ] Make local development tooling match CI by including the lint dependency
+  in the development extra or documenting a separate lint extra.
+- [ ] Decide whether style violations and a minimum coverage percentage should
+  become blocking CI checks.

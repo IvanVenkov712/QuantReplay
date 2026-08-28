@@ -5,10 +5,18 @@ The CLI reports all metrics currently registered with `PerformanceAnalyzer`.
 Let $V_t$ be the portfolio value at the close of observation $t$, and let
 $r_t = \frac{V_t}{V_{t-1}} - 1$ be the simple return between consecutive
 observations. Let $n$ be the number of those returns. Elapsed time in years is
-$T = \frac{d_n - d_0}{365.25}$, where $d_0$ and $d_n$ are the first and last
-observation dates. Let $\mathcal{T}$ be the set of executed trades.
+$T = \frac{t_n - t_0}{365.25\text{ days}}$, where $t_0$ and $t_n$ are the first
+and last observation timestamps. Let $\mathcal{T}$ be the set of executed
+trades.
 
 The Sharpe ratio assumes a risk-free return of zero.
+
+The names “daily average,” “daily volatility,” and “daily Sharpe ratio” are
+accurate for the daily Yahoo Finance source. The implementation actually uses
+one return per pair of consecutive candles without inspecting their spacing.
+For non-daily or irregular CSV input, read “daily” as “per observation.” The
+annual volatility and annual Sharpe ratio still multiply by `sqrt(252)`, so
+their annual interpretation is not valid for such input.
 
 ## Definitions
 
@@ -63,16 +71,25 @@ strategy made; positive is not inherently better.
 
 ## Edge cases and limitations
 
+- The CLI rejects data sets with fewer than two candles before calculating its
+  standard metric report.
 - Daily average return is defined as zero when there are no period returns.
 - Daily volatility is defined as zero when fewer than two period returns exist.
-- Sharpe ratios are unavailable when daily volatility is zero.
-- Annual volatility and Sharpe ratio use 252 trading periods per year.
+- Sharpe ratios are unavailable when period volatility is zero and are printed
+  as `N/A` by the CLI.
+- Annual volatility and Sharpe ratio always use 252 periods per year; candle
+  frequency is not inferred from timestamps.
 - The Sharpe ratio uses a risk-free return of zero.
 - Configured commissions reduce cash at execution. Slippage changes fill
   prices, and both therefore flow through the portfolio values used by return,
   volatility, Sharpe ratio, and drawdown calculations.
 - The trade-count metric counts successful executions only. Rejected and
   zero-sized orders are not trades.
+- The library-level annualized-return calculation can overflow for extreme
+  growth over a very short elapsed interval.
+- Library callers can construct a zero-cash, zero-position portfolio even
+  though the CLI requires positive initial capital. Maximum drawdown is not
+  defined safely when its first recorded portfolio value is zero.
 
 Return to the [project README](../README.md) or see the
 [CLI reference](cli.md).
