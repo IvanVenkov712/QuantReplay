@@ -101,6 +101,7 @@ class RSICalculator(Calculator):
             return None
 
         delta = value - self._prev_value
+        self._prev_value = value
         u_move = max(0, delta)
         d_move = max(0, -delta)
         avg_u = self._u_calc.next_value(u_move)
