@@ -124,7 +124,7 @@ class RSICalculator(Calculator):
         self._d_calc.reset()
 
 
-class SimpleRSICalculator(RSICalculator):
+class CutlerRSICalculator(RSICalculator):
     def __init__(self, window_size: int = 14):
         super().__init__(
             lambda size: SimpleMovingAverageCalculator(size),
