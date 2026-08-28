@@ -150,7 +150,7 @@ class CutlerRSICalculator(RSICalculator):
         )
 
 class ExponentialRSICalculator(RSICalculator):
-    def __init__(self, window_size: int = 14, smoothing = 2):
+    def __init__(self, window_size: int = 14):
         super().__init__(
             ExponentialMovingAverageCalculator.standard,
             window_size

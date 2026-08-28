@@ -62,8 +62,8 @@ class SimpleMovingAverageCrossStrategy(MovingAverageCrossStrategy):
                          long_window_size)
 
 class ExponentialMovingAverageCrossStrategy(MovingAverageCrossStrategy):
-    def __init__(self, short_window_size: int = 20, long_window_size: int = 50, smoothing: float = 2.0):
-        super().__init__(lambda size: ExponentialMovingAverageCalculator(size, smoothing),
+    def __init__(self, short_window_size: int = 20, long_window_size: int = 50):
+        super().__init__(ExponentialMovingAverageCalculator.standard,
                          short_window_size,
                          long_window_size)
 
