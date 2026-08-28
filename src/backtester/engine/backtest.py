@@ -76,7 +76,6 @@ class BacktestEngine:
         new signal is generated, and the portfolio is valued at the current
         close.
         """
-        curr_candles = []
         order_history = []
         records = []
         order_intent = None
@@ -87,8 +86,7 @@ class BacktestEngine:
                 if order is not None:
                     order_history.append(self._execute_pending_order(order, candle))
 
-            curr_candles.append(candle)
-            signal = self._strategy.generate_signal(curr_candles)
+            signal = self._strategy.on_candle(candle)
             order_intent = self._create_order_intent(candle.timestamp, signal)
 
             records.append(self._create_record(candle, signal))
