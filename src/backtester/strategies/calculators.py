@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import deque
 from math import isclose
-from typing import Callable
+from typing import Callable, Self
 
 
 class Calculator(ABC):
@@ -53,14 +53,14 @@ class SimpleMovingAverageCalculator(MovingAverageCalculator):
 
 
 class ExponentialMovingAverageCalculator(MovingAverageCalculator):
-    def __init__(self, window_size: int, smoothing: float = 2):
+    def __init__(self, window_size: int, *, alpha: float):
         super().__init__(window_size)
-        if not 0 < smoothing < window_size + 1:
-            raise ValueError("smoothing must be in (0, window_size + 1)")
+        if not 0 < alpha < 1:
+            raise ValueError("alpha must be in (0, 1)")
         self._window = deque(maxlen=window_size)
         self._filled = False
         self._curr: float | None = None
-        self._factor = smoothing / (1 + self.window_size)
+        self._alpha = alpha
 
     def next_value(self, value: float) -> float | None:
         self._update_state(value)
@@ -68,7 +68,7 @@ class ExponentialMovingAverageCalculator(MovingAverageCalculator):
 
     def _update_state(self, value: float):
         if self._filled:
-            self._curr = value * self._factor + self._curr * (1 - self._factor)
+            self._curr = value * self._alpha + self._curr * (1 - self._alpha)
         else:
             self._window.append(value)
             if len(self._window) == self.window_size:
@@ -80,6 +80,24 @@ class ExponentialMovingAverageCalculator(MovingAverageCalculator):
         self._window.clear()
         self._filled = False
         self._curr = None
+
+    @classmethod
+    def standard(cls, n: int) -> Self:
+        if not (isinstance(n, int) and not isinstance(n, bool) and n > 0):
+            raise ValueError("positive integer is expected for window size")
+
+        return cls(
+            n, alpha=2.0 / (n + 1)
+        )
+
+    @classmethod
+    def wilder(cls, n: int) -> Self:
+        if not (isinstance(n, int) and not isinstance(n, bool) and n > 0):
+            raise ValueError("positive integer is expected for window size")
+
+        return cls(
+            n, alpha=1.0 / n
+        )
 
 
 class RSICalculator(Calculator):
@@ -134,14 +152,13 @@ class CutlerRSICalculator(RSICalculator):
 class ExponentialRSICalculator(RSICalculator):
     def __init__(self, window_size: int = 14, smoothing = 2):
         super().__init__(
-            lambda size: ExponentialMovingAverageCalculator(size, smoothing),
+            ExponentialMovingAverageCalculator.standard,
             window_size
         )
 
 class WilderRSICalculator(RSICalculator):
     def __init__(self, window_size: int = 14):
-        smoothing = (window_size + 1) / window_size
         super().__init__(
-            lambda size: ExponentialMovingAverageCalculator(size, smoothing),
+            ExponentialMovingAverageCalculator.wilder,
             window_size
         )
