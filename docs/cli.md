@@ -33,7 +33,7 @@ metrics registered with `PerformanceAnalyzer`.
 
 Default parameters:
 
-- strategy: `MovingAverageCrossStrategy(20, 50)`;
+- strategy: `SimpleMovingAverageCrossStrategy(20, 50)`;
 - asset: `SPY`;
 - period length: five calendar years;
 - end date: today's date;
@@ -59,7 +59,7 @@ Output uses the format `label: result`:
 
 ```text
 Backtest parameters
-Strategy: MovingAverageCrossStrategy(20, 50)
+Strategy: SimpleMovingAverageCrossStrategy(20, 50)
 Asset: SPY
 Period: 2021-08-19 to 2026-08-19
 Years parameter: 5
@@ -108,7 +108,7 @@ Example output:
 
 ```text
 Benchmark comparison parameters
-Strategy: MovingAverageCrossStrategy(20, 50)
+Strategy: SimpleMovingAverageCrossStrategy(20, 50)
 Benchmark: BuyAndHoldStrategy
 Asset: SPY
 Period: 2021-08-19 to 2026-08-19
@@ -224,14 +224,26 @@ strategy and benchmark rejections separately.
 
 ## Strategy options
 
-- `--strategy moving-average`: uses `--short-window` and `--long-window`
 - `--strategy buy-and-hold`: buys once and holds the position
-- `--strategy rsi`: uses `--rsi-period`, `--rsi-min`, and `--rsi-max`
-- `--strategy mean-reversion`: uses `--mean-window` and `--mean-threshold`
+- `--strategy simple-moving-average`: simple moving-average crossover using
+  `--short-window` and `--long-window`
+- `--strategy exponential-moving-average`: standard exponential moving-average
+  crossover using `--short-window` and `--long-window`
+- `--strategy cutler-rsi`: Cutler RSI using `--rsi-period`, `--rsi-min`, and
+  `--rsi-max`
+- `--strategy exponential-rsi`: standard exponentially averaged RSI using
+  `--rsi-period`, `--rsi-min`, and `--rsi-max`
+- `--strategy wilder-rsi`: Wilder RSI using `--rsi-period`, `--rsi-min`, and
+  `--rsi-max`
+- `--strategy simple-mean-reversion`: simple moving-average mean reversion using
+  `--mean-window` and `--mean-threshold`
+- `--strategy exponential-mean-reversion`: standard exponential moving-average
+  mean reversion using `--mean-window` and `--mean-threshold`
 
-The `compare` command also accepts `--benchmark`. Supported values are
-`buy-and-hold`, `moving-average`, `rsi`, and `mean-reversion`; the default is
-`buy-and-hold`.
+The original names `moving-average`, `rsi`, and `mean-reversion` remain aliases
+for the simple moving-average, Cutler RSI, and simple mean-reversion strategies.
+The `compare` command accepts every strategy name and alias through
+`--benchmark`; its default is `buy-and-hold`.
 
 For input formats and validation, see [Market data](data.md). Return to the
 [project README](../README.md).

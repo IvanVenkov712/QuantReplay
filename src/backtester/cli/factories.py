@@ -35,9 +35,19 @@ from backtester.resolving.resolver import (
 from backtester.sizing.policy import SizingPlan
 from backtester.strategies.base import Strategy
 from backtester.strategies.buy_n_hold import BuyAndHoldStrategy
-from backtester.strategies.moving_average import MovingAverageCrossStrategy
-from backtester.strategies.mrma import MeanReversionStrategy
-from backtester.strategies.rsi_strategies import RSIStrategy
+from backtester.strategies.moving_average import (
+    ExponentialMovingAverageCrossStrategy,
+    SimpleMovingAverageCrossStrategy,
+)
+from backtester.strategies.mrma import (
+    ExponentialMeanReversionStrategy,
+    SimpleMeanReversionStrategy,
+)
+from backtester.strategies.rsi_strategies import (
+    CutlerRSIStrategy,
+    ExponentialRSIStrategy,
+    WilderRSIStrategy,
+)
 
 
 def create_performance_analyzer() -> PerformanceAnalyzer:
@@ -65,14 +75,46 @@ def create_performance_analyzer() -> PerformanceAnalyzer:
 
 def create_strategy(name: str, args: argparse.Namespace) -> Strategy:
     """Create the named strategy from parsed CLI parameters."""
-    if name == "moving-average":
-        return MovingAverageCrossStrategy(args.short_window, args.long_window)
+    if name in {"moving-average", "simple-moving-average"}:
+        return SimpleMovingAverageCrossStrategy(
+            short_window_size=args.short_window,
+            long_window_size=args.long_window,
+        )
+    if name == "exponential-moving-average":
+        return ExponentialMovingAverageCrossStrategy(
+            short_window_size=args.short_window,
+            long_window_size=args.long_window,
+        )
     if name == "buy-and-hold":
         return BuyAndHoldStrategy()
-    if name == "rsi":
-        return RSIStrategy(args.rsi_period, args.rsi_min, args.rsi_max)
-    if name == "mean-reversion":
-        return MeanReversionStrategy(args.mean_window, args.mean_threshold)
+    if name in {"rsi", "cutler-rsi"}:
+        return CutlerRSIStrategy(
+            min=args.rsi_min,
+            max=args.rsi_max,
+            window_size=args.rsi_period,
+        )
+    if name == "exponential-rsi":
+        return ExponentialRSIStrategy(
+            min=args.rsi_min,
+            max=args.rsi_max,
+            window_size=args.rsi_period,
+        )
+    if name == "wilder-rsi":
+        return WilderRSIStrategy(
+            min=args.rsi_min,
+            max=args.rsi_max,
+            window_size=args.rsi_period,
+        )
+    if name in {"mean-reversion", "simple-mean-reversion"}:
+        return SimpleMeanReversionStrategy(
+            window=args.mean_window,
+            threshold=args.mean_threshold,
+        )
+    if name == "exponential-mean-reversion":
+        return ExponentialMeanReversionStrategy(
+            window=args.mean_window,
+            threshold=args.mean_threshold,
+        )
 
     raise ValueError(f"Unknown strategy: {name}.")
 

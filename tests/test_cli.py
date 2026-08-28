@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from io import StringIO
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -15,6 +16,7 @@ from backtester.cli.arguments import (
     DEFAULT_SLIPPAGE_RATE,
     DEFAULT_SYMBOL,
     DEFAULT_YEARS,
+    STRATEGY_CHOICES,
     parse_args,
 )
 from backtester.cli.commands import resolve_date_range
@@ -23,9 +25,11 @@ from backtester.cli.factories import (
     create_execution_model,
     create_order_resolver,
     create_sizing_plan,
+    create_strategy,
 )
 from backtester.cli.reporting import (
     MAX_REJECTED_ORDER_DETAILS,
+    describe_strategy,
     format_metric_value,
     print_metric_comparison,
     print_rejected_orders,
@@ -307,6 +311,190 @@ def test_parse_args_accepts_compare_command_and_benchmark() -> None:
     assert args.command == "compare"
     assert args.strategy == "mean-reversion"
     assert args.benchmark == "rsi"
+
+
+@pytest.mark.parametrize("strategy_name", STRATEGY_CHOICES)
+def test_parse_args_accepts_every_strategy_as_strategy_and_benchmark(
+    strategy_name: str,
+) -> None:
+    args = parse_args(
+        [
+            "compare",
+            "--strategy",
+            strategy_name,
+            "--benchmark",
+            strategy_name,
+        ]
+    )
+
+    assert args.strategy == strategy_name
+    assert args.benchmark == strategy_name
+
+
+@pytest.mark.parametrize(
+    ("arguments", "constructor_name", "expected_arguments"),
+    [
+        (
+            ["--short-window", "10", "--long-window", "40"],
+            "SimpleMovingAverageCrossStrategy",
+            {"short_window_size": 10, "long_window_size": 40},
+        ),
+        (
+            ["--strategy", "simple-moving-average"],
+            "SimpleMovingAverageCrossStrategy",
+            {"short_window_size": 20, "long_window_size": 50},
+        ),
+        (
+            ["--strategy", "exponential-moving-average"],
+            "ExponentialMovingAverageCrossStrategy",
+            {"short_window_size": 20, "long_window_size": 50},
+        ),
+        (
+            ["--strategy", "buy-and-hold"],
+            "BuyAndHoldStrategy",
+            {},
+        ),
+        (
+            [
+                "--strategy",
+                "rsi",
+                "--rsi-period",
+                "10",
+                "--rsi-min",
+                "25",
+                "--rsi-max",
+                "75",
+            ],
+            "CutlerRSIStrategy",
+            {"min": 25, "max": 75, "window_size": 10},
+        ),
+        (
+            ["--strategy", "cutler-rsi"],
+            "CutlerRSIStrategy",
+            {"min": 30.0, "max": 70.0, "window_size": 14},
+        ),
+        (
+            ["--strategy", "exponential-rsi"],
+            "ExponentialRSIStrategy",
+            {"min": 30.0, "max": 70.0, "window_size": 14},
+        ),
+        (
+            ["--strategy", "wilder-rsi"],
+            "WilderRSIStrategy",
+            {"min": 30.0, "max": 70.0, "window_size": 14},
+        ),
+        (
+            [
+                "--strategy",
+                "mean-reversion",
+                "--mean-window",
+                "15",
+                "--mean-threshold",
+                "0.9",
+            ],
+            "SimpleMeanReversionStrategy",
+            {"window": 15, "threshold": 0.9},
+        ),
+        (
+            ["--strategy", "simple-mean-reversion"],
+            "SimpleMeanReversionStrategy",
+            {"window": 20, "threshold": 0.95},
+        ),
+        (
+            ["--strategy", "exponential-mean-reversion"],
+            "ExponentialMeanReversionStrategy",
+            {"window": 20, "threshold": 0.95},
+        ),
+    ],
+)
+def test_create_strategy_passes_cli_parameters_to_concrete_strategy(
+    arguments: list[str],
+    constructor_name: str,
+    expected_arguments: dict[str, int | float],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    constructor = Mock()
+    monkeypatch.setattr(
+        f"backtester.cli.factories.{constructor_name}",
+        constructor,
+    )
+    args = parse_args(arguments)
+
+    strategy = create_strategy(args.strategy, args)
+
+    constructor.assert_called_once_with(**expected_arguments)
+    assert strategy is constructor.return_value
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        (
+            ["--short-window", "10", "--long-window", "40"],
+            "SimpleMovingAverageCrossStrategy(10, 40)",
+        ),
+        (
+            ["--strategy", "simple-moving-average"],
+            "SimpleMovingAverageCrossStrategy(20, 50)",
+        ),
+        (
+            ["--strategy", "exponential-moving-average"],
+            "ExponentialMovingAverageCrossStrategy(20, 50)",
+        ),
+        (["--strategy", "buy-and-hold"], "BuyAndHoldStrategy"),
+        (
+            [
+                "--strategy",
+                "rsi",
+                "--rsi-period",
+                "10",
+                "--rsi-min",
+                "25",
+                "--rsi-max",
+                "75",
+            ],
+            "CutlerRSIStrategy(period=10, min=25.0, max=75.0)",
+        ),
+        (
+            ["--strategy", "cutler-rsi"],
+            "CutlerRSIStrategy(period=14, min=30.0, max=70.0)",
+        ),
+        (
+            ["--strategy", "exponential-rsi"],
+            "ExponentialRSIStrategy(period=14, min=30.0, max=70.0)",
+        ),
+        (
+            ["--strategy", "wilder-rsi"],
+            "WilderRSIStrategy(period=14, min=30.0, max=70.0)",
+        ),
+        (
+            [
+                "--strategy",
+                "mean-reversion",
+                "--mean-window",
+                "15",
+                "--mean-threshold",
+                "0.9",
+            ],
+            "SimpleMeanReversionStrategy(window=15, threshold=0.9)",
+        ),
+        (
+            ["--strategy", "simple-mean-reversion"],
+            "SimpleMeanReversionStrategy(window=20, threshold=0.95)",
+        ),
+        (
+            ["--strategy", "exponential-mean-reversion"],
+            "ExponentialMeanReversionStrategy(window=20, threshold=0.95)",
+        ),
+    ],
+)
+def test_describe_strategy_names_concrete_cli_strategy(
+    arguments: list[str],
+    expected: str,
+) -> None:
+    args = parse_args(arguments)
+
+    assert describe_strategy(args.strategy, args) == expected
 
 
 @pytest.mark.parametrize(
@@ -957,7 +1145,7 @@ def test_main_compares_strategy_with_benchmark_using_same_csv_data(
     assert captured.err == ""
     assert "Benchmark comparison parameters" in captured.out
     assert "Strategy: BuyAndHoldStrategy" in captured.out
-    assert "Benchmark: MovingAverageCrossStrategy(20, 50)" in captured.out
+    assert "Benchmark: SimpleMovingAverageCrossStrategy(20, 50)" in captured.out
     assert "Metric comparison" in captured.out
     assert "Metric" in captured.out
     assert "Strategy" in captured.out

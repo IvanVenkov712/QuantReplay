@@ -103,8 +103,11 @@ Supported keys are:
 `[compare]` contains only `benchmark`. It is applied by the `compare` command
 and ignored by `backtest`.
 
-Supported benchmark values are `buy-and-hold`, `moving-average`, `rsi`, and
-`mean-reversion`.
+The `strategy` and `benchmark` values support `buy-and-hold`,
+`simple-moving-average`, `exponential-moving-average`, `cutler-rsi`,
+`exponential-rsi`, `wilder-rsi`, `simple-mean-reversion`, and
+`exponential-mean-reversion`. The original `moving-average`, `rsi`, and
+`mean-reversion` names remain supported as aliases.
 
 ## TOML value types
 

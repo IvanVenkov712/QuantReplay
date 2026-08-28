@@ -98,16 +98,22 @@ initial capital, position-sizing policy, commission model, and slippage rate.
 
 | CLI name | Class | Buy signal | Sell signal |
 | --- | --- | --- | --- |
-| `moving-average` | `MovingAverageCrossStrategy` | The short moving average crosses above the long moving average. | The short moving average crosses below the long moving average. |
 | `buy-and-hold` | `BuyAndHoldStrategy` | The first time the strategy is called. | Never. |
-| `rsi` | `SimpleRSIStrategy` | RSI falls below the minimum threshold. | RSI rises above the maximum threshold. |
-| `mean-reversion` | `MeanReversionStrategy` | The current close is below the configured fraction of its recent average. | The current close reaches or exceeds the recent average. |
+| `simple-moving-average` | `SimpleMovingAverageCrossStrategy` | The short simple moving average crosses above the long average. | The short average crosses below the long average. |
+| `exponential-moving-average` | `ExponentialMovingAverageCrossStrategy` | The short exponential moving average crosses above the long average. | The short average crosses below the long average. |
+| `cutler-rsi` | `CutlerRSIStrategy` | Cutler RSI falls below the minimum threshold. | Cutler RSI rises above the maximum threshold. |
+| `exponential-rsi` | `ExponentialRSIStrategy` | Exponentially averaged RSI falls below the minimum threshold. | The RSI rises above the maximum threshold. |
+| `wilder-rsi` | `WilderRSIStrategy` | Wilder RSI falls below the minimum threshold. | Wilder RSI rises above the maximum threshold. |
+| `simple-mean-reversion` | `SimpleMeanReversionStrategy` | The current close is below the configured fraction of its recent simple average. | The current close reaches or exceeds the average. |
+| `exponential-mean-reversion` | `ExponentialMeanReversionStrategy` | The current close is below the configured fraction of its recent exponential average. | The current close reaches or exceeds the average. |
 
-The default strategy is `MovingAverageCrossStrategy(20, 50)`. The default
+The default strategy is `SimpleMovingAverageCrossStrategy(20, 50)`. The default
 benchmark is `BuyAndHoldStrategy`, which shows whether an active strategy added
 value compared with buying the asset once and holding it. The comparison table
 keeps the two underlying metric values visible alongside their difference, so
 the size and direction of that difference can be interpreted in context.
+The original names `moving-average`, `rsi`, and `mean-reversion` remain aliases
+for `simple-moving-average`, `cutler-rsi`, and `simple-mean-reversion`.
 
 ## Position sizing
 

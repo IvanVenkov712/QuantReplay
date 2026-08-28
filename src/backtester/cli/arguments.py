@@ -25,6 +25,20 @@ DEFAULT_BENCHMARK = "buy-and-hold"
 DEFAULT_SIZING = "all-in-all-out"
 DEFAULT_COMMISSION_MODEL = "none"
 DEFAULT_SLIPPAGE_RATE = 0.0
+STRATEGY_CHOICES = (
+    "buy-and-hold",
+    "simple-moving-average",
+    "exponential-moving-average",
+    "cutler-rsi",
+    "exponential-rsi",
+    "wilder-rsi",
+    "simple-mean-reversion",
+    "exponential-mean-reversion",
+    # Backward-compatible aliases for the original CLI names.
+    "moving-average",
+    "rsi",
+    "mean-reversion",
+)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -78,7 +92,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_strategy_arguments(compare_parser)
     compare_parser.add_argument(
         "--benchmark",
-        choices=["buy-and-hold", "moving-average", "rsi", "mean-reversion"],
+        choices=STRATEGY_CHOICES,
         default=DEFAULT_BENCHMARK,
         help="Benchmark strategy used for comparison. Default: buy-and-hold.",
     )
@@ -206,7 +220,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
 def _add_strategy_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--strategy",
-        choices=["moving-average", "buy-and-hold", "rsi", "mean-reversion"],
+        choices=STRATEGY_CHOICES,
         default="moving-average",
         help="Strategy to test. Default: moving-average.",
     )
