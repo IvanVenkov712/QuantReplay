@@ -92,8 +92,8 @@ class ExponentialMovingAverageCalculator(MovingAverageCalculator):
 
     @classmethod
     def wilder(cls, n: int) -> Self:
-        if not (isinstance(n, int) and not isinstance(n, bool) and n > 0):
-            raise ValueError("positive integer is expected for window size")
+        if not (isinstance(n, int) and not isinstance(n, bool) and n > 1):
+            raise ValueError("integer > 1 is expected for window size")
 
         return cls(
             n, alpha=1.0 / n
