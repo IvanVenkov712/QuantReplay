@@ -1,11 +1,10 @@
-"""Simple, non-smoothed relative strength index strategy."""
-from abc import abstractmethod, ABC
-from math import isclose
-from typing import Sequence, Callable
+"""relative strength index strategy."""
+
+from typing import Callable
 
 from backtester.domain.market import Candle
-from backtester.strategies.base import Strategy
 from backtester.domain.trading import Signal
+from backtester.strategies.base import Strategy
 from backtester.strategies.calculators import RSICalculator, CutlerRSICalculator, ExponentialRSICalculator
 
 
