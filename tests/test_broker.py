@@ -14,6 +14,7 @@ from backtester.domain.trading import (
     Trade,
 )
 
+SIGNAL_TIMESTAMP = datetime(2026, 1, 1, 9, 29)
 ORDER_TIMESTAMP = datetime(2026, 1, 1, 9, 30)
 EXECUTION_TIMESTAMP = datetime(2026, 1, 1, 9, 31)
 
@@ -23,6 +24,7 @@ def make_order(symbol: str, side: Side, quantity: int) -> Order:
         symbol=symbol,
         side=side,
         quantity=quantity,
+        signal_timestamp=SIGNAL_TIMESTAMP,
         submitted_timestamp=ORDER_TIMESTAMP,
     )
 

@@ -436,6 +436,7 @@ def test_order_resolver_builds_an_order_from_the_resolved_quantity() -> None:
     assert order == Order(
         symbol="AAPL",
         side=Side.BUY,
+        signal_timestamp=TIMESTAMP - timedelta(days=1),
         submitted_timestamp=TIMESTAMP,
         quantity=7,
     )

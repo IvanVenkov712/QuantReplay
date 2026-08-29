@@ -109,6 +109,7 @@ def make_resolver_mock(*quantities: int) -> Mock:
             symbol=intent.symbol,
             side=intent.side,
             quantity=quantity,
+            signal_timestamp=intent.timestamp,
             submitted_timestamp=context.timestamp,
         )
 
@@ -222,6 +223,7 @@ def test_buy_signal_is_executed_on_next_candle_open() -> None:
         symbol="AAPL",
         side=Side.BUY,
         quantity=10,
+        signal_timestamp=candles[0].timestamp,
         submitted_timestamp=candles[1].timestamp,
     )
     broker.execute.assert_called_once_with(
@@ -302,6 +304,7 @@ def test_sell_signal_is_executed_on_next_candle_open() -> None:
         symbol="AAPL",
         side=Side.SELL,
         quantity=5,
+        signal_timestamp=candles[0].timestamp,
         submitted_timestamp=candles[1].timestamp,
     )
     broker.execute.assert_called_once_with(
@@ -351,8 +354,20 @@ def test_failed_pending_order_does_not_stop_current_candle_signal() -> None:
         call_args.kwargs["order"] for call_args in broker.execute.call_args_list
     ]
     assert submitted_orders == [
-        Order("AAPL", Side.BUY, quantity=10, submitted_timestamp=candles[1].timestamp),
-        Order("AAPL", Side.BUY, quantity=2, submitted_timestamp=candles[2].timestamp),
+        Order(
+            "AAPL",
+            Side.BUY,
+            quantity=10,
+            signal_timestamp=candles[0].timestamp,
+            submitted_timestamp=candles[1].timestamp,
+        ),
+        Order(
+            "AAPL",
+            Side.BUY,
+            quantity=2,
+            signal_timestamp=candles[1].timestamp,
+            submitted_timestamp=candles[2].timestamp,
+        ),
     ]
     assert result.trades == [
         Trade(
@@ -432,8 +447,20 @@ def test_pending_order_executes_before_current_candle_signal_is_generated() -> N
         call_args.kwargs["order"] for call_args in broker.execute.call_args_list
     ]
     assert submitted_orders == [
-        Order("AAPL", Side.BUY, quantity=10, submitted_timestamp=candles[1].timestamp),
-        Order("AAPL", Side.SELL, quantity=10, submitted_timestamp=candles[2].timestamp),
+        Order(
+            "AAPL",
+            Side.BUY,
+            quantity=10,
+            signal_timestamp=candles[0].timestamp,
+            submitted_timestamp=candles[1].timestamp,
+        ),
+        Order(
+            "AAPL",
+            Side.SELL,
+            quantity=10,
+            signal_timestamp=candles[1].timestamp,
+            submitted_timestamp=candles[2].timestamp,
+        ),
     ]
     assert result.order_executions[1].status is OrderExecutionStatus.SUCCESS
 
@@ -475,8 +502,20 @@ def test_buy_hold_sell_sequence_emits_expected_pending_orders() -> None:
         call_args.kwargs["order"] for call_args in broker.execute.call_args_list
     ]
     assert submitted_orders == [
-        Order("AAPL", Side.BUY, quantity=10, submitted_timestamp=candles[1].timestamp),
-        Order("AAPL", Side.SELL, quantity=10, submitted_timestamp=candles[3].timestamp),
+        Order(
+            "AAPL",
+            Side.BUY,
+            quantity=10,
+            signal_timestamp=candles[0].timestamp,
+            submitted_timestamp=candles[1].timestamp,
+        ),
+        Order(
+            "AAPL",
+            Side.SELL,
+            quantity=10,
+            signal_timestamp=candles[2].timestamp,
+            submitted_timestamp=candles[3].timestamp,
+        ),
     ]
     submitted_prices = [
         call_args.kwargs["prices"] for call_args in broker.execute.call_args_list
