@@ -6,6 +6,7 @@ import argparse
 import math
 from typing import TextIO
 
+from backtester.domain.trading import OrderExecutionStatus
 from backtester.engine.backtest_result import BacktestResult
 from backtester.metrics.metrics import MetricData
 
@@ -19,6 +20,11 @@ PERCENT_METRICS = {
     "daily_volatility",
     "annual_volatility",
     "max_drawdown",
+}
+
+REJECTION_MESSAGES = {
+    OrderExecutionStatus.INSUFFICIENT_FUNDS: "Insufficient funds",
+    OrderExecutionStatus.INSUFFICIENT_POSITION: "Insufficient position",
 }
 
 
@@ -118,7 +124,11 @@ def print_rejected_orders(
     result: BacktestResult,
 ) -> None:
     """Print a bounded summary of orders rejected during a backtest."""
-    rejected_orders = [execution for execution in result.order_executions if not execution.success]
+    rejected_orders = [
+        execution
+        for execution in result.order_executions
+        if execution.status is not OrderExecutionStatus.SUCCESS
+    ]
     if not rejected_orders:
         return
 
@@ -139,18 +149,13 @@ def print_rejected_orders(
             "- Order time "
             f"{order.timestamp.isoformat(sep=' ')} | "
             f"{order.side.value.upper()} {order.quantity} {order.symbol} | "
-            f"{_format_rejection_reason(execution.reason)}",
+            f"{_format_rejection_status(execution.status)}",
             file=output,
         )
 
 
-def _format_rejection_reason(reason: Exception | None) -> str:
-    if reason is None:
-        return "Unknown rejection reason"
-
-    reason_name = type(reason).__name__
-    message = str(reason).strip()
-    return f"{reason_name}: {message}" if message else reason_name
+def _format_rejection_status(status: OrderExecutionStatus) -> str:
+    return REJECTION_MESSAGES.get(status, "Unknown rejection reason")
 
 
 def format_metric_value(name: str, value: float) -> str:

@@ -1086,6 +1086,37 @@ def test_main_sizes_all_in_order_within_execution_cost_budget(
     assert "Rejected orders" not in captured.out
 
 
+@pytest.mark.parametrize(
+    ("status", "expected_reason"),
+    [
+        (OrderExecutionStatus.INSUFFICIENT_FUNDS, "Insufficient funds"),
+        (OrderExecutionStatus.INSUFFICIENT_POSITION, "Insufficient position"),
+    ],
+)
+def test_print_rejected_orders_uses_execution_status(
+    status: OrderExecutionStatus,
+    expected_reason: str,
+) -> None:
+    execution = OrderExecutionResult(
+        order=Order(
+            symbol="AAPL",
+            side=Side.BUY,
+            quantity=100,
+            timestamp=datetime(2024, 1, 1),
+        ),
+        status=status,
+        trade=None,
+    )
+    result = BacktestResult(records=[], trades=[], order_executions=[execution])
+    output = StringIO()
+
+    print_rejected_orders(output, "Rejected orders", result)
+
+    report = output.getvalue()
+    assert "Rejected orders: 1" in report
+    assert expected_reason in report
+
+
 def test_rejected_order_details_are_omitted_above_display_limit() -> None:
     rejected_orders = [
         OrderExecutionResult(

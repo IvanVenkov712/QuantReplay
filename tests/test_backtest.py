@@ -6,7 +6,6 @@ import pytest
 
 from backtester.domain.market import Candle
 from backtester.engine.backtest import BacktestEngine
-from backtester.exceptions.trading_errors import InsufficientFundsError
 from backtester.resolving.resolver import OrderResolver, ResolutionContext
 from backtester.sizing.policy import SizingPlan
 from backtester.domain.trading import (
@@ -16,7 +15,9 @@ from backtester.domain.trading import (
     Signal,
     SizingInstruction,
     SizingMode,
-    Trade, OrderExecutionStatus,
+    Trade,
+    OrderExecutionResult,
+    OrderExecutionStatus,
 )
 from backtester.strategies.base import Strategy
 
@@ -44,30 +45,42 @@ def make_portfolio_mock(
 def make_broker_mock(
     portfolio: Mock | None = None,
     *,
-    errors: Sequence[Exception] = (),
+    rejection_statuses: Sequence[OrderExecutionStatus] = (),
     on_execute: Callable[[Order, Mapping[str, float], datetime], None] | None = None,
 ) -> Mock:
     broker = Mock()
     broker.portfolio = portfolio or make_portfolio_mock()
     broker.trades = []
-    pending_errors = list(errors)
+    pending_rejections = list(rejection_statuses)
 
-    def execute(order: Order, prices: Mapping[str, float], timestamp: datetime) -> None:
-        if pending_errors:
-            raise pending_errors.pop(0)
+    def execute(
+        order: Order,
+        prices: Mapping[str, float],
+        timestamp: datetime,
+    ) -> OrderExecutionResult:
+        if pending_rejections:
+            return OrderExecutionResult(
+                status=pending_rejections.pop(0),
+                order=order,
+                trade=None,
+            )
 
         if on_execute is not None:
             on_execute(order, prices, timestamp)
 
-        broker.trades.append(
-            Trade(
-                symbol=order.symbol,
-                side=order.side,
-                quantity=order.quantity,
-                fill_price=prices[order.symbol],
-                commission=1.0,
-                timestamp=timestamp,
-            )
+        trade = Trade(
+            symbol=order.symbol,
+            side=order.side,
+            quantity=order.quantity,
+            fill_price=prices[order.symbol],
+            commission=1.0,
+            timestamp=timestamp,
+        )
+        broker.trades.append(trade)
+        return OrderExecutionResult(
+            status=OrderExecutionStatus.SUCCESS,
+            order=order,
+            trade=trade,
         )
 
     broker.execute.side_effect = execute
@@ -212,9 +225,9 @@ def test_buy_signal_is_executed_on_next_candle_open() -> None:
         timestamp=candles[1].timestamp,
     )
     broker.execute.assert_called_once_with(
-        result.order_executions[0].order,
-        {"AAPL": 90},
-        candles[1].timestamp,
+        order=result.order_executions[0].order,
+        prices={"AAPL": 90},
+        timestamp=candles[1].timestamp,
     )
     assert result.trades == broker.trades
 
@@ -292,9 +305,9 @@ def test_sell_signal_is_executed_on_next_candle_open() -> None:
         timestamp=candles[1].timestamp,
     )
     broker.execute.assert_called_once_with(
-        result.order_executions[0].order,
-        {"AAPL": 25},
-        candles[1].timestamp,
+        order=result.order_executions[0].order,
+        prices={"AAPL": 25},
+        timestamp=candles[1].timestamp,
     )
 
 
@@ -302,15 +315,15 @@ def test_failed_pending_order_is_recorded_without_trade() -> None:
     candles = make_candles([(10, 10), (20, 20)])
     broker = make_broker_mock(
         make_portfolio_mock(cash=100),
-        errors=[InsufficientFundsError()],
+        rejection_statuses=[OrderExecutionStatus.INSUFFICIENT_FUNDS],
     )
     engine, _, broker = make_engine([Signal.BUY, Signal.HOLD], candles, broker)
 
     result = engine.run()
 
     assert len(result.order_executions) == 1
-    assert result.order_executions[0].status is not OrderExecutionStatus.SUCCESS
     assert result.order_executions[0].status is OrderExecutionStatus.INSUFFICIENT_FUNDS
+    assert result.order_executions[0].trade is None
     assert result.trades == []
     assert broker.execute.call_count == 1
 
@@ -319,7 +332,7 @@ def test_failed_pending_order_does_not_stop_current_candle_signal() -> None:
     candles = make_candles([(10, 10), (20, 50), (10, 10)])
     broker = make_broker_mock(
         make_portfolio_mock(cash=100),
-        errors=[InsufficientFundsError()],
+        rejection_statuses=[OrderExecutionStatus.INSUFFICIENT_FUNDS],
     )
     engine, _, broker = make_engine(
         [Signal.BUY, Signal.BUY, Signal.HOLD],
@@ -334,7 +347,10 @@ def test_failed_pending_order_does_not_stop_current_candle_signal() -> None:
         OrderExecutionStatus.INSUFFICIENT_FUNDS,
         OrderExecutionStatus.SUCCESS
     ]
-    assert [call_args.args[0] for call_args in broker.execute.call_args_list] == [
+    submitted_orders = [
+        call_args.kwargs["order"] for call_args in broker.execute.call_args_list
+    ]
+    assert submitted_orders == [
         Order("AAPL", Side.BUY, quantity=10, timestamp=candles[1].timestamp),
         Order("AAPL", Side.BUY, quantity=2, timestamp=candles[2].timestamp),
     ]
@@ -412,7 +428,10 @@ def test_pending_order_executes_before_current_candle_signal_is_generated() -> N
 
     result = engine.run()
 
-    assert [call_args.args[0] for call_args in broker.execute.call_args_list] == [
+    submitted_orders = [
+        call_args.kwargs["order"] for call_args in broker.execute.call_args_list
+    ]
+    assert submitted_orders == [
         Order("AAPL", Side.BUY, quantity=10, timestamp=candles[1].timestamp),
         Order("AAPL", Side.SELL, quantity=10, timestamp=candles[2].timestamp),
     ]
@@ -452,11 +471,17 @@ def test_buy_hold_sell_sequence_emits_expected_pending_orders() -> None:
 
     result = engine.run()
 
-    assert [call_args.args[0] for call_args in broker.execute.call_args_list] == [
+    submitted_orders = [
+        call_args.kwargs["order"] for call_args in broker.execute.call_args_list
+    ]
+    assert submitted_orders == [
         Order("AAPL", Side.BUY, quantity=10, timestamp=candles[1].timestamp),
         Order("AAPL", Side.SELL, quantity=10, timestamp=candles[3].timestamp),
     ]
-    assert [call_args.args[1] for call_args in broker.execute.call_args_list] == [
+    submitted_prices = [
+        call_args.kwargs["prices"] for call_args in broker.execute.call_args_list
+    ]
+    assert submitted_prices == [
         {"AAPL": 90},
         {"AAPL": 130},
     ]
