@@ -34,16 +34,19 @@ class CommissionModel(ABC):
         """Return commission for a positive quantity and fill price."""
         pass
 
+    def _validate(self, quantity: int, fill_price: float):
+        if quantity <= 0:
+            raise ValueError("quantity must be positive")
+        if fill_price <= 0:
+            raise ValueError("fill_price must be positive")
+
 
 class NoCommissionModel(CommissionModel):
     """Validate trade inputs and charge no commission."""
 
     def calculate(self, quantity: int, fill_price: float) -> float:
         """Return zero commission for valid trade inputs."""
-        if quantity <= 0:
-            raise ValueError("quantity must be positive")
-        if fill_price <= 0:
-            raise ValueError("fill_price must be positive")
+        self._validate(quantity, fill_price)
         return 0.0
 
 
@@ -59,10 +62,7 @@ class FixedCommissionModel(CommissionModel):
 
     def calculate(self, quantity: int, fill_price: float) -> float:
         """Return the fixed commission after validating trade inputs."""
-        if quantity <= 0:
-            raise ValueError("quantity must be positive")
-        if fill_price <= 0:
-            raise ValueError("fill_price must be positive")
+        self._validate(quantity, fill_price)
         return self._commission
 
 
@@ -77,10 +77,7 @@ class ProportionalCommissionModel(CommissionModel):
 
     def calculate(self, quantity: int, fill_price: float) -> float:
         """Return ``quantity * fill_price * rate`` for valid inputs."""
-        if quantity <= 0:
-            raise ValueError("quantity must be positive")
-        if fill_price <= 0:
-            raise ValueError("fill_price must be positive")
+        self._validate(quantity, fill_price)
         return quantity * fill_price * self._percent
 
 
