@@ -177,6 +177,7 @@ class OrderResolver:
         return Order(
             symbol=intent.symbol,
             side = intent.side,
-            timestamp=context.timestamp,
+            signal_timestamp=intent.timestamp,
+            submitted_timestamp=context.timestamp,
             quantity=quantity
         )

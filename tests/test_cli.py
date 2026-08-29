@@ -1102,7 +1102,7 @@ def test_print_rejected_orders_uses_execution_status(
             symbol="AAPL",
             side=Side.BUY,
             quantity=100,
-            timestamp=datetime(2024, 1, 1),
+            submitted_timestamp=datetime(2024, 1, 1),
         ),
         status=status,
         trade=None,
@@ -1124,7 +1124,7 @@ def test_rejected_order_details_are_omitted_above_display_limit() -> None:
                 symbol="AAPL",
                 side=Side.BUY,
                 quantity=100,
-                timestamp=datetime(2024, 1, 1),
+                submitted_timestamp=datetime(2024, 1, 1),
             ),
             status=OrderExecutionStatus.INSUFFICIENT_FUNDS,
             trade=None

@@ -23,7 +23,7 @@ def make_order(symbol: str, side: Side, quantity: int) -> Order:
         symbol=symbol,
         side=side,
         quantity=quantity,
-        timestamp=ORDER_TIMESTAMP,
+        submitted_timestamp=ORDER_TIMESTAMP,
     )
 
 

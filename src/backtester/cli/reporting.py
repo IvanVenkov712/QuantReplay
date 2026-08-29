@@ -147,7 +147,7 @@ def print_rejected_orders(
         order = execution.order
         print(
             "- Order time "
-            f"{order.timestamp.isoformat(sep=' ')} | "
+            f"{order.submitted_timestamp.isoformat(sep=' ')} | "
             f"{order.side.value.upper()} {order.quantity} {order.symbol} | "
             f"{_format_rejection_status(execution.status)}",
             file=output,

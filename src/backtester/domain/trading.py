@@ -74,13 +74,17 @@ class Order:
     symbol: str
     side: Side
     quantity: int
-    timestamp: datetime
+    signal_timestamp: datetime
+    submitted_timestamp: datetime
 
     def __post_init__(self) -> None:
         _validate_symbol(self.symbol)
         _validate_side(self.side)
         _validate_quantity(self.quantity)
-        _validate_timestamp(self.timestamp)
+        _validate_timestamp(self.submitted_timestamp)
+        _validate_timestamp(self.signal_timestamp)
+        if self.signal_timestamp > self.submitted_timestamp:
+            raise ValueError("signal_timestamp cannot be after submitted_timestamp")
 
 @dataclass(frozen=True)
 class Trade:
