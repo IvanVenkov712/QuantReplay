@@ -134,7 +134,7 @@ class BacktestEngine:
             )
 
         elif signal != Signal.HOLD:
-            raise ValueError("The candle did not return a signal")
+            raise ValueError("Not a valid signal")
 
         return None
 
