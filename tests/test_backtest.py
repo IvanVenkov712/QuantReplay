@@ -16,7 +16,7 @@ from backtester.domain.trading import (
     Signal,
     SizingInstruction,
     SizingMode,
-    Trade,
+    Trade, OrderExecutionStatus,
 )
 from backtester.strategies.base import Strategy
 
@@ -204,7 +204,7 @@ def test_buy_signal_is_executed_on_next_candle_open() -> None:
     result = engine.run()
 
     assert len(result.order_executions) == 1
-    assert result.order_executions[0].success is True
+    assert result.order_executions[0].status is OrderExecutionStatus.SUCCESS
     assert result.order_executions[0].order == Order(
         symbol="AAPL",
         side=Side.BUY,
@@ -284,7 +284,7 @@ def test_sell_signal_is_executed_on_next_candle_open() -> None:
     result = engine.run()
 
     assert len(result.order_executions) == 1
-    assert result.order_executions[0].success is True
+    assert result.order_executions[0].status is OrderExecutionStatus.SUCCESS
     assert result.order_executions[0].order == Order(
         symbol="AAPL",
         side=Side.SELL,
@@ -309,8 +309,8 @@ def test_failed_pending_order_is_recorded_without_trade() -> None:
     result = engine.run()
 
     assert len(result.order_executions) == 1
-    assert result.order_executions[0].success is False
-    assert isinstance(result.order_executions[0].reason, InsufficientFundsError)
+    assert result.order_executions[0].status is not OrderExecutionStatus.SUCCESS
+    assert result.order_executions[0].status is OrderExecutionStatus.INSUFFICIENT_FUNDS
     assert result.trades == []
     assert broker.execute.call_count == 1
 
@@ -330,8 +330,10 @@ def test_failed_pending_order_does_not_stop_current_candle_signal() -> None:
 
     result = engine.run()
 
-    assert [order.success for order in result.order_executions] == [False, True]
-    assert isinstance(result.order_executions[0].reason, InsufficientFundsError)
+    assert [order.status for order in result.order_executions] == [
+        OrderExecutionStatus.INSUFFICIENT_FUNDS,
+        OrderExecutionStatus.SUCCESS
+    ]
     assert [call_args.args[0] for call_args in broker.execute.call_args_list] == [
         Order("AAPL", Side.BUY, quantity=10, timestamp=candles[1].timestamp),
         Order("AAPL", Side.BUY, quantity=2, timestamp=candles[2].timestamp),
@@ -414,7 +416,7 @@ def test_pending_order_executes_before_current_candle_signal_is_generated() -> N
         Order("AAPL", Side.BUY, quantity=10, timestamp=candles[1].timestamp),
         Order("AAPL", Side.SELL, quantity=10, timestamp=candles[2].timestamp),
     ]
-    assert result.order_executions[1].success is True
+    assert result.order_executions[1].status is OrderExecutionStatus.SUCCESS
 
 
 def test_strategy_receives_each_candle_in_chronological_order() -> None:
@@ -458,4 +460,6 @@ def test_buy_hold_sell_sequence_emits_expected_pending_orders() -> None:
         {"AAPL": 90},
         {"AAPL": 130},
     ]
-    assert [order.success for order in result.order_executions] == [True, True]
+    assert [order.status for order in result.order_executions] == [
+        OrderExecutionStatus.SUCCESS, OrderExecutionStatus.SUCCESS
+    ]

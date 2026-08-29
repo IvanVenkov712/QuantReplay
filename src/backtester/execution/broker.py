@@ -105,7 +105,6 @@ class Broker:
         trade = None
         try:
             trade = self._execute_internal(order, prices, timestamp)
-            status = OrderExecutionStatus.SUCCESS
         except PriceNotFoundError:
             status = OrderExecutionStatus.PRICE_NOT_FOUND
         except InsufficientFundsError:
@@ -116,6 +115,8 @@ class Broker:
             status = OrderExecutionStatus.VALIDATION_ERROR
         except Exception:
             status = OrderExecutionStatus.UNKNOWN_ERROR
+        else:
+            status = OrderExecutionStatus.SUCCESS
 
         return OrderExecutionResult(
             status=status,
