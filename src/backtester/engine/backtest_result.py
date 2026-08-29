@@ -30,4 +30,4 @@ class BacktestResult:
 
     records: Sequence[BacktestRecord]
     trades: Sequence[Trade]
-    orders: Sequence[OrderExecution]
+    order_executions: Sequence[OrderExecution]

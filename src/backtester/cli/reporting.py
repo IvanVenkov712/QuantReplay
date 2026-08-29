@@ -118,7 +118,7 @@ def print_rejected_orders(
     result: BacktestResult,
 ) -> None:
     """Print a bounded summary of orders rejected during a backtest."""
-    rejected_orders = [execution for execution in result.orders if not execution.success]
+    rejected_orders = [execution for execution in result.order_executions if not execution.success]
     if not rejected_orders:
         return
 

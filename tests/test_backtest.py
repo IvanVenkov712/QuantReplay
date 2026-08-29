@@ -151,7 +151,7 @@ def test_empty_data_produces_empty_result_without_calling_strategy() -> None:
     result = engine.run()
 
     assert result.records == []
-    assert result.orders == []
+    assert result.order_executions == []
     assert result.trades == []
     strategy.on_candle.assert_not_called()
     broker.execute.assert_not_called()
@@ -177,7 +177,7 @@ def test_hold_strategy_creates_records_without_orders_or_trades() -> None:
         Signal.HOLD,
         Signal.HOLD,
     ]
-    assert result.orders == []
+    assert result.order_executions == []
     assert result.trades == []
     broker.execute.assert_not_called()
 
@@ -192,7 +192,7 @@ def test_buy_signal_creates_no_order_when_resolver_returns_none() -> None:
 
     result = engine.run()
 
-    assert result.orders == []
+    assert result.order_executions == []
     assert result.trades == []
     broker.execute.assert_not_called()
 
@@ -203,16 +203,16 @@ def test_buy_signal_is_executed_on_next_candle_open() -> None:
 
     result = engine.run()
 
-    assert len(result.orders) == 1
-    assert result.orders[0].success is True
-    assert result.orders[0].order == Order(
+    assert len(result.order_executions) == 1
+    assert result.order_executions[0].success is True
+    assert result.order_executions[0].order == Order(
         symbol="AAPL",
         side=Side.BUY,
         quantity=10,
         timestamp=candles[1].timestamp,
     )
     broker.execute.assert_called_once_with(
-        result.orders[0].order,
+        result.order_executions[0].order,
         {"AAPL": 90},
         candles[1].timestamp,
     )
@@ -254,7 +254,7 @@ def test_buy_signal_on_last_candle_is_not_executed() -> None:
 
     result = engine.run()
 
-    assert result.orders == []
+    assert result.order_executions == []
     assert result.trades == []
     broker.execute.assert_not_called()
 
@@ -268,7 +268,7 @@ def test_sell_signal_creates_no_order_when_resolver_returns_none() -> None:
 
     result = engine.run()
 
-    assert result.orders == []
+    assert result.order_executions == []
     assert result.trades == []
     broker.execute.assert_not_called()
 
@@ -283,16 +283,16 @@ def test_sell_signal_is_executed_on_next_candle_open() -> None:
 
     result = engine.run()
 
-    assert len(result.orders) == 1
-    assert result.orders[0].success is True
-    assert result.orders[0].order == Order(
+    assert len(result.order_executions) == 1
+    assert result.order_executions[0].success is True
+    assert result.order_executions[0].order == Order(
         symbol="AAPL",
         side=Side.SELL,
         quantity=5,
         timestamp=candles[1].timestamp,
     )
     broker.execute.assert_called_once_with(
-        result.orders[0].order,
+        result.order_executions[0].order,
         {"AAPL": 25},
         candles[1].timestamp,
     )
@@ -308,9 +308,9 @@ def test_failed_pending_order_is_recorded_without_trade() -> None:
 
     result = engine.run()
 
-    assert len(result.orders) == 1
-    assert result.orders[0].success is False
-    assert isinstance(result.orders[0].reason, InsufficientFundsError)
+    assert len(result.order_executions) == 1
+    assert result.order_executions[0].success is False
+    assert isinstance(result.order_executions[0].reason, InsufficientFundsError)
     assert result.trades == []
     assert broker.execute.call_count == 1
 
@@ -330,8 +330,8 @@ def test_failed_pending_order_does_not_stop_current_candle_signal() -> None:
 
     result = engine.run()
 
-    assert [order.success for order in result.orders] == [False, True]
-    assert isinstance(result.orders[0].reason, InsufficientFundsError)
+    assert [order.success for order in result.order_executions] == [False, True]
+    assert isinstance(result.order_executions[0].reason, InsufficientFundsError)
     assert [call_args.args[0] for call_args in broker.execute.call_args_list] == [
         Order("AAPL", Side.BUY, quantity=10, timestamp=candles[1].timestamp),
         Order("AAPL", Side.BUY, quantity=2, timestamp=candles[2].timestamp),
@@ -414,7 +414,7 @@ def test_pending_order_executes_before_current_candle_signal_is_generated() -> N
         Order("AAPL", Side.BUY, quantity=10, timestamp=candles[1].timestamp),
         Order("AAPL", Side.SELL, quantity=10, timestamp=candles[2].timestamp),
     ]
-    assert result.orders[1].success is True
+    assert result.order_executions[1].success is True
 
 
 def test_strategy_receives_each_candle_in_chronological_order() -> None:
@@ -458,4 +458,4 @@ def test_buy_hold_sell_sequence_emits_expected_pending_orders() -> None:
         {"AAPL": 90},
         {"AAPL": 130},
     ]
-    assert [order.success for order in result.orders] == [True, True]
+    assert [order.success for order in result.order_executions] == [True, True]

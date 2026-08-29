@@ -1101,7 +1101,7 @@ def test_rejected_order_details_are_omitted_above_display_limit() -> None:
         )
         for _ in range(MAX_REJECTED_ORDER_DETAILS + 1)
     ]
-    result = BacktestResult(records=[], trades=[], orders=rejected_orders)
+    result = BacktestResult(records=[], trades=[], order_executions=rejected_orders)
     output = StringIO()
 
     print_rejected_orders(output, "Rejected orders", result)

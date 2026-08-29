@@ -93,7 +93,7 @@ class BacktestEngine:
         return BacktestResult(
             records=records,
             trades=self._broker.trades,
-            orders=order_history
+            order_executions=order_history
         )
 
     def _execute_pending_order(self, order: Order, candle: Candle) -> OrderExecution:

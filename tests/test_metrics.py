@@ -37,7 +37,7 @@ def make_result(
         for index, value in enumerate(values)
     ]
 
-    return BacktestResult(records=records, trades=trades or [], orders=[])
+    return BacktestResult(records=records, trades=trades or [], order_executions=[])
 
 
 def test_total_return_uses_first_and_last_portfolio_values() -> None:
@@ -72,7 +72,7 @@ def test_annualized_return_uses_elapsed_calendar_days() -> None:
             ),
         ],
         trades=[],
-        orders=[],
+        order_executions=[],
     )
 
     expected = (121 / 100) ** (365.25 / 365) - 1
