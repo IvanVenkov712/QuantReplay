@@ -88,7 +88,6 @@ class BacktestEngine:
 
             signal = self._strategy.on_candle(candle)
             order_intent = self._create_order_intent(candle.timestamp, signal)
-
             records.append(self._create_record(candle, signal))
 
         return BacktestResult(
@@ -133,6 +132,9 @@ class BacktestEngine:
                 side=side,
                 sizing_instruction=self._plan.instruction_for(side)
             )
+
+        elif signal != Signal.HOLD:
+            raise ValueError("The candle did not return a signal")
 
         return None
 
