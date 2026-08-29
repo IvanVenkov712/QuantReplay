@@ -139,6 +139,11 @@ bias:
 5. Commission is calculated from the resulting fill and deducted from cash.
 6. Portfolio value is recorded at each candle's close.
 
+An executable order preserves both points in the lifecycle:
+`signal_timestamp` identifies candle `T`, when the signal became known, while
+`submitted_timestamp` identifies candle `T+1`, when the intent was sized and
+submitted for execution. A successful trade's timestamp records its fill time.
+
 A signal from the final candle remains unexecuted because the data contains no
 `T+1` open. See the [Strategy reference](docs/strategies.md) for each
 strategy's warm-up and signal rules under this timing model.

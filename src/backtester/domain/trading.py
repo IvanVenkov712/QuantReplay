@@ -55,7 +55,7 @@ class SizingInstruction:
 
 @dataclass(frozen=True)
 class OrderIntent:
-    """Signal-time request whose quantity will be determined at execution."""
+    """Unsized request timestamped when its strategy signal became known."""
 
     symbol: str
     side: Side
@@ -69,7 +69,12 @@ class OrderIntent:
 
 @dataclass(frozen=True)
 class Order:
-    """Validated request to buy or sell a positive whole-share quantity."""
+    """Sized request retaining its signal and submission timestamps.
+
+    ``signal_timestamp`` records when the strategy signal became known.
+    ``submitted_timestamp`` records when the intent was resolved and submitted
+    for execution, and therefore cannot precede the signal timestamp.
+    """
 
     symbol: str
     side: Side
@@ -88,7 +93,7 @@ class Order:
 
 @dataclass(frozen=True)
 class Trade:
-    """Immutable record of a successfully executed order."""
+    """Immutable fill whose timestamp records successful execution time."""
 
     symbol: str
     side: Side

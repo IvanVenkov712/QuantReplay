@@ -169,7 +169,10 @@ class OrderResolver:
         self._q_resolver: QuantityResolver = q_resolver
 
     def resolve(self, intent: OrderIntent, context: ResolutionContext) -> Order | None:
-        """Resolve ``intent`` or return ``None`` when its quantity is not positive."""
+        """Resolve ``intent`` while preserving signal and submission times.
+
+        Return ``None`` when the resolved quantity is not positive.
+        """
         quantity = self._q_resolver.resolve_quantity(intent.side, intent.sizing_instruction, context)
         if quantity <= 0:
             return None

@@ -112,8 +112,9 @@ class BacktestEngine:
 
         The quantity is calculated from the portfolio state immediately before
         execution and the current candle's open. The simulation uses that same
-        opening reference price for execution, and the order is timestamped at
-        the current candle.
+        opening reference price for execution. The order retains the intent's
+        signal timestamp and uses the current candle as its submission
+        timestamp.
         """
         return self._resolver.resolve(
             intent=intent,

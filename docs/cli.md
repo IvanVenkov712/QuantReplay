@@ -230,11 +230,12 @@ budget checks, even without `--buffer-rate`. An unbuffered fixed BUY remains an
 exact request and can be rejected when its final cost exceeds available cash.
 A rejected order is recorded with an `INSUFFICIENT_FUNDS` or
 `INSUFFICIENT_POSITION` execution status, but no trade is created and no
-commission is charged. The CLI lists order time, side, quantity, symbol, and
-the corresponding `Insufficient funds` or `Insufficient position` reason when
-a run has at most 10 rejected orders. For larger rejection counts, it prints
-the total and omits the individual details. Comparison runs report strategy
-and benchmark rejections separately.
+commission is charged. The CLI lists the order's submission time, side,
+quantity, symbol, and the corresponding `Insufficient funds` or
+`Insufficient position` reason when a run has at most 10 rejected orders. The
+submission time is the next-candle-open time, not the preceding signal time.
+For larger rejection counts, the CLI prints the total and omits the individual
+details. Comparison runs report strategy and benchmark rejections separately.
 
 ## Strategy options
 

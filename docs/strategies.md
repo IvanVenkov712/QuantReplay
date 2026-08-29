@@ -43,9 +43,12 @@ For candle `T`, the engine follows this sequence:
 1. Execute any intent produced after candle `T-1`, using candle `T`'s open.
 2. Pass candle `T` to the strategy and calculate a signal from information
    available through its close.
-3. Store a BUY or SELL signal as an unsized order intent.
+3. Store a BUY or SELL signal as an unsized order intent timestamped at candle
+   `T`.
 4. Value the portfolio using candle `T`'s close.
-5. Resolve and execute that intent no earlier than candle `T+1`'s open.
+5. Resolve and execute that intent no earlier than candle `T+1`'s open. The
+   resulting order retains candle `T` as its `signal_timestamp` and records
+   candle `T+1` as its `submitted_timestamp`.
 
 This means a signal calculated from a close never executes at that same
 close. A signal on the final candle cannot execute because no next candle is
