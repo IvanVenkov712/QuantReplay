@@ -163,10 +163,11 @@ All-in and percentage BUY quantities are resolved against a budget that
 already includes the configured commission and adverse slippage. Fixed BUY
 instructions remain exact and can be rejected when unaffordable unless a
 `--buffer-rate` is supplied; with a buffer, fixed quantities are capped to the
-affordable amount. A failed order remains visible in the backtest result, but
+affordable amount. A rejected order remains visible in the backtest result, but
 it does not create a trade or change the portfolio. The CLI displays
-individual rejection details when there are at most 10 rejected orders; above
-that limit, it displays the rejection count without listing every order.
+individual rejection details with the concise reason `Insufficient funds` or
+`Insufficient position` when there are at most 10 rejected orders; above that
+limit, it displays the rejection count without listing every order.
 
 ## Documentation
 

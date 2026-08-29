@@ -228,11 +228,13 @@ Position sizing uses the next-candle open as its reference price. All-in and
 percentage BUY quantities include commission and adverse slippage in their
 budget checks, even without `--buffer-rate`. An unbuffered fixed BUY remains an
 exact request and can be rejected when its final cost exceeds available cash.
-A rejected order is recorded as unsuccessful, but no trade is created and no
+A rejected order is recorded with an `INSUFFICIENT_FUNDS` or
+`INSUFFICIENT_POSITION` execution status, but no trade is created and no
 commission is charged. The CLI lists order time, side, quantity, symbol, and
-reason when a run has at most 10 rejected orders. For larger rejection counts,
-it prints the total and omits the individual details. Comparison runs report
-strategy and benchmark rejections separately.
+the corresponding `Insufficient funds` or `Insufficient position` reason when
+a run has at most 10 rejected orders. For larger rejection counts, it prints
+the total and omits the individual details. Comparison runs report strategy
+and benchmark rejections separately.
 
 ## Strategy options
 

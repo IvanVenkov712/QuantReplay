@@ -98,9 +98,8 @@ class BacktestEngine:
     def _execute_pending_order(self, order: Order, candle: Candle) -> OrderExecutionResult:
         """Execute a pending order at the current candle open.
 
-        Returns an OrderExecution describing whether the broker accepted the
-        order. Insufficient cash or position is captured in the result instead
-        of stopping the whole backtest.
+        Returns the broker's OrderExecutionResult. Insufficient cash or
+        position is captured in its status instead of stopping the backtest.
         """
         return self._broker.execute(
             order=order,
