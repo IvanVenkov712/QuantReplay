@@ -4,16 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Sequence
 
-from backtester.domain.trading import Signal, Trade, Order
+from backtester.domain.trading import Signal, Trade, OrderExecutionResult
 
-
-@dataclass(frozen=True)
-class OrderExecution:
-    """Outcome of an order submitted to the broker during a backtest."""
-
-    order: Order
-    success: bool
-    reason: Exception | None
 
 @dataclass(frozen=True)
 class BacktestRecord:
@@ -30,4 +22,4 @@ class BacktestResult:
 
     records: Sequence[BacktestRecord]
     trades: Sequence[Trade]
-    order_executions: Sequence[OrderExecution]
+    order_executions: Sequence[OrderExecutionResult]

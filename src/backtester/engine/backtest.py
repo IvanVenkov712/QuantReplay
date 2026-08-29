@@ -3,15 +3,14 @@
 from datetime import datetime
 from typing import Sequence
 
-from backtester.domain.market import Candle
 from backtester.data.validation import validate_candles_chronological
-from backtester.engine.backtest_result import BacktestResult, OrderExecution, BacktestRecord
+from backtester.domain.market import Candle
+from backtester.domain.trading import Signal, Order, OrderIntent, Side, OrderExecutionResult
+from backtester.engine.backtest_result import BacktestResult, BacktestRecord
 from backtester.execution.broker import Broker
 from backtester.resolving.resolver import OrderResolver, ResolutionContext
-from backtester.exceptions.trading_errors import InsufficientError
 from backtester.sizing.policy import SizingPlan
 from backtester.strategies.base import Strategy
-from backtester.domain.trading import Signal, Order, OrderIntent, Side
 
 
 class BacktestEngine:
@@ -96,18 +95,18 @@ class BacktestEngine:
             order_executions=order_history
         )
 
-    def _execute_pending_order(self, order: Order, candle: Candle) -> OrderExecution:
+    def _execute_pending_order(self, order: Order, candle: Candle) -> OrderExecutionResult:
         """Execute a pending order at the current candle open.
 
         Returns an OrderExecution describing whether the broker accepted the
         order. Insufficient cash or position is captured in the result instead
         of stopping the whole backtest.
         """
-        try:
-            self._broker.execute(order, {self._symbol: candle.open}, candle.timestamp)
-            return OrderExecution(order, True, None)
-        except InsufficientError as e:
-            return OrderExecution(order, False, e)
+        return self._broker.execute(
+            order=order,
+            prices={self._symbol: candle.open},
+            timestamp=candle.timestamp
+        )
 
     def _create_order(self, intent: OrderIntent, candle: Candle) -> Order | None:
         """Convert a buy or sell signal into an execution-time order.

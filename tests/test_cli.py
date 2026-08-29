@@ -34,21 +34,20 @@ from backtester.cli.reporting import (
     print_metric_comparison,
     print_rejected_orders,
 )
-from backtester.engine.backtest_result import BacktestResult, OrderExecution
-from backtester.execution.costs import NoCommissionModel, FixedCommissionModel, ProportionalCommissionModel, \
-    ExecutionModel
-from backtester.exceptions.trading_errors import InsufficientFundsError
-from backtester.metrics.benchmark_comparison import get_differences
-from backtester.metrics.metrics import MetricData
-from backtester.resolving.resolver import ResolutionContext
-from backtester.sizing.policy import SizingPlan
 from backtester.domain.trading import (
     Order,
     OrderIntent,
     Side,
     SizingInstruction,
-    SizingMode,
+    SizingMode, OrderExecutionResult, OrderExecutionStatus,
 )
+from backtester.engine.backtest_result import BacktestResult
+from backtester.execution.costs import NoCommissionModel, FixedCommissionModel, ProportionalCommissionModel, \
+    ExecutionModel
+from backtester.metrics.benchmark_comparison import get_differences
+from backtester.metrics.metrics import MetricData
+from backtester.resolving.resolver import ResolutionContext
+from backtester.sizing.policy import SizingPlan
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -1089,15 +1088,15 @@ def test_main_sizes_all_in_order_within_execution_cost_budget(
 
 def test_rejected_order_details_are_omitted_above_display_limit() -> None:
     rejected_orders = [
-        OrderExecution(
+        OrderExecutionResult(
             order=Order(
                 symbol="AAPL",
                 side=Side.BUY,
                 quantity=100,
                 timestamp=datetime(2024, 1, 1),
             ),
-            success=False,
-            reason=InsufficientFundsError(),
+            status=OrderExecutionStatus.INSUFFICIENT_FUNDS,
+            trade=None
         )
         for _ in range(MAX_REJECTED_ORDER_DETAILS + 1)
     ]

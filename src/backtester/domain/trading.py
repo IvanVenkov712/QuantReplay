@@ -27,6 +27,14 @@ class SizingMode(Enum):
     ALL_IN = auto()
     UP_TO = auto()
 
+class OrderExecutionStatus(Enum):
+    SUCCESS = "success"
+    INSUFFICIENT_FUNDS = "insufficient_funds"
+    INSUFFICIENT_POSITION = "insufficient_position"
+    PRICE_NOT_FOUND = "price_not_found"
+    VALIDATION_ERROR = "validation_error"
+    UNKNOWN_ERROR = "unknown_error"
+
 @dataclass(frozen=True)
 class SizingInstruction:
     """Sizing mode and its validated parameter, when the mode requires one."""
@@ -92,6 +100,19 @@ class Trade:
         _validate_price(self.fill_price)
         _validate_commission(self.commission)
         _validate_timestamp(self.timestamp)
+
+@dataclass(frozen = True)
+class OrderExecutionResult:
+    status: OrderExecutionStatus
+    order: Order
+    trade: Trade | None
+
+    def __post_init__(self):
+        if self.status is not OrderExecutionStatus.SUCCESS and self.trade is not None:
+            raise ValueError("Unsuccessful order execution should not lead to a trade")
+
+        if self.status is OrderExecutionStatus.SUCCESS and self.trade is None:
+            raise ValueError("Successful order execution should lead to a trade")
 
 def _validate_symbol(symbol: str) -> None:
     if not isinstance(symbol, str) or not symbol:

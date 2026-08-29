@@ -10,64 +10,64 @@ from backtester.exceptions.trading_errors import (
 )
 from backtester.execution.costs import CommissionModel, ExecutionModel
 from backtester.portfolio.portfolio import Portfolio
-from backtester.domain.trading import Side, Trade, Order
+from backtester.domain.trading import Side, Trade, Order, OrderExecutionResult, OrderExecutionStatus
 
 
 class Broker:
     """Execute validated orders and apply successful fills to a portfolio."""
 
-    __trades: List[Trade]
-    __portfolio: Portfolio
-    __execution_model: ExecutionModel
-    __commission_model: CommissionModel
+    _trades: List[Trade]
+    _portfolio: Portfolio
+    _execution_model: ExecutionModel
+    _commission_model: CommissionModel
 
     def __init__(self, portfolio: Portfolio,
                  execution_model: ExecutionModel,
                  commission_model: CommissionModel
         ):
-        self.__portfolio = portfolio
-        self.__trades = []
-        self.__execution_model = execution_model
-        self.__commission_model = commission_model
+        self._portfolio = portfolio
+        self._trades = []
+        self._execution_model = execution_model
+        self._commission_model = commission_model
 
     @property
     def portfolio(self) -> Portfolio:
         """Return the portfolio maintained by this broker."""
-        return self.__portfolio
+        return self._portfolio
 
     @property
     def trades(self) -> List[Trade]:
         """Return a copy of the successful trade history."""
-        return self.__trades.copy()
+        return self._trades.copy()
 
     def _buy(self, order: Order, fill_price: float, commission: float) -> None:
         if fill_price <= 0:
             raise ValueError("Price must be positive.")
 
         cost = fill_price * order.quantity + commission
-        if cost > self.__portfolio.cash:
+        if cost > self._portfolio.cash:
             raise InsufficientFundsError
 
-        self.__portfolio.cash -= cost
-        self.__portfolio.add_position(order.symbol, order.quantity)
+        self._portfolio.cash -= cost
+        self._portfolio.add_position(order.symbol, order.quantity)
 
     def _sell(self, order: Order, fill_price: float, commission: float):
         if fill_price <= 0:
             raise ValueError("Price must be positive.")
 
-        owned = self.__portfolio.position_quantity(order.symbol)
+        owned = self._portfolio.position_quantity(order.symbol)
 
         if order.quantity > owned:
             raise InsufficientPositionError
 
-        new_cash = self.__portfolio.cash + order.quantity * fill_price - commission
+        new_cash = self._portfolio.cash + order.quantity * fill_price - commission
         if new_cash < 0:
             raise InsufficientFundsError("Not enough cash for the commission")
 
-        self.__portfolio.cash = new_cash
-        self.__portfolio.remove_position(order.symbol, order.quantity)
+        self._portfolio.cash = new_cash
+        self._portfolio.remove_position(order.symbol, order.quantity)
 
-    def execute(self, order: Order, prices: dict[str, float], timestamp: datetime) -> Trade:
+    def _execute_internal(self, order: Order, prices: dict[str, float], timestamp: datetime) -> Trade:
         """Execute an order using the supplied reference price and timestamp.
 
         Slippage is applied to the reference price before commission and
@@ -77,8 +77,10 @@ class Broker:
         if not order.symbol in prices:
             raise PriceNotFoundError
 
-        fill_price = self.__execution_model.calculate_fill_price(prices[order.symbol], order.side)
-        commission = self.__commission_model.calculate(order.quantity, fill_price)
+        _validate_timestamp(timestamp=timestamp)
+
+        fill_price = self._execution_model.calculate_fill_price(prices[order.symbol], order.side)
+        commission = self._commission_model.calculate(order.quantity, fill_price)
 
         trade = Trade(
             symbol=order.symbol,
@@ -88,7 +90,6 @@ class Broker:
             commission=commission,
             timestamp=timestamp
         )
-        _validate_timestamp(timestamp=timestamp)
 
         if order.side == Side.BUY:
             self._buy(order, fill_price, commission)
@@ -97,8 +98,31 @@ class Broker:
         else:
             raise ValueError("Invalid order side")
        
-        self.__trades.append(trade)
+        self._trades.append(trade)
         return trade
+
+    def execute(self, order: Order, prices: dict[str, float], timestamp: datetime) -> OrderExecutionResult:
+        trade = None
+        try:
+            trade = self._execute_internal(order, prices, timestamp)
+            status = OrderExecutionStatus.SUCCESS
+        except PriceNotFoundError:
+            status = OrderExecutionStatus.PRICE_NOT_FOUND
+        except InsufficientFundsError:
+            status = OrderExecutionStatus.INSUFFICIENT_FUNDS
+        except InsufficientPositionError:
+            status = OrderExecutionStatus.INSUFFICIENT_POSITION
+        except ValueError:
+            status = OrderExecutionStatus.VALIDATION_ERROR
+        except Exception:
+            status = OrderExecutionStatus.UNKNOWN_ERROR
+
+        return OrderExecutionResult(
+            status=status,
+            order=order,
+            trade=trade,
+        )
+
 
 def _validate_timestamp(timestamp: datetime) -> None:
     if not isinstance(timestamp, datetime):
