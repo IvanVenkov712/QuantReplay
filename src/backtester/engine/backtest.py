@@ -58,6 +58,7 @@ class BacktestEngine:
         self._resolver = resolver
         self._data = validated_data
         self._symbol = symbol
+        self._initial_cash = broker.portfolio.cash
 
     def run(self) -> BacktestResult:
         """Run the backtest once and return the cached result on later calls."""
@@ -75,7 +76,8 @@ class BacktestEngine:
         new signal is generated, and the portfolio is valued at the current
         close.
         """
-        order_history = []
+        order_executions = []
+        trades = []
         records = []
         order_intent = None
 
@@ -83,16 +85,21 @@ class BacktestEngine:
             if order_intent is not None:
                 order = self._create_order(order_intent, candle)
                 if order is not None:
-                    order_history.append(self._execute_pending_order(order, candle))
+                    execution_result = self._execute_pending_order(order, candle)
+                    order_executions.append(execution_result)
+                    if execution_result.trade is not None:
+                        trades.append(execution_result.trade)
 
             signal = self._strategy.on_candle(candle)
             order_intent = self._create_order_intent(candle.timestamp, signal)
             records.append(self._create_record(candle, signal))
 
         return BacktestResult(
+            symbol=self._symbol,
+            initial_cash=self._initial_cash,
             records=records,
-            trades=self._broker.trades,
-            order_executions=order_history
+            trades=trades,
+            order_executions=order_executions
         )
 
     def _execute_pending_order(self, order: Order, candle: Candle) -> OrderExecutionResult:
@@ -140,10 +147,9 @@ class BacktestEngine:
     def _create_record(self, candle: Candle, signal: Signal) -> BacktestRecord:
         """Create a per-candle snapshot valued at the current close."""
         return BacktestRecord(
-            timestamp=candle.timestamp,
+            candle=candle,
             generated_signal=signal,
-            portfolio_value_at_close=self._broker.portfolio.value(prices={self._symbol: candle.close}),
-            cash=self._broker.portfolio.cash
+            snapshot=self._broker.portfolio.snapshot(prices={self._symbol: candle.close})
         )
 
     def _create_context(self, timestamp: datetime, price: float) -> ResolutionContext:
