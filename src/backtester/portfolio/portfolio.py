@@ -4,6 +4,8 @@ from collections.abc import Mapping
 from math import isfinite
 from numbers import Real
 
+from backtester.domain.trading import PortfolioSnapshot
+
 
 class Portfolio:
     """Tracks long-only cash and positions for a backtest portfolio."""
@@ -72,6 +74,13 @@ class Portfolio:
             total += float(price) * quantity
 
         return total
+
+    def snapshot(self, prices: Mapping[str, float]) -> PortfolioSnapshot:
+        return PortfolioSnapshot(
+            value=self.value(prices),
+            cash=self.cash,
+            positions=self.positions
+        )
 
     @staticmethod
     def _validate_cash(value: float) -> None:
