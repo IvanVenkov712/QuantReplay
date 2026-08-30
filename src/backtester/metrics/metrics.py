@@ -80,8 +80,8 @@ def total_return(results: BacktestResult) -> float:
     """Return ``final_value / first_value - 1`` over recorded close values."""
     if not results.records:
         return 0
-    vn = results.records[-1].portfolio_value_at_close
-    v1 = results.records[0].portfolio_value_at_close
+    vn = results.records[-1].snapshot.value
+    v1 = results.records[0].snapshot.value
     if isclose(v1, 0):
         return float("+inf")
     return vn / v1 - 1
@@ -92,8 +92,8 @@ def annualized_return(results: BacktestResult) -> float:
         return 0
     elapsed_seconds = (results.records[-1].timestamp - results.records[0].timestamp).total_seconds()
     t =  elapsed_seconds / (3600.0 * 24 * 365.25)
-    vn = results.records[-1].portfolio_value_at_close
-    v1 = results.records[0].portfolio_value_at_close
+    vn = results.records[-1].snapshot.value
+    v1 = results.records[0].snapshot.value
     if isclose(v1, 0):
         return float("+inf")
     if isclose(t, 0):
@@ -104,8 +104,8 @@ def period_returns(results: BacktestResult) -> List[float]:
     """Return simple returns between consecutive recorded portfolio values."""
     returns = []
     for prev, next in zip(results.records, results.records[1:]):
-        v_prev = prev.portfolio_value_at_close
-        v_curr = next.portfolio_value_at_close
+        v_prev = prev.snapshot.value
+        v_curr = next.snapshot.value
         if isclose(v_prev, 0):
             if isclose(v_curr, 0):
                 t = 0
@@ -146,7 +146,7 @@ def max_drawdown(results: BacktestResult) -> float:
     curr_max = float("-inf")
     drawdowns = []
     for r in results.records:
-        v = r.portfolio_value_at_close
+        v = r.snapshot.value
         if v > curr_max:
             curr_max = v
 

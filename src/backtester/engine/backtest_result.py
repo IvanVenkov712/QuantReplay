@@ -20,8 +20,8 @@ class BacktestRecord:
         return self.candle.timestamp
 
     @property
-    def market_value_at_close(self) -> float:
-        return self.candle.close
+    def market_value(self) -> float:
+        return self.snapshot.value - self.snapshot.cash
 
 @dataclass(frozen=True)
 class BacktestResult:
