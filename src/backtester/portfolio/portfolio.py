@@ -76,6 +76,7 @@ class Portfolio:
         return total
 
     def snapshot(self, prices: Mapping[str, float]) -> PortfolioSnapshot:
+        """Capture cash, total value, and a copy of current positions."""
         return PortfolioSnapshot(
             value=self.value(prices),
             cash=self.cash,

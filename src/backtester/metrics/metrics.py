@@ -77,7 +77,7 @@ class PerformanceAnalyzer:
         }
 
 def total_return(results: BacktestResult) -> float:
-    """Return ``final_value / first_value - 1`` over recorded close values."""
+    """Return ``final_value / first_value - 1`` over close-valued snapshots."""
     if not results.records:
         return 0
     vn = results.records[-1].snapshot.value

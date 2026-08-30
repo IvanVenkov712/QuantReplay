@@ -9,6 +9,10 @@ $T = \frac{t_n - t_0}{365.25\text{ days}}$, where $t_0$ and $t_n$ are the first
 and last observation timestamps. Let $\mathcal{T}$ be the set of executed
 trades.
 
+In the result model, $V_t$ is `BacktestRecord.snapshot.value`: cash plus the
+close-valued market value of all open positions. Metrics do not use the
+candle's asset price or `BacktestRecord.market_value` as total portfolio equity.
+
 The Sharpe ratio assumes a risk-free return of zero.
 
 The names “daily average,” “daily volatility,” and “daily Sharpe ratio” are

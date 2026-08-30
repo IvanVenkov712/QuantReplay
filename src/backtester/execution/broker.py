@@ -64,8 +64,8 @@ class Broker:
         """Execute an order using the supplied reference price and timestamp.
 
         Slippage is applied to the reference price before commission and
-        portfolio updates are calculated. Rejected orders do not enter the
-        trade history.
+        portfolio updates are calculated. Rejected orders do not change the
+        portfolio and do not produce a trade.
         """
         if not order.symbol in prices:
             raise PriceNotFoundError

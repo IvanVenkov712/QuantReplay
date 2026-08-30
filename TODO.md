@@ -22,16 +22,17 @@ not in this backlog.
 - [ ] Validate that `Strategy.on_candle()` returns a `Signal`; invalid values
   must fail clearly instead of being treated like `HOLD`.
 - [ ] Define ownership of stateful backtest dependencies. Either require a fresh
-  strategy and broker for every engine, or reset strategy state and isolate the
-  broker trade history used by each result.
-- [ ] Convert sequences stored in frozen `BacktestResult` instances to tuples so
-  results are deeply immutable.
+  strategy and broker portfolio for every engine, or reset their state before
+  each run.
+- [ ] Convert sequences stored in frozen `BacktestResult` instances to tuples
+  and make `PortfolioSnapshot.positions` immutable so results are deeply
+  immutable.
 - [ ] Validate fixed commissions as finite, non-negative numbers at model
   construction time.
 - [ ] Apply complete integer, range, and relationship validation to strategy
   parameters at the CLI boundary instead of relying partly on constructors.
-- [ ] Expand `BacktestRecord` if result auditing or visualization needs explicit
-  position quantity, position market value, and signal-to-execution linkage.
+- [ ] Add explicit signal-to-execution linkage to `BacktestRecord` if result
+  auditing or visualization requires it.
 
 ## Architecture cleanup
 

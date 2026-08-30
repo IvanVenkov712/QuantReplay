@@ -148,6 +148,24 @@ A signal from the final candle remains unexecuted because the data contains no
 `T+1` open. See the [Strategy reference](docs/strategies.md) for each
 strategy's warm-up and signal rules under this timing model.
 
+### Backtest results
+
+`BacktestEngine.run()` returns a cached `BacktestResult` containing the traded
+symbol, the cash captured when the engine was created, chronological
+per-candle records, successful trades produced by that run, and every attempted
+order execution, including rejections.
+
+Each `BacktestRecord` retains the original `Candle`, the signal generated from
+that candle, and an end-of-candle `PortfolioSnapshot`. The snapshot separates
+cash, position quantities, and total portfolio value. It is valued with the
+current candle's close after any pending order has executed at that candle's
+open. `BacktestRecord.market_value` is the value of all open positions and is
+calculated as total portfolio value minus cash.
+
+Trade history belongs to the result rather than the broker. Only successful
+executions create entries in `result.trades`; rejected attempts remain in
+`result.order_executions` with no trade.
+
 The broker is long-only. Overnight price gaps affect all-in and percentage
 order quantities because sizing happens at the execution open. Fixed-size
 orders can be rejected when cash or shares are insufficient.

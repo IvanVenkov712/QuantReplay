@@ -125,6 +125,8 @@ class OrderExecutionResult:
 
 @dataclass(frozen=True)
 class PortfolioSnapshot:
+    """Point-in-time cash, total equity, and detached position quantities."""
+
     cash: float
     value: float
     positions: dict[str, int]

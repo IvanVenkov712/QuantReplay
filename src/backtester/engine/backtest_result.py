@@ -1,4 +1,4 @@
-"""Immutable records returned by the backtest engine."""
+"""Structured records returned by the backtest engine."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -25,7 +25,7 @@ class BacktestRecord:
 
 @dataclass(frozen=True)
 class BacktestResult:
-    """Chronological snapshots, successful trades, and attempted orders."""
+    """Run metadata, chronological records, trades, and attempted orders."""
     symbol: str
     initial_cash: float
     records: Sequence[BacktestRecord]
