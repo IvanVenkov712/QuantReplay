@@ -16,7 +16,6 @@ from backtester.domain.trading import Side, Trade, Order, OrderExecutionResult, 
 class Broker:
     """Execute validated orders and apply successful fills to a portfolio."""
 
-    _trades: List[Trade]
     _portfolio: Portfolio
     _execution_model: ExecutionModel
     _commission_model: CommissionModel
@@ -26,7 +25,6 @@ class Broker:
                  commission_model: CommissionModel
         ):
         self._portfolio = portfolio
-        self._trades = []
         self._execution_model = execution_model
         self._commission_model = commission_model
 
@@ -34,11 +32,6 @@ class Broker:
     def portfolio(self) -> Portfolio:
         """Return the portfolio maintained by this broker."""
         return self._portfolio
-
-    @property
-    def trades(self) -> List[Trade]:
-        """Return a copy of the successful trade history."""
-        return self._trades.copy()
 
     def _buy(self, order: Order, fill_price: float, commission: float) -> None:
         if fill_price <= 0:
@@ -97,8 +90,7 @@ class Broker:
             self._sell(order, fill_price, commission)
         else:
             raise ValueError("Invalid order side")
-       
-        self._trades.append(trade)
+
         return trade
 
     def execute(self, order: Order, prices: dict[str, float], timestamp: datetime) -> OrderExecutionResult:
