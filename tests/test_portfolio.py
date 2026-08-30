@@ -31,6 +31,17 @@ def test_portfolio_positions_returns_copy() -> None:
     assert portfolio.positions == {"AAPL": 2}
 
 
+def test_snapshot_captures_cash_value_and_an_independent_positions_copy() -> None:
+    portfolio = Portfolio(cash=600, positions={"AAPL": 10})
+
+    snapshot = portfolio.snapshot({"AAPL": 25})
+    portfolio.add_position("AAPL", 1)
+
+    assert snapshot.cash == 600
+    assert snapshot.value == 850
+    assert snapshot.positions == {"AAPL": 10}
+
+
 def test_portfolio_value_rejects_missing_market_price() -> None:
     portfolio = Portfolio(cash=1_000, positions={"AAPL": 2})
 

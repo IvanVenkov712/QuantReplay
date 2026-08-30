@@ -3,6 +3,8 @@ from math import isclose, sqrt
 
 import pytest
 
+from backtester.domain.market import Candle
+from backtester.domain.trading import PortfolioSnapshot, Side, Signal, Trade
 from backtester.engine.backtest_result import BacktestRecord, BacktestResult
 from backtester.metrics.metrics import (
     MetricData,
@@ -18,7 +20,26 @@ from backtester.metrics.metrics import (
     period_returns,
     total_return,
 )
-from backtester.domain.trading import Side, Signal, Trade
+
+
+def make_record(timestamp: datetime, portfolio_value: float) -> BacktestRecord:
+    candle_price = 100.0
+    return BacktestRecord(
+        candle=Candle(
+            timestamp=timestamp,
+            open=candle_price,
+            high=candle_price,
+            low=candle_price,
+            close=candle_price,
+            volume=1_000,
+        ),
+        generated_signal=Signal.HOLD,
+        snapshot=PortfolioSnapshot(
+            cash=portfolio_value,
+            value=portfolio_value,
+            positions={},
+        ),
+    )
 
 
 def make_result(
@@ -28,16 +49,17 @@ def make_result(
     trades: list[Trade] | None = None,
 ) -> BacktestResult:
     records = [
-        BacktestRecord(
-            timestamp=start + timedelta(days=index),
-            generated_signal=Signal.HOLD,
-            portfolio_value_at_close=value,
-            cash=value,
-        )
+        make_record(start + timedelta(days=index), value)
         for index, value in enumerate(values)
     ]
 
-    return BacktestResult(records=records, trades=trades or [], order_executions=[])
+    return BacktestResult(
+        symbol="AAPL",
+        initial_cash=values[0] if values else 0.0,
+        records=records,
+        trades=trades or [],
+        order_executions=[],
+    )
 
 
 def test_total_return_uses_first_and_last_portfolio_values() -> None:
@@ -62,14 +84,11 @@ def test_annualized_return_uses_elapsed_calendar_days() -> None:
         start=datetime(2026, 1, 1),
     )
     result = BacktestResult(
+        symbol=result.symbol,
+        initial_cash=result.initial_cash,
         records=[
             result.records[0],
-            BacktestRecord(
-                timestamp=datetime(2027, 1, 1),
-                generated_signal=Signal.HOLD,
-                portfolio_value_at_close=121,
-                cash=121,
-            ),
+            make_record(datetime(2027, 1, 1), 121),
         ],
         trades=[],
         order_executions=[],

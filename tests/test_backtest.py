@@ -15,6 +15,7 @@ from backtester.domain.trading import (
     Signal,
     SizingInstruction,
     SizingMode,
+    PortfolioSnapshot,
     Trade,
     OrderExecutionResult,
     OrderExecutionStatus,
@@ -39,6 +40,15 @@ def make_portfolio_mock(
     portfolio.cash = cash
     portfolio.position_quantity.return_value = position_quantity
     portfolio.value.return_value = cash if value_at_close is None else value_at_close
+
+    def snapshot(prices: Mapping[str, float]) -> PortfolioSnapshot:
+        return PortfolioSnapshot(
+            cash=portfolio.cash,
+            value=portfolio.value(prices),
+            positions={},
+        )
+
+    portfolio.snapshot.side_effect = snapshot
     return portfolio
 
 
@@ -50,7 +60,6 @@ def make_broker_mock(
 ) -> Mock:
     broker = Mock()
     broker.portfolio = portfolio or make_portfolio_mock()
-    broker.trades = []
     pending_rejections = list(rejection_statuses)
 
     def execute(
@@ -76,7 +85,6 @@ def make_broker_mock(
             commission=1.0,
             timestamp=timestamp,
         )
-        broker.trades.append(trade)
         return OrderExecutionResult(
             status=OrderExecutionStatus.SUCCESS,
             order=order,
@@ -167,6 +175,8 @@ def test_empty_data_produces_empty_result_without_calling_strategy() -> None:
     assert result.records == []
     assert result.order_executions == []
     assert result.trades == []
+    assert result.symbol == "AAPL"
+    assert result.initial_cash == 1_000
     strategy.on_candle.assert_not_called()
     broker.execute.assert_not_called()
 
@@ -231,7 +241,7 @@ def test_buy_signal_is_executed_on_next_candle_open() -> None:
         prices={"AAPL": 90},
         timestamp=candles[1].timestamp,
     )
-    assert result.trades == broker.trades
+    assert result.trades == [result.order_executions[0].trade]
 
 
 def test_pending_intent_sizes_order_from_portfolio_and_next_open() -> None:
@@ -413,11 +423,13 @@ def test_record_after_pending_order_uses_current_portfolio_snapshot_at_close() -
 
     result = engine.run()
 
-    assert result.records[0].portfolio_value_at_close == 1_000
-    assert result.records[0].cash == 1_000
-    assert result.records[1].portfolio_value_at_close == 1_400
-    assert result.records[1].cash == 200
-    portfolio.value.assert_has_calls(
+    assert result.records[0].candle is candles[0]
+    assert result.records[0].snapshot.value == 1_000
+    assert result.records[0].snapshot.cash == 1_000
+    assert result.records[1].candle is candles[1]
+    assert result.records[1].snapshot.value == 1_400
+    assert result.records[1].snapshot.cash == 200
+    portfolio.snapshot.assert_has_calls(
         [call(prices={"AAPL": 100}), call(prices={"AAPL": 120})]
     )
 

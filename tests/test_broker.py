@@ -60,7 +60,7 @@ def execute_order(
     return broker.execute(order, prices={order.symbol: price}, timestamp=timestamp)
 
 
-def test_buy_order_uses_models_updates_portfolio_and_records_trade() -> None:
+def test_buy_order_uses_models_updates_portfolio_and_returns_trade() -> None:
     portfolio = make_portfolio_mock(cash=1_000)
     broker, execution_model, commission_model = make_broker(
         portfolio,
@@ -87,7 +87,6 @@ def test_buy_order_uses_models_updates_portfolio_and_records_trade() -> None:
     assert execution.status is OrderExecutionStatus.SUCCESS
     assert execution.order == order
     assert execution.trade == expected_trade
-    assert broker.trades == [expected_trade]
 
 
 def test_buy_without_enough_cash_returns_rejection_without_updating_portfolio() -> None:
@@ -109,10 +108,9 @@ def test_buy_without_enough_cash_returns_rejection_without_updating_portfolio() 
     assert execution.status is OrderExecutionStatus.INSUFFICIENT_FUNDS
     assert execution.order == order
     assert execution.trade is None
-    assert broker.trades == []
 
 
-def test_sell_order_uses_models_updates_portfolio_and_records_trade() -> None:
+def test_sell_order_uses_models_updates_portfolio_and_returns_trade() -> None:
     portfolio = make_portfolio_mock(cash=1_000, owned_quantity=10)
     broker, execution_model, commission_model = make_broker(
         portfolio,
@@ -140,7 +138,6 @@ def test_sell_order_uses_models_updates_portfolio_and_records_trade() -> None:
     assert execution.status is OrderExecutionStatus.SUCCESS
     assert execution.order == order
     assert execution.trade == expected_trade
-    assert broker.trades == [expected_trade]
 
 
 def test_sell_more_shares_than_owned_returns_rejection_without_updating_portfolio() -> None:
@@ -163,7 +160,6 @@ def test_sell_more_shares_than_owned_returns_rejection_without_updating_portfoli
     assert execution.status is OrderExecutionStatus.INSUFFICIENT_POSITION
     assert execution.order == order
     assert execution.trade is None
-    assert broker.trades == []
 
 
 def test_sell_full_position_requests_position_removal() -> None:
@@ -193,7 +189,6 @@ def test_execute_rejects_missing_market_price_without_updating_portfolio() -> No
     assert portfolio.cash == 1_000
     portfolio.add_position.assert_not_called()
     portfolio.remove_position.assert_not_called()
-    assert broker.trades == []
 
 
 @pytest.mark.parametrize(
@@ -224,26 +219,6 @@ def test_execute_rejects_non_positive_market_price_without_trade() -> None:
     assert portfolio.cash == 1_000
     portfolio.add_position.assert_not_called()
     portfolio.remove_position.assert_not_called()
-    assert broker.trades == []
-
-
-def test_trades_returns_copy() -> None:
-    broker, _, _ = make_broker(
-        make_portfolio_mock(cash=1_000),
-        fill_price=20.0,
-        commission=2.0,
-    )
-    execution = execute_order(
-        broker,
-        make_order("AAPL", Side.BUY, quantity=1),
-        price=19.0,
-    )
-
-    trades = broker.trades
-    trades.clear()
-
-    assert execution.trade is not None
-    assert broker.trades == [execution.trade]
 
 
 def test_order_rejects_empty_symbol() -> None:
