@@ -123,6 +123,12 @@ class OrderExecutionResult:
         if self.status is OrderExecutionStatus.SUCCESS and self.trade is None:
             raise ValueError("Successful order execution should lead to a trade")
 
+@dataclass(frozen=True)
+class PortfolioSnapshot:
+    cash: float
+    value: float
+    positions: dict[str, int]
+
 def _validate_symbol(symbol: str) -> None:
     if not isinstance(symbol, str) or not symbol:
         raise ValueError("Symbol must be a non-empty string.")
