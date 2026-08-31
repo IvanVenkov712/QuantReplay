@@ -1,4 +1,5 @@
 from datetime import datetime
+from math import isclose
 from typing import Sequence
 
 from backtester.domain.market import Candle
@@ -46,8 +47,10 @@ def drawdown_series(
         v = r.snapshot.value
         if v > curr_max:
             curr_max = v
-
-        drawdowns.append(v / curr_max - 1)
+        if isclose(curr_max, 0):
+            drawdowns.append(float("-inf"))
+        else:
+            drawdowns.append(v / curr_max - 1)
         timestamps.append(r.candle.timestamp)
 
     return timestamps, drawdowns

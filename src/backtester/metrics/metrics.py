@@ -150,7 +150,10 @@ def max_drawdown(results: BacktestResult) -> float:
         if v > curr_max:
             curr_max = v
 
-        drawdowns.append(v / curr_max - 1)
+        if isclose(curr_max, 0):
+            drawdowns.append(float("-inf"))
+        else:
+            drawdowns.append(v / curr_max - 1)
 
     return min(drawdowns)
 
