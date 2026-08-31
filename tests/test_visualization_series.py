@@ -1,0 +1,140 @@
+from datetime import datetime, timedelta
+
+import pytest
+
+from backtester.domain.market import Candle
+from backtester.domain.trading import PortfolioSnapshot, Side, Signal, Trade
+from backtester.engine.backtest_result import BacktestRecord, BacktestResult
+from backtester.visualization.series import (
+    cash_series,
+    close_price_series,
+    drawdown_series,
+    equity_series,
+    trade_marker_series,
+)
+
+
+START = datetime(2026, 1, 1)
+
+
+def make_candle(timestamp: datetime, close: float = 100.0) -> Candle:
+    return Candle(
+        timestamp=timestamp,
+        open=close,
+        high=close,
+        low=close,
+        close=close,
+        volume=1_000,
+    )
+
+
+def make_record(
+    timestamp: datetime,
+    *,
+    value: float,
+    cash: float,
+) -> BacktestRecord:
+    return BacktestRecord(
+        candle=make_candle(timestamp),
+        generated_signal=Signal.HOLD,
+        snapshot=PortfolioSnapshot(
+            cash=cash,
+            value=value,
+            positions={},
+        ),
+    )
+
+
+def make_result(
+    records: list[BacktestRecord] | None = None,
+    trades: list[Trade] | None = None,
+) -> BacktestResult:
+    return BacktestResult(
+        symbol="AAPL",
+        initial_cash=1_000.0,
+        records=records or [],
+        trades=trades or [],
+        order_executions=[],
+    )
+
+
+def test_close_price_series_returns_timestamps_and_closes_in_order() -> None:
+    timestamps = [START, START + timedelta(days=1)]
+    candles = [
+        make_candle(timestamps[0], close=100.0),
+        make_candle(timestamps[1], close=105.0),
+    ]
+
+    assert close_price_series(candles) == (timestamps, [100.0, 105.0])
+
+
+def test_equity_series_returns_record_timestamps_and_values() -> None:
+    timestamps = [START, START + timedelta(days=1)]
+    result = make_result(
+        [
+            make_record(timestamps[0], value=1_000.0, cash=400.0),
+            make_record(timestamps[1], value=1_050.0, cash=400.0),
+        ]
+    )
+
+    assert equity_series(result) == (timestamps, [1_000.0, 1_050.0])
+
+
+def test_cash_series_returns_record_timestamps_and_cash() -> None:
+    timestamps = [START, START + timedelta(days=1)]
+    result = make_result(
+        [
+            make_record(timestamps[0], value=1_000.0, cash=1_000.0),
+            make_record(timestamps[1], value=1_050.0, cash=250.0),
+        ]
+    )
+
+    assert cash_series(result) == (timestamps, [1_000.0, 250.0])
+
+
+def test_drawdown_series_uses_running_portfolio_peak() -> None:
+    values = [100.0, 120.0, 90.0, 135.0, 108.0]
+    timestamps = [START + timedelta(days=index) for index in range(len(values))]
+    result = make_result(
+        [
+            make_record(timestamp, value=value, cash=value)
+            for timestamp, value in zip(timestamps, values)
+        ]
+    )
+
+    actual_timestamps, drawdowns = drawdown_series(result)
+
+    assert actual_timestamps == timestamps
+    assert drawdowns == pytest.approx([0.0, 0.0, -0.25, 0.0, -0.20])
+
+
+def test_drawdown_series_is_zero_when_running_peak_is_zero() -> None:
+    result = make_result([make_record(START, value=0.0, cash=0.0)])
+
+    assert drawdown_series(result) == ([START], [0.0])
+
+
+def test_drawdown_series_returns_empty_lists_for_empty_result() -> None:
+    assert drawdown_series(make_result()) == ([], [])
+
+
+def test_trade_marker_series_filters_trades_by_side_and_preserves_order() -> None:
+    first_buy_timestamp = START + timedelta(days=1)
+    sell_timestamp = START + timedelta(days=2)
+    second_buy_timestamp = START + timedelta(days=3)
+    result = make_result(
+        trades=[
+            Trade("AAPL", Side.BUY, 2, 101.0, 0.0, first_buy_timestamp),
+            Trade("AAPL", Side.SELL, 1, 104.0, 0.0, sell_timestamp),
+            Trade("AAPL", Side.BUY, 1, 102.0, 0.0, second_buy_timestamp),
+        ]
+    )
+
+    assert trade_marker_series(result, Side.BUY) == (
+        [first_buy_timestamp, second_buy_timestamp],
+        [101.0, 102.0],
+    )
+
+
+def test_trade_marker_series_returns_empty_lists_when_side_has_no_trades() -> None:
+    assert trade_marker_series(make_result(), Side.SELL) == ([], [])

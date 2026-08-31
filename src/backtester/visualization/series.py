@@ -1,15 +1,18 @@
+"""Convert backtest data into timestamped values for visualization."""
+
 from datetime import datetime
 from math import isclose
 from typing import Sequence
 
 from backtester.domain.market import Candle
-from backtester.domain.trading import Side, Trade
+from backtester.domain.trading import Side
 from backtester.engine.backtest_result import BacktestResult
 
 
 def close_price_series(
     candles: Sequence[Candle],
 ) -> tuple[list[datetime], list[float]]:
+    """Return candle timestamps and closing prices in input order."""
     return (
         [candle.timestamp for candle in candles],
         [candle.close for candle in candles]
@@ -19,6 +22,7 @@ def close_price_series(
 def equity_series(
     result: BacktestResult,
 ) -> tuple[list[datetime], list[float]]:
+    """Return record timestamps and total portfolio equity in record order."""
     return (
         [record.timestamp for record in result.records],
         [record.snapshot.value for record in result.records]
@@ -28,6 +32,7 @@ def equity_series(
 def cash_series(
     result: BacktestResult,
 ) -> tuple[list[datetime], list[float]]:
+    """Return record timestamps and uninvested portfolio cash in record order."""
     return (
         [record.timestamp for record in result.records],
         [record.snapshot.cash for record in result.records]
@@ -37,6 +42,12 @@ def cash_series(
 def drawdown_series(
     result: BacktestResult,
 ) -> tuple[list[datetime], list[float]]:
+    """Return fractional drawdown from the running peak at each record.
+
+    Drawdown is calculated as ``value / running_peak - 1``. A zero running
+    peak produces a drawdown of ``0.0`` because no percentage loss can be
+    measured from a zero-valued portfolio.
+    """
 
     if not result.records:
         return [], []
@@ -60,6 +71,7 @@ def trade_marker_series(
     result: BacktestResult,
     side: Side,
 ) -> tuple[list[datetime], list[float]]:
+    """Return fill timestamps and prices for trades matching ``side``."""
     return (
         [trade.timestamp for trade in result.trades if trade.side == side],
         [trade.fill_price for trade in result.trades if trade.side == side],
