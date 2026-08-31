@@ -5,7 +5,7 @@ from math import isclose
 from typing import Sequence
 
 from backtester.domain.market import Candle
-from backtester.domain.trading import Side
+from backtester.domain.trading import Side, Signal
 from backtester.engine.backtest_result import BacktestResult
 
 
@@ -75,4 +75,34 @@ def trade_marker_series(
     return (
         [trade.timestamp for trade in result.trades if trade.side == side],
         [trade.fill_price for trade in result.trades if trade.side == side],
+    )
+
+def position_quantity_series(result: BacktestResult
+) -> tuple[list[datetime], list[int]]:
+    return (
+        [record.timestamp for record in result.records],
+        [record.snapshot.positions.get(result.symbol, 0) for record in result.records],
+    )
+
+def market_value_series(result: BacktestResult
+) -> tuple[list[datetime], list[float]]:
+    return (
+        [record.timestamp for record in result.records],
+        [record.market_value for record in result.records],
+    )
+
+def signal_marker_series(
+    result: BacktestResult,
+    signal: Signal,
+) -> tuple[list[datetime], list[float]]:
+    """Return timestamps and closing prices for records matching ``signal``."""
+    matching_records = [
+        record
+        for record in result.records
+        if record.generated_signal == signal
+    ]
+
+    return (
+        [record.timestamp for record in matching_records],
+        [record.candle.close for record in matching_records],
     )
