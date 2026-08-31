@@ -48,7 +48,7 @@ def drawdown_series(
         if v > curr_max:
             curr_max = v
         if isclose(curr_max, 0):
-            drawdowns.append(float("-inf"))
+            drawdowns.append(0.0)
         else:
             drawdowns.append(v / curr_max - 1)
         timestamps.append(r.candle.timestamp)
