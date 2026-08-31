@@ -10,6 +10,9 @@ from backtester.visualization.series import (
     close_price_series,
     drawdown_series,
     equity_series,
+    market_value_series,
+    position_quantity_series,
+    signal_marker_series,
     trade_marker_series,
 )
 
@@ -33,14 +36,17 @@ def make_record(
     *,
     value: float,
     cash: float,
+    close: float = 100.0,
+    positions: dict[str, int] | None = None,
+    signal: Signal = Signal.HOLD,
 ) -> BacktestRecord:
     return BacktestRecord(
-        candle=make_candle(timestamp),
-        generated_signal=Signal.HOLD,
+        candle=make_candle(timestamp, close=close),
+        generated_signal=signal,
         snapshot=PortfolioSnapshot(
             cash=cash,
             value=value,
-            positions={},
+            positions=positions or {},
         ),
     )
 
@@ -138,3 +144,83 @@ def test_trade_marker_series_filters_trades_by_side_and_preserves_order() -> Non
 
 def test_trade_marker_series_returns_empty_lists_when_side_has_no_trades() -> None:
     assert trade_marker_series(make_result(), Side.SELL) == ([], [])
+
+
+def test_position_quantity_series_uses_result_symbol_and_defaults_to_zero() -> None:
+    timestamps = [START + timedelta(days=index) for index in range(3)]
+    result = make_result(
+        [
+            make_record(timestamps[0], value=1_000.0, cash=1_000.0),
+            make_record(
+                timestamps[1],
+                value=1_000.0,
+                cash=700.0,
+                positions={"AAPL": 3},
+            ),
+            make_record(
+                timestamps[2],
+                value=1_100.0,
+                cash=900.0,
+                positions={"AAPL": 1, "MSFT": 5},
+            ),
+        ]
+    )
+
+    assert position_quantity_series(result) == (timestamps, [0, 3, 1])
+
+
+def test_market_value_series_returns_equity_minus_cash() -> None:
+    timestamps = [START, START + timedelta(days=1)]
+    result = make_result(
+        [
+            make_record(timestamps[0], value=1_000.0, cash=400.0),
+            make_record(timestamps[1], value=1_050.0, cash=250.0),
+        ]
+    )
+
+    assert market_value_series(result) == (timestamps, [600.0, 800.0])
+
+
+def test_signal_marker_series_filters_signals_and_uses_candle_closes() -> None:
+    timestamps = [START + timedelta(days=index) for index in range(4)]
+    result = make_result(
+        [
+            make_record(
+                timestamps[0],
+                value=1_000.0,
+                cash=1_000.0,
+                close=101.0,
+                signal=Signal.BUY,
+            ),
+            make_record(
+                timestamps[1],
+                value=1_000.0,
+                cash=1_000.0,
+                close=102.0,
+                signal=Signal.HOLD,
+            ),
+            make_record(
+                timestamps[2],
+                value=1_010.0,
+                cash=500.0,
+                close=103.0,
+                signal=Signal.BUY,
+            ),
+            make_record(
+                timestamps[3],
+                value=1_020.0,
+                cash=500.0,
+                close=104.0,
+                signal=Signal.SELL,
+            ),
+        ]
+    )
+
+    assert signal_marker_series(result, Signal.BUY) == (
+        [timestamps[0], timestamps[2]],
+        [101.0, 103.0],
+    )
+
+
+def test_signal_marker_series_returns_empty_lists_when_signal_has_no_records() -> None:
+    assert signal_marker_series(make_result(), Signal.SELL) == ([], [])

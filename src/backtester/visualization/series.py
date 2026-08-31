@@ -77,25 +77,46 @@ def trade_marker_series(
         [trade.fill_price for trade in result.trades if trade.side == side],
     )
 
-def position_quantity_series(result: BacktestResult
+
+def position_quantity_series(
+    result: BacktestResult,
 ) -> tuple[list[datetime], list[int]]:
+    """Return timestamps and held quantities for the backtest symbol.
+
+    Records without an open position for ``result.symbol`` have quantity zero.
+    """
     return (
         [record.timestamp for record in result.records],
-        [record.snapshot.positions.get(result.symbol, 0) for record in result.records],
+        [
+            record.snapshot.positions.get(result.symbol, 0)
+            for record in result.records
+        ],
     )
 
-def market_value_series(result: BacktestResult
+
+def market_value_series(
+    result: BacktestResult,
 ) -> tuple[list[datetime], list[float]]:
+    """Return timestamps and invested market value in record order.
+
+    Market value is total portfolio equity minus uninvested cash.
+    """
     return (
         [record.timestamp for record in result.records],
         [record.market_value for record in result.records],
     )
 
+
 def signal_marker_series(
     result: BacktestResult,
     signal: Signal,
 ) -> tuple[list[datetime], list[float]]:
-    """Return timestamps and closing prices for records matching ``signal``."""
+    """Return timestamps and closing prices for records matching ``signal``.
+
+    The closing price locates the signal where it became known. It is not an
+    execution price; a resulting trade normally executes at the next candle's
+    open according to the backtest engine's timing model.
+    """
     matching_records = [
         record
         for record in result.records
