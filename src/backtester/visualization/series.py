@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Sequence
 
 from backtester.domain.market import Candle
-from backtester.domain.trading import Side
+from backtester.domain.trading import Side, Trade
 from backtester.engine.backtest_result import BacktestResult
 
 
@@ -36,11 +36,28 @@ def cash_series(
 def drawdown_series(
     result: BacktestResult,
 ) -> tuple[list[datetime], list[float]]:
-    ...
+
+    if not result.records:
+        return [], []
+    curr_max = float("-inf")
+    drawdowns = []
+    timestamps = []
+    for r in result.records:
+        v = r.snapshot.value
+        if v > curr_max:
+            curr_max = v
+
+        drawdowns.append(v / curr_max - 1)
+        timestamps.append(r.candle.timestamp)
+
+    return timestamps, drawdowns
 
 
 def trade_marker_series(
     result: BacktestResult,
     side: Side,
 ) -> tuple[list[datetime], list[float]]:
-    ...
+    return (
+        [trade.timestamp for trade in result.trades if trade.side == side],
+        [trade.fill_price for trade in result.trades if trade.side == side],
+    )
