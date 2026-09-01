@@ -30,11 +30,15 @@ def load_results() -> BacktestResult:
         portfolio=Portfolio(10000)
     )
     resolver = OrderResolver(QuantityResolver(BuyQuantityCapper(cost_calculator)))
+    plan = SizingPlan(
+        SizingInstruction(None, SizingMode.ALL_IN),
+        SizingInstruction(None, SizingMode.ALL_IN)
+    )
 
     engine = BacktestEngine(
-        ExponentialMeanReversionStrategy(20, 0.95),
+        WilderRSIStrategy(40, 60),
         broker,
-        SizingPlan(SizingInstruction(None, SizingMode.ALL_IN), SizingInstruction(None, SizingMode.ALL_IN)),
+        plan,
         resolver,
         candles,
         "MSFT"
