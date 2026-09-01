@@ -17,7 +17,7 @@ figure, ax = plt.subplots(1, 1, figsize=(10, 5))
 # plot_drawdown(ax3, results)
 # plot_trade_marker(ax4, results, Side.BUY)
 
-plot_signal_markers(ax, results, Signal.BUY)
+plot_signal_markers(ax, results, Signal.SELL)
 
 
 
