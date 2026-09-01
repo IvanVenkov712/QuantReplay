@@ -17,7 +17,7 @@ from backtester.strategies.rsi_strategies import WilderRSIStrategy
 
 
 def load_results() -> BacktestResult:
-    source = CSVDataSource(Path("../../../data") / "MSFT.csv")
+    source = CSVDataSource(Path("data") / "MSFT.csv")
     data = source.load("MSFT", "2021-01-01", "2026-01-01")
     candles = candles_from_dataframe(data)
 
@@ -36,7 +36,7 @@ def load_results() -> BacktestResult:
     )
 
     engine = BacktestEngine(
-        WilderRSIStrategy(40, 60),
+        WilderRSIStrategy(30, 70),
         broker,
         plan,
         resolver,

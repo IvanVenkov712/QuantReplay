@@ -26,10 +26,6 @@ def plot_series(
         label=title,
         color=color,
     )
-    axes.set_title(title)
-    axes.set_ylabel("Value")
-    axes.grid(alpha=0.3)
-    axes.legend()
 
 
 def plot_markers(
@@ -48,14 +44,10 @@ def plot_markers(
         values,
         marker=marker,
         label=title,
-        s=70,
+        s=60,
         zorder=3,
         color=color
     )
-    axes.set_title(title)
-    axes.set_ylabel("Value")
-    axes.grid(alpha=0.3)
-    axes.legend()
 
 
 def plot_equity(axes: Axes, result: BacktestResult) -> None:
@@ -68,14 +60,31 @@ def plot_cash(axes: Axes, result: BacktestResult) -> None:
 def plot_drawdown(axes: Axes, result: BacktestResult) -> None:
    plot_series(axes, result, drawdown_series, title="Portfolio drawdown", color="tab:red")
 
-def plot_trade_marker(axes: Axes, result: BacktestResult, side: Side) -> None:
+
+
+def plot_trade_markers(axes: Axes, result: BacktestResult, side: Side) -> None:
     marker_by_side = {
         Side.BUY: "^",
         Side.SELL: "v"
     }
+    color_by_side = {
+        Side.BUY: "tab:green",
+        Side.SELL: "tab:blue",
+    }
+    
     transformer = lambda result: trade_marker_series(result, side)
     title = f"Trade markers for side {side.value.title()}"
-    plot_markers(axes, result, transformer, title=title, color="tab:purple", marker=marker_by_side[side])
+
+    plot_markers(
+        axes, 
+        result, 
+        transformer, 
+        title=title, 
+        color=color_by_side[side],
+        marker=marker_by_side[side]
+    )
+    
+    
 
 def plot_position_quantity(axes: Axes, result: BacktestResult) -> None:
     plot_series(axes, result, position_quantity_series, title="Position quantity", color="tab:brown")
@@ -89,7 +98,20 @@ def plot_signal_markers(axes: Axes, result: BacktestResult, signal: Signal) -> N
         Signal.SELL: "v",
         Signal.HOLD: "o",
     }
+    
+    color_by_signal = {
+        Signal.BUY: "tab:green",
+        Signal.SELL: "tab:blue",
+        Signal.HOLD: "tab:gray"
+    }
     title = f"Signal {signal.value.title()} Markers"
 
     transformer = lambda result: signal_marker_series(result, signal)
-    plot_markers(axes, result, transformer, title=title, color="tab:orange", marker=marker_by_signal[signal])
+    plot_markers(
+        axes, 
+        result, 
+        transformer, 
+        title=title, 
+        color=color_by_signal[signal],
+        marker=marker_by_signal[signal]
+    )
