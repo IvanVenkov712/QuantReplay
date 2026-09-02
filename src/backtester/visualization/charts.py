@@ -35,7 +35,8 @@ def plot_markers(
         *,
         label: str,
         color: str,
-        marker: str
+        marker: str,
+        filled: bool
 ) -> None:
     timestamps, values = series_transformer(result)
 
@@ -46,7 +47,9 @@ def plot_markers(
         label=label,
         s=60,
         zorder=3,
-        color=color
+        color=color if filled else "none",
+        edgecolors=color,
+        linewidths=1.5,
     )
 
 
@@ -88,7 +91,8 @@ def plot_trade_markers(axes: Axes, result: BacktestResult, side: Side) -> None:
         transformer, 
         label=label,
         color=color_by_side[side],
-        marker=marker_by_side[side]
+        marker=marker_by_side[side],
+        filled=True,
     )
     
     
@@ -120,5 +124,6 @@ def plot_signal_markers(axes: Axes, result: BacktestResult, signal: Signal) -> N
         transformer, 
         label=title,
         color=color_by_signal[signal],
-        marker=marker_by_signal[signal]
+        marker=marker_by_signal[signal],
+        filled=False,
     )
