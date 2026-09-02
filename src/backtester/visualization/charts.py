@@ -1,4 +1,10 @@
-"""Individual Matplotlib charts for backtest results."""
+"""Composable Matplotlib layers for visualizing backtest results.
+
+Each function adds a line or marker collection to a caller-supplied ``Axes``.
+The caller owns chart-level formatting such as titles, axis labels, grids, and
+legends, as well as displaying or saving the containing figure.
+"""
+
 from datetime import datetime
 from typing import Callable
 
@@ -6,18 +12,34 @@ from matplotlib.axes import Axes
 
 from backtester.domain.trading import Side, Signal
 from backtester.engine.backtest_result import BacktestResult
-from backtester.visualization.series import equity_series, cash_series, drawdown_series, trade_marker_series, \
-    position_quantity_series, market_value_series, signal_marker_series, close_price_series
+from backtester.visualization.series import (
+    cash_series,
+    close_price_series,
+    drawdown_series,
+    equity_series,
+    market_value_series,
+    position_quantity_series,
+    signal_marker_series,
+    trade_marker_series,
+)
 
 
 def plot_series(
-        axes: Axes,
-        result: BacktestResult,
-        series_transformer: Callable[[BacktestResult], tuple[list[datetime], list[float | int]]],
-        *,
-        label: str,
-        color: str
+    axes: Axes,
+    result: BacktestResult,
+    series_transformer: Callable[
+        [BacktestResult],
+        tuple[list[datetime], list[float | int]],
+    ],
+    *,
+    label: str,
+    color: str,
 ) -> None:
+    """Add a transformed backtest series to ``axes`` as a colored line.
+
+    ``label`` identifies the line when the caller later creates a legend. This
+    function deliberately leaves all chart-level axes metadata unchanged.
+    """
     timestamps, values = series_transformer(result)
 
     axes.plot(
@@ -29,15 +51,24 @@ def plot_series(
 
 
 def plot_markers(
-        axes: Axes,
-        result: BacktestResult,
-        series_transformer: Callable[[BacktestResult], tuple[list[datetime], list[float | int]]],
-        *,
-        label: str,
-        color: str,
-        marker: str,
-        filled: bool
+    axes: Axes,
+    result: BacktestResult,
+    series_transformer: Callable[
+        [BacktestResult],
+        tuple[list[datetime], list[float | int]],
+    ],
+    *,
+    label: str,
+    color: str,
+    marker: str,
+    filled: bool,
 ) -> None:
+    """Add transformed backtest points to ``axes`` as scatter markers.
+
+    Filled markers represent executed trades, while hollow markers distinguish
+    strategy signals. The caller remains responsible for axes metadata and for
+    creating the legend.
+    """
     timestamps, values = series_transformer(result)
 
     axes.scatter(
@@ -54,8 +85,9 @@ def plot_markers(
 
 
 def plot_close_prices(axes: Axes, result: BacktestResult) -> None:
-    transformer = lambda result: close_price_series(
-        [record.candle for record in result.records]
+    """Plot the closing price from every chronological backtest record."""
+    transformer = lambda backtest_result: close_price_series(
+        [record.candle for record in backtest_result.records]
     )
 
     plot_series(axes, result, transformer, label="Close prices", color="tab:cyan")
@@ -65,14 +97,17 @@ def plot_equity(axes: Axes, result: BacktestResult) -> None:
     plot_series(axes, result, equity_series, label="Portfolio Equity", color="tab:blue")
 
 def plot_cash(axes: Axes, result: BacktestResult) -> None:
-   plot_series(axes, result, cash_series, label="Portfolio cash", color="tab:green")
+    """Plot uninvested portfolio cash over time."""
+    plot_series(axes, result, cash_series, label="Portfolio cash", color="tab:green")
 
 def plot_drawdown(axes: Axes, result: BacktestResult) -> None:
-   plot_series(axes, result, drawdown_series, label="Portfolio drawdown", color="tab:red")
+    """Plot fractional drawdown from the running portfolio-equity peak."""
+    plot_series(axes, result, drawdown_series, label="Portfolio drawdown", color="tab:red")
 
 
 
 def plot_trade_markers(axes: Axes, result: BacktestResult, side: Side) -> None:
+    """Plot filled markers at fill times and prices for trades on ``side``."""
     marker_by_side = {
         Side.BUY: "^",
         Side.SELL: "v"
@@ -98,12 +133,20 @@ def plot_trade_markers(axes: Axes, result: BacktestResult, side: Side) -> None:
     
 
 def plot_position_quantity(axes: Axes, result: BacktestResult) -> None:
+    """Plot the held quantity of the backtest symbol over time."""
     plot_series(axes, result, position_quantity_series, label="Position quantity", color="tab:brown")
 
 def plot_market_value(axes: Axes, result: BacktestResult) -> None:
+    """Plot invested market value, defined as total equity minus cash."""
     plot_series(axes, result, market_value_series, label="Market value", color="tab:gray")
 
 def plot_signal_markers(axes: Axes, result: BacktestResult, signal: Signal) -> None:
+    """Plot hollow markers where ``signal`` became known at candle close.
+
+    The marker price is the signal candle's close, not the fill price of any
+    resulting trade. Under the engine's timing model, that trade normally
+    executes at the next candle's open.
+    """
     marker_by_signal = {
         Signal.BUY: "^",
         Signal.SELL: "v",
