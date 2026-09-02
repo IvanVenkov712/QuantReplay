@@ -13,11 +13,11 @@ from backtester.visualization.series import equity_series, cash_series, drawdown
 def plot_series(
         axes: Axes,
         result: BacktestResult,
-        series_transformer: Callable[[BacktestResult], tuple[list[datetime], list[float]]],
+        series_transformer: Callable[[BacktestResult], tuple[list[datetime], list[float | int]]],
         *,
         label: str,
         color: str
-):
+) -> None:
     timestamps, values = series_transformer(result)
 
     axes.plot(
@@ -31,12 +31,12 @@ def plot_series(
 def plot_markers(
         axes: Axes,
         result: BacktestResult,
-        series_transformer: Callable[[BacktestResult], tuple[list[datetime], list[float]]],
+        series_transformer: Callable[[BacktestResult], tuple[list[datetime], list[float | int]]],
         *,
         label: str,
         color: str,
         marker: str
-):
+) -> None:
     timestamps, values = series_transformer(result)
 
     axes.scatter(
@@ -51,7 +51,9 @@ def plot_markers(
 
 
 def plot_close_prices(axes: Axes, result: BacktestResult) -> None:
-    transformer = lambda result: close_price_series(record.candle for record in result.records)
+    transformer = lambda result: close_price_series(
+        [record.candle for record in result.records]
+    )
 
     plot_series(axes, result, transformer, label="Close prices", color="tab:cyan")
 
