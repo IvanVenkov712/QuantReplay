@@ -15,7 +15,7 @@ def plot_series(
         result: BacktestResult,
         series_transformer: Callable[[BacktestResult], tuple[list[datetime], list[float]]],
         *,
-        title: str,
+        label: str,
         color: str
 ):
     timestamps, values = series_transformer(result)
@@ -23,7 +23,7 @@ def plot_series(
     axes.plot(
         timestamps,
         values,
-        label=title,
+        label=label,
         color=color,
     )
 
@@ -33,7 +33,7 @@ def plot_markers(
         result: BacktestResult,
         series_transformer: Callable[[BacktestResult], tuple[list[datetime], list[float]]],
         *,
-        title: str,
+        label: str,
         color: str,
         marker: str
 ):
@@ -43,7 +43,7 @@ def plot_markers(
         timestamps,
         values,
         marker=marker,
-        label=title,
+        label=label,
         s=60,
         zorder=3,
         color=color
@@ -52,13 +52,13 @@ def plot_markers(
 
 def plot_equity(axes: Axes, result: BacktestResult) -> None:
     """Plot total portfolio equity over time."""
-    plot_series(axes, result, equity_series, title="Portfolio Equity", color="tab:blue")
+    plot_series(axes, result, equity_series, label="Portfolio Equity", color="tab:blue")
 
 def plot_cash(axes: Axes, result: BacktestResult) -> None:
-   plot_series(axes, result, cash_series, title="Portfolio cash", color="tab:green")
+   plot_series(axes, result, cash_series, label="Portfolio cash", color="tab:green")
 
 def plot_drawdown(axes: Axes, result: BacktestResult) -> None:
-   plot_series(axes, result, drawdown_series, title="Portfolio drawdown", color="tab:red")
+   plot_series(axes, result, drawdown_series, label="Portfolio drawdown", color="tab:red")
 
 
 
@@ -73,13 +73,13 @@ def plot_trade_markers(axes: Axes, result: BacktestResult, side: Side) -> None:
     }
     
     transformer = lambda result: trade_marker_series(result, side)
-    title = f"Trade markers for side {side.value.title()}"
+    label = f"Trade markers for side {side.value.title()}"
 
     plot_markers(
         axes, 
         result, 
         transformer, 
-        title=title, 
+        label=label,
         color=color_by_side[side],
         marker=marker_by_side[side]
     )
@@ -87,10 +87,10 @@ def plot_trade_markers(axes: Axes, result: BacktestResult, side: Side) -> None:
     
 
 def plot_position_quantity(axes: Axes, result: BacktestResult) -> None:
-    plot_series(axes, result, position_quantity_series, title="Position quantity", color="tab:brown")
+    plot_series(axes, result, position_quantity_series, label="Position quantity", color="tab:brown")
 
 def plot_market_value(axes: Axes, result: BacktestResult) -> None:
-    plot_series(axes, result, market_value_series, title="Market value", color="tab:gray")
+    plot_series(axes, result, market_value_series, label="Market value", color="tab:gray")
 
 def plot_signal_markers(axes: Axes, result: BacktestResult, signal: Signal) -> None:
     marker_by_signal = {
@@ -111,7 +111,7 @@ def plot_signal_markers(axes: Axes, result: BacktestResult, signal: Signal) -> N
         axes, 
         result, 
         transformer, 
-        title=title, 
+        label=title,
         color=color_by_signal[signal],
         marker=marker_by_signal[signal]
     )

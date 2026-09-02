@@ -16,7 +16,7 @@ figure, ax = plt.subplots(1, 1, figsize=(10, 5))
 # plot_position_quantity(ax2, results)
 # plot_drawdown(ax3, results)
 # plot_trade_marker(ax4, results, Side.BUY)
-
+print(__file__)
 plot_trade_markers(ax, results, Side.BUY)
 plot_trade_markers(ax, results, Side.SELL)
 
