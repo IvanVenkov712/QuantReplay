@@ -31,13 +31,27 @@ The function returns a `matplotlib.figure.Figure`. It does not display, save,
 or close the figure. The caller owns those operations. Closing figures after
 use is particularly important when generating many charts in a script or test.
 
-To save without opening a window:
+To create and save the standard dashboard without opening a window, use
+`export_backtest_dashboard()`:
 
 ```python
-figure = create_backtest_figure(result)
-figure.savefig("backtest-dashboard.png", dpi=150, bbox_inches="tight")
-plt.close(figure)
+from backtester.visualization.export import export_backtest_dashboard
+
+output_path = export_backtest_dashboard(
+    result,
+    "reports/backtest-dashboard.png",
+    dpi=150,
+)
 ```
+
+The image format is inferred from the output file extension. Missing parent
+directories are created automatically. Existing files are protected by
+default; pass `overwrite=True` to replace one intentionally. The exporter owns
+the figure it creates and always closes it, including when saving fails.
+
+Use `create_backtest_figure()` directly when the figure must be displayed or
+customized before saving. In that case, the caller continues to own displaying,
+saving, and closing the figure.
 
 ## Dashboard panels
 
@@ -139,6 +153,9 @@ Current limitations are:
 - [`test_visualization_dashboard.py`](../tests/test_visualization_dashboard.py)
   verifies panel assembly, legends, percentage formatting, shared time limits,
   series routing, layout calls, and empty results.
+- [`test_visualization_export.py`](../tests/test_visualization_export.py)
+  verifies file-path validation, parent-directory creation, overwrite
+  protection, save options, and figure cleanup.
 
 Return to the [project README](../README.md), see
 [Backtesting assumptions](../README.md#backtesting-assumptions), or review the

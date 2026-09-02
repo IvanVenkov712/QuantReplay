@@ -145,8 +145,17 @@ plt.show()
 plt.close(figure)
 ```
 
+To save the standard dashboard directly, including automatic figure cleanup:
+
+```python
+from backtester.visualization.export import export_backtest_dashboard
+
+export_backtest_dashboard(result, "reports/backtest-dashboard.png")
+```
+
 See [Visualization](docs/visualization.md) for panel definitions, marker timing,
-saving figures, composable chart helpers, ownership, limitations, and tests.
+saving and overwrite behavior, composable chart helpers, ownership,
+limitations, and tests.
 
 ## Backtesting assumptions
 
