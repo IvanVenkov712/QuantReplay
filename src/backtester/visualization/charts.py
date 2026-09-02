@@ -7,7 +7,7 @@ from matplotlib.axes import Axes
 from backtester.domain.trading import Side, Signal
 from backtester.engine.backtest_result import BacktestResult
 from backtester.visualization.series import equity_series, cash_series, drawdown_series, trade_marker_series, \
-    position_quantity_series, market_value_series, signal_marker_series
+    position_quantity_series, market_value_series, signal_marker_series, close_price_series
 
 
 def plot_series(
@@ -49,6 +49,11 @@ def plot_markers(
         color=color
     )
 
+
+def plot_close_prices(axes: Axes, result: BacktestResult) -> None:
+    transformer = lambda result: close_price_series(record.candle for record in result.records)
+
+    plot_series(axes, result, transformer, label="Close prices", color="tab:cyan")
 
 def plot_equity(axes: Axes, result: BacktestResult) -> None:
     """Plot total portfolio equity over time."""
