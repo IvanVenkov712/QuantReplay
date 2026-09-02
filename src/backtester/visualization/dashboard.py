@@ -16,26 +16,33 @@ def populate_price_panel(axes: Axes, result: BacktestResult) -> None:
     plot_trade_markers(axes, result, Side.BUY)
     plot_trade_markers(axes, result, Side.SELL)
     axes.set_title(label="Price")
+    axes.legend()
 
 def populate_portfolio_panel(axes: Axes, result: BacktestResult) -> None:
     plot_equity(axes, result)
     plot_cash(axes, result)
     plot_market_value(axes, result)
     axes.set_title(label="Portfolio")
+    axes.legend()
+
 
 def populate_position_panel(axes: Axes, result: BacktestResult) -> None:
     plot_position_quantity(axes, result)
     axes.set_title(label="Position")
+    axes.legend()
+
 
 def populate_risk_panel(axes: Axes, result: BacktestResult) -> None:
     plot_drawdown(axes, result)
     axes.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
     axes.set_title(label="Risk (Drawdown)")
+    axes.legend()
+
 
 
 def create_backtest_figure(result: BacktestResult) -> Figure:
     figure, (price_ax, portfolio_ax, position_ax, risk_ax) = plt.subplots(4, 1, figsize=(10, 20))
-    populate_risk_panel(price_ax, result)
+    populate_price_panel(price_ax, result)
     populate_portfolio_panel(portfolio_ax, result)
     populate_position_panel(position_ax, result)
     populate_risk_panel(risk_ax, result)
