@@ -129,8 +129,15 @@ and adverse slippage when checking how many shares fit within the budget.
 
 The Python API can turn a completed `BacktestResult` into a four-panel
 Matplotlib dashboard containing prices with signals and fills, portfolio
-equity/cash/market value, position quantity, and drawdown. The CLI currently
-prints reports only; it does not automatically open or save this figure.
+equity/cash/market value, position quantity, and drawdown. The `backtest`
+command can save this dashboard directly:
+
+```powershell
+python -m backtester.cli backtest --chart reports/backtest-dashboard.png
+```
+
+The path can also be stored as `chart = "reports/backtest-dashboard.png"`
+under `[backtest]` in the TOML configuration.
 
 Given an already configured `BacktestEngine` named `engine`:
 

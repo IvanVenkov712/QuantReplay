@@ -41,6 +41,7 @@ def test_load_config_accepts_supported_sections_and_types(tmp_path: Path) -> Non
 symbol = "AAPL"
 years = 3
 initial_capital = 25000.0
+chart = "reports/backtest.png"
 buffer_rate = 0.05
 slippage_rate = 0.001
 
@@ -54,6 +55,7 @@ benchmark = "rsi"
             "symbol": "AAPL",
             "years": 3,
             "initial_capital": 25_000.0,
+            "chart": "reports/backtest.png",
             "buffer_rate": 0.05,
             "slippage_rate": 0.001,
         },
@@ -63,7 +65,11 @@ benchmark = "rsi"
 
 def test_config_to_cli_arguments_uses_compare_section_only_for_compare() -> None:
     config = {
-        "backtest": {"symbol": "AAPL", "years": 3},
+        "backtest": {
+            "symbol": "AAPL",
+            "years": 3,
+            "chart": "reports/backtest.png",
+        },
         "compare": {"benchmark": "rsi"},
     }
 
@@ -72,6 +78,8 @@ def test_config_to_cli_arguments_uses_compare_section_only_for_compare() -> None
         "AAPL",
         "--years",
         "3",
+        "--chart",
+        "reports/backtest.png",
     ]
     assert config_to_cli_arguments(config, "compare") == [
         "--symbol",
@@ -89,6 +97,7 @@ def test_config_to_cli_arguments_uses_compare_section_only_for_compare() -> None
         ("[unknown]\nvalue = 1\n", "Unknown configuration section"),
         ("[backtest]\nsymbl = 'SPY'\n", "Unknown option.*symbl"),
         ("[backtest]\nyears = 'five'\n", "years.*must be an integer"),
+        ("[backtest]\nchart = 123\n", "chart.*must be a string"),
         ("backtest = 'not a table'\n", "must be a table"),
     ],
 )

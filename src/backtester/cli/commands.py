@@ -17,6 +17,7 @@ from backtester.metrics.benchmark_comparison import get_differences
 from backtester.portfolio.portfolio import Portfolio
 from backtester.sizing.policy import SizingPlan
 from backtester.strategies.base import Strategy
+from backtester.visualization.export import export_backtest_dashboard
 
 
 def run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
@@ -43,6 +44,11 @@ def run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
     )
     reporting.print_metrics(output, "Performance metrics", metrics)
     reporting.print_rejected_orders(output, "Rejected orders", result)
+
+    if args.chart_path is not None:
+        chart_path = export_backtest_dashboard(result, args.chart_path)
+        print(file=output)
+        print(f"Chart saved to: {chart_path}", file=output)
 
 
 def run_compare_command(args: argparse.Namespace, output: TextIO) -> None:

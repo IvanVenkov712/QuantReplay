@@ -82,6 +82,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_arguments(backtest_parser)
     _add_strategy_arguments(backtest_parser)
+    backtest_parser.add_argument(
+        "--chart",
+        dest="chart_path",
+        type=Path,
+        help="Save the backtest dashboard to this image path.",
+    )
     backtest_parser.set_defaults(command="backtest")
 
     compare_parser = subparsers.add_parser(

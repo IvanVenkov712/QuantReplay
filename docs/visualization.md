@@ -5,9 +5,15 @@ QuantReplay provides a Matplotlib API for inspecting a completed
 engine: chart code consumes recorded results and cannot influence strategy
 signals, executions, or portfolio accounting.
 
-The command-line interface currently prints parameter and metric reports. It
-does not automatically display or save charts, so visualization is used from
-Python after calling `BacktestEngine.run()`.
+The `backtest` command can save the dashboard without opening an interactive
+window:
+
+```powershell
+python -m backtester.cli backtest --chart reports/backtest-dashboard.png
+```
+
+The Python API can also create, customize, and export figures directly after
+calling `BacktestEngine.run()`.
 
 ## Create the dashboard
 
@@ -142,7 +148,7 @@ Current limitations are:
 - price rendering uses closing-price lines rather than OHLC candlesticks;
 - volume is not plotted;
 - rejected order attempts are not plotted;
-- the CLI has no chart display or output option.
+- the CLI saves charts but does not display them interactively.
 
 ## Test coverage
 

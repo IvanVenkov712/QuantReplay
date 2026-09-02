@@ -62,6 +62,17 @@ Run with custom parameters:
 python -m backtester.cli backtest --strategy simple-moving-average --short-window 10 --long-window 40 --symbol AAPL --years 3 --initial-capital 25000 --sizing percent --buy-percent 0.5 --sell-percent 1 --commission-model proportional --commission-rate 0.001 --slippage-rate 0.0005
 ```
 
+Save the four-panel backtest dashboard to an image file:
+
+```powershell
+python -m backtester.cli backtest --symbol AAPL --chart reports/aapl-backtest.png
+```
+
+`--chart PATH` is available only for `backtest`. The image format is inferred
+from the path extension, missing parent directories are created, and an
+existing file is not overwritten. It can also be set as `chart = "PATH"` in
+the configuration file's `[backtest]` table.
+
 Output uses the format `label: result`. The dates and metric values below are
 illustrative:
 

@@ -11,6 +11,8 @@ years = 5
 source = "csv"
 csv_path = "data/SPY.csv"
 initial_capital = 10000.0
+# Optionally save the backtest dashboard. The file must not already exist.
+# chart = "reports/backtest-dashboard.png"
 
 sizing = "percent"
 buy_percent = 0.5

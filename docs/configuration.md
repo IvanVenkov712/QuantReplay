@@ -40,9 +40,9 @@ fall back to normal application defaults. A missing explicitly named file is
 an error; this prevents a misspelled explicit path from being silently
 ignored.
 
-Relative paths, including `csv_path`, are interpreted from the current working
-directory. They are not interpreted relative to the package installation or
-to the custom configuration file.
+Relative paths, including `csv_path` and `chart`, are interpreted from the
+current working directory. They are not interpreted relative to the package
+installation or to the custom configuration file.
 
 The repository includes
 [`quantreplay.example.toml`](../quantreplay.example.toml). Copy it to
@@ -61,6 +61,7 @@ years = 3
 source = "csv"
 csv_path = "data/AAPL.csv"
 initial_capital = 25000.0
+chart = "reports/aapl-backtest.png"
 
 sizing = "percent"
 buy_percent = 0.5
@@ -81,11 +82,13 @@ benchmark = "buy-and-hold"
 
 ### The `[backtest]` table
 
-`[backtest]` contains all settings shared by both commands, including the
-strategy under test. Consequently, `compare` uses the same data, portfolio,
-execution, and strategy settings as `backtest`. Strategy parameters are shared
-between the strategy and benchmark; there are no benchmark-specific window or
-threshold keys.
+`[backtest]` contains the settings for a single backtest and the settings
+shared by both commands, including the strategy under test. Consequently,
+`compare` uses the same data, portfolio, execution, and strategy settings as
+`backtest`. The `chart` setting is the exception: it applies only to
+`backtest`, because `compare` does not yet provide a comparison chart.
+Strategy parameters are shared between the strategy and benchmark; there are
+no benchmark-specific window or threshold keys.
 
 Supported keys are:
 
@@ -93,6 +96,7 @@ Supported keys are:
 | --- | --- |
 | Data and period | `symbol`, `years`, `start`, `end`, `source`, `csv_path` |
 | Portfolio | `initial_capital` |
+| Output | `chart` |
 | Position sizing | `sizing`, `buy_size`, `sell_size`, `buy_percent`, `sell_percent`, `buffer_rate` |
 | Execution costs | `commission_model`, `fixed_commission`, `commission_rate`, `slippage_rate` |
 | Strategy selection | `strategy` |
@@ -129,6 +133,10 @@ Strings and dates must be quoted. Integer settings such as `years` and
 accept TOML integers or floating-point numbers.
 
 Rates are decimal fractions. For example, `0.001` means `0.1%`, not `0.001%`.
+
+`chart` is a quoted output path whose extension selects the image format. Its
+parent directories are created automatically, and an existing file is not
+overwritten. It is equivalent to passing `--chart PATH` to `backtest`.
 
 ## Validation and related settings
 

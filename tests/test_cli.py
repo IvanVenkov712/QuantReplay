@@ -74,6 +74,15 @@ def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
     assert args.strategy == "moving-average"
     assert args.short_window == DEFAULT_SHORT_WINDOW
     assert args.long_window == DEFAULT_LONG_WINDOW
+    assert args.chart_path is None
+
+
+def test_parse_args_accepts_backtest_chart_path() -> None:
+    chart_path = Path("reports/backtest.png")
+
+    args = parse_args(["backtest", "--chart", str(chart_path)])
+
+    assert args.chart_path == chart_path
 
 
 def test_parse_args_loads_explicit_toml_configuration(tmp_path: Path) -> None:
@@ -84,6 +93,7 @@ def test_parse_args_loads_explicit_toml_configuration(tmp_path: Path) -> None:
 symbol = "AAPL"
 years = 3
 initial_capital = 25000.0
+chart = "reports/from-config.png"
 sizing = "fixed"
 buy_size = 4
 sell_size = 2
@@ -103,6 +113,7 @@ rsi_max = 75.0
     assert args.symbol == "AAPL"
     assert args.years == 3
     assert args.initial_capital == 25_000
+    assert args.chart_path == Path("reports/from-config.png")
     assert args.sizing == "fixed"
     assert args.buy_size == 4
     assert args.sell_size == 2
@@ -126,6 +137,7 @@ def test_cli_options_override_toml_and_toml_overrides_defaults(
 symbol = "AAPL"
 years = 3
 initial_capital = 25000.0
+chart = "reports/from-config.png"
 """,
     )
 
@@ -137,12 +149,15 @@ initial_capital = 25000.0
             "MSFT",
             "--years",
             "2",
+            "--chart",
+            "reports/from-cli.png",
         ]
     )
 
     assert args.symbol == "MSFT"  # CLI beats TOML.
     assert args.years == 2  # CLI beats TOML.
     assert args.initial_capital == 25_000  # TOML beats the code default.
+    assert args.chart_path == Path("reports/from-cli.png")  # CLI beats TOML.
     assert args.strategy == "moving-average"  # No CLI/TOML value: code default.
 
 
@@ -839,6 +854,44 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
     assert "Number of trades: 1" in captured.out
 
 
+def test_main_exports_backtest_chart_to_requested_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+    chart_path = tmp_path / "reports" / "backtest.png"
+    export_dashboard = Mock(return_value=chart_path)
+    monkeypatch.setattr(commands, "export_backtest_dashboard", export_dashboard)
+
+    exit_code = main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-03",
+            "--strategy",
+            "buy-and-hold",
+            "--chart",
+            str(chart_path),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert f"Chart saved to: {chart_path}" in captured.out
+    export_dashboard.assert_called_once()
+    exported_result, exported_path = export_dashboard.call_args.args
+    assert isinstance(exported_result, BacktestResult)
+    assert exported_path == chart_path
+
+
 @pytest.mark.parametrize("timestamp_column", ["timestamp", "datetime"])
 def test_main_accepts_supported_csv_timestamp_aliases(
     timestamp_column: str,
@@ -882,9 +935,13 @@ def test_main_accepts_supported_csv_timestamp_aliases(
 
 def test_main_runs_backtest_using_toml_configuration(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     csv_path = (FIXTURES_DIR / "cli_two_candles.csv").as_posix()
+    chart_path = tmp_path / "reports" / "backtest.png"
+    export_dashboard = Mock(return_value=chart_path)
+    monkeypatch.setattr(commands, "export_backtest_dashboard", export_dashboard)
     config_path = _write_config(
         tmp_path,
         f"""
@@ -896,6 +953,7 @@ start = "2024-01-01"
 end = "2024-01-03"
 strategy = "buy-and-hold"
 initial_capital = 10000.0
+chart = "{chart_path.as_posix()}"
 """,
     )
 
@@ -907,6 +965,11 @@ initial_capital = 10000.0
     assert "Strategy: BuyAndHoldStrategy" in captured.out
     assert "Asset: AAPL" in captured.out
     assert "Total return: 10.00%" in captured.out
+    assert f"Chart saved to: {chart_path}" in captured.out
+    export_dashboard.assert_called_once()
+    exported_result, exported_path = export_dashboard.call_args.args
+    assert isinstance(exported_result, BacktestResult)
+    assert exported_path == chart_path
 
 
 def test_main_wires_toml_sizing_buffer_and_execution_costs(

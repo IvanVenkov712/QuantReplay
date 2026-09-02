@@ -18,6 +18,7 @@ _STRING_OPTIONS = {
     "end",
     "source",
     "csv_path",
+    "chart",
     "sizing",
     "commission_model",
     "strategy",
@@ -51,6 +52,7 @@ _SECTION_OPTIONS = {
     "backtest": _BACKTEST_OPTIONS,
     "compare": {"benchmark"},
 }
+_BACKTEST_ONLY_OPTIONS = {"chart"}
 # ``buffer_rate`` modifies buy quantity resolution after the base sizing
 # instruction is selected, so it deliberately has no selector dependency.
 _SELECTOR_DEPENDENCIES = {
@@ -106,6 +108,8 @@ def config_to_cli_arguments(
 
     options = dict(config.get("backtest", {}))
     if command == "compare":
+        for name in _BACKTEST_ONLY_OPTIONS:
+            options.pop(name, None)
         options.update(config.get("compare", {}))
 
     # If the CLI changes a selector, dependent TOML values for the old choice
