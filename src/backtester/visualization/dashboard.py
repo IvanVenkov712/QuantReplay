@@ -1,3 +1,5 @@
+"""Build a four-panel Matplotlib dashboard from a completed backtest."""
+
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -10,6 +12,7 @@ from backtester.visualization.charts import plot_close_prices, plot_signal_marke
 
 
 def populate_price_panel(axes: Axes, result: BacktestResult) -> None:
+    """Plot closes, close-time signals, and fill-time trades with a legend."""
     plot_close_prices(axes, result)
     plot_signal_markers(axes, result, Signal.BUY)
     plot_signal_markers(axes, result, Signal.SELL)
@@ -18,7 +21,9 @@ def populate_price_panel(axes: Axes, result: BacktestResult) -> None:
     axes.set_title(label="Price")
     axes.legend()
 
+
 def populate_portfolio_panel(axes: Axes, result: BacktestResult) -> None:
+    """Plot total equity, cash, and invested market value with a legend."""
     plot_equity(axes, result)
     plot_cash(axes, result)
     plot_market_value(axes, result)
@@ -27,12 +32,14 @@ def populate_portfolio_panel(axes: Axes, result: BacktestResult) -> None:
 
 
 def populate_position_panel(axes: Axes, result: BacktestResult) -> None:
+    """Plot the result symbol's held quantity with a legend."""
     plot_position_quantity(axes, result)
     axes.set_title(label="Position")
     axes.legend()
 
 
 def populate_risk_panel(axes: Axes, result: BacktestResult) -> None:
+    """Plot fractional portfolio drawdown on a percentage-formatted axis."""
     plot_drawdown(axes, result)
     axes.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
     axes.set_title(label="Risk (Drawdown)")
@@ -40,6 +47,11 @@ def populate_risk_panel(axes: Axes, result: BacktestResult) -> None:
 
 
 def create_backtest_figure(result: BacktestResult) -> Figure:
+    """Return a formatted price, portfolio, position, and risk dashboard.
+
+    The panels share a time axis. The returned figure is not displayed, saved,
+    or closed; those lifecycle operations remain the caller's responsibility.
+    """
     figure, (price_ax, portfolio_ax, position_ax, risk_ax) = plt.subplots(
         4,
         1,

@@ -6,7 +6,8 @@ a backtesting engine, strategies, portfolio accounting, trade execution, and
 performance metrics fit together without hiding the core logic inside a large
 external framework.
 
-It is an educational project, not a live trading bot or investment advice yet.
+It is an educational project, not a live trading bot, and does not provide
+investment advice.
 
 ## Features
 
@@ -21,6 +22,7 @@ QuantReplay can:
 - track cash, positions, trades, orders, and portfolio value;
 - calculate return, volatility, Sharpe ratio, drawdown, and trade metrics;
 - compare a strategy against a benchmark on the same market data;
+- visualize prices, signals, fills, portfolio state, positions, and drawdown;
 - configure CLI runs from TOML with explicit CLI-over-file precedence.
 
 ## Installation
@@ -33,8 +35,8 @@ python -m pip install -e .
 ```
 
 This installs the package and its runtime dependencies (`pandas`,
-`typing-extensions`, and `yfinance`). Editable mode makes changes under `src`
-available without reinstalling the package.
+`typing-extensions`, `yfinance`, and `matplotlib`). Editable mode makes changes
+under `src` available without reinstalling the package.
 
 For development, install the optional test dependencies as well:
 
@@ -123,6 +125,29 @@ When configured, `BufferQuantityResolver` wraps the base `QuantityResolver`.
 Both use the same `BuyQuantityCapper`, which includes configured commission
 and adverse slippage when checking how many shares fit within the budget.
 
+## Visualization
+
+The Python API can turn a completed `BacktestResult` into a four-panel
+Matplotlib dashboard containing prices with signals and fills, portfolio
+equity/cash/market value, position quantity, and drawdown. The CLI currently
+prints reports only; it does not automatically open or save this figure.
+
+Given an already configured `BacktestEngine` named `engine`:
+
+```python
+from matplotlib import pyplot as plt
+
+from backtester.visualization.dashboard import create_backtest_figure
+
+result = engine.run()
+figure = create_backtest_figure(result)
+plt.show()
+plt.close(figure)
+```
+
+See [Visualization](docs/visualization.md) for panel definitions, marker timing,
+saving figures, composable chart helpers, ownership, limitations, and tests.
+
 ## Backtesting assumptions
 
 The engine separates signal generation from execution to avoid look-ahead
@@ -202,6 +227,8 @@ limit, it displays the rejection count without listing every order.
   signals, warm-up behavior, parameters, and CLI examples
 - [Market data](docs/data.md): Yahoo Finance behavior, CSV format, and validation
 - [Performance metrics](docs/metrics.md): formulas, interpretations, and edge cases
+- [Visualization](docs/visualization.md): dashboard panels, signal and fill
+  timing, figure output, composition, limitations, and tests
 
 ## Running tests
 

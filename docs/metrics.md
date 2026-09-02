@@ -91,9 +91,11 @@ strategy made; positive is not inherently better.
   zero-sized orders are not trades.
 - The library-level annualized-return calculation can overflow for extreme
   growth over a very short elapsed interval.
-- Library callers can construct a zero-cash, zero-position portfolio even
-  though the CLI requires positive initial capital. Maximum drawdown is not
-  defined safely when its first recorded portfolio value is zero.
+- When the running portfolio peak is zero, maximum drawdown is defined as
+  `0.0` because a percentage loss cannot be measured from a zero-valued peak.
+  Once a positive peak exists, subsequent observations use the normal
+  `value / running_peak - 1` calculation. The visualization drawdown series
+  uses the same convention.
 
 Return to the [project README](../README.md) or see the
 [CLI reference](cli.md).

@@ -14,9 +14,6 @@ not in this backlog.
 - [ ] Prevent annualized-return overflow for extreme growth over very short
   elapsed intervals. Prefer a log-space calculation with an explicit infinity
   or `N/A` policy.
-- [ ] Define maximum drawdown when the running peak is zero. The library permits
-  a zero-value portfolio even though the CLI requires positive initial capital.
-
 ## Engine and public API
 
 - [ ] Validate that `Strategy.on_candle()` returns a `Signal`; invalid values
