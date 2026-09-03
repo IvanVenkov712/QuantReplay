@@ -165,6 +165,8 @@ Number of trades                     4           1            3
 - `--end`: exclusive end date in `YYYY-MM-DD` format
 - `--source`: `yfinance` or `csv`, default `yfinance`
 - `--csv-path`: CSV file or directory used with `--source csv`
+- `--csv-period-anchor`: no-date CSV behavior: `start-csv` (default),
+  `end-today`, or `end-csv`
 - `--initial-capital`: starting cash, default `10000`
 - `--sizing`: `all-in-all-out`, `fixed`, or `percent`, default `all-in-all-out`
 - `--buy-size`: positive whole-share quantity required with `--sizing fixed`
@@ -183,13 +185,21 @@ excluded. Date boundaries are resolved consistently as follows:
 | Supplied dates | Resolution |
 | --- | --- |
 | Neither date, Yahoo Finance | `end = today`, `start = end - years` |
-| Neither date, CSV | `start = first CSV candle for the selected symbol`, `end = start + years` |
+| Neither date, CSV with `start-csv` | `start = first CSV candle for the selected symbol`, `end = start + years` |
+| Neither date, CSV with `end-today` | `end = today`, `start = end - years` |
+| Neither date, CSV with `end-csv` | `end = day after the selected symbol's last CSV candle`, `start = end - years` |
 | Only `--end` | `start = end - years` |
 | Only `--start` | `end = start + years` |
 | Both dates | Use both; `years` is not applied |
 
 Adding or subtracting calendar years preserves the month and day. February 29
 is adjusted to February 28 when the resulting year is not a leap year.
+
+`--csv-period-anchor` applies only to CSV runs where neither date is supplied.
+If either date is explicit, the general missing-boundary rule takes priority.
+The parameter report states whether the configured CSV anchor was applied.
+Because the requested end is exclusive, `end-csv` sets that boundary to the
+calendar day after the final CSV candle so that the final candle is included.
 
 The report distinguishes the requested range from the first and last candles
 actually returned by the data source and states how the years parameter was

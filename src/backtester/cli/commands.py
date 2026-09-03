@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date
+from datetime import date, timedelta
 from typing import Sequence, TextIO
 
 from backtester.cli import factories, reporting
@@ -43,6 +43,8 @@ def run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
         end=end,
         years=args.years,
         years_note=_describe_years_application(args),
+        csv_period_anchor=_reported_csv_period_anchor(args),
+        csv_period_anchor_applied=_csv_period_anchor_is_applied(args),
         result=result,
         data_source_name=reporting.describe_data_source(args),
         initial_capital=args.initial_capital,
@@ -110,6 +112,8 @@ def run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         end=end,
         years=args.years,
         years_note=_describe_years_application(args),
+        csv_period_anchor=_reported_csv_period_anchor(args),
+        csv_period_anchor_applied=_csv_period_anchor_is_applied(args),
         result=strategy_result,
         data_source_name=reporting.describe_data_source(args),
         initial_capital=args.initial_capital,
@@ -249,7 +253,16 @@ def _resolve_command_date_range(
         and args.end is None
         and isinstance(data_source, CSVDataSource)
     ):
-        source_start = data_source.first_available_date(args.symbol)
+        if args.csv_period_anchor == "start-csv":
+            source_start = data_source.first_available_date(args.symbol)
+        elif args.csv_period_anchor == "end-csv":
+            last_date = data_source.last_available_date(args.symbol)
+            exclusive_end = last_date + timedelta(days=1)
+            return resolve_date_range(
+                args.start,
+                exclusive_end.isoformat(),
+                args.years,
+            )
 
     return resolve_date_range(args.start, args.end, args.years, source_start)
 
@@ -261,9 +274,21 @@ def _describe_years_application(args: argparse.Namespace) -> str:
         return "used to derive end"
     if args.end is not None:
         return "used to derive start"
-    if args.source == "csv":
+    if args.source == "csv" and args.csv_period_anchor == "start-csv":
         return "used to derive end from CSV start"
+    if args.source == "csv" and args.csv_period_anchor == "end-csv":
+        return "used to derive start from CSV end"
     return "used to derive start from today's end"
+
+
+def _reported_csv_period_anchor(args: argparse.Namespace) -> str | None:
+    if args.source != "csv":
+        return None
+    return args.csv_period_anchor
+
+
+def _csv_period_anchor_is_applied(args: argparse.Namespace) -> bool:
+    return args.source == "csv" and args.start is None and args.end is None
 
 
 def _validate_backtest_data(candles: Sequence[Candle]) -> None:

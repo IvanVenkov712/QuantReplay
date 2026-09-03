@@ -100,6 +100,11 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
         "Years parameter: 5 (not applied because start and end were provided)"
         in captured.out
     )
+    assert (
+        "CSV period anchor: start-csv "
+        "(not applied because a date boundary was provided)"
+        in captured.out
+    )
     assert f"Data source: CSVDataSource({csv_path})" in captured.out
     assert "Initial capital: 10,000.00" in captured.out
     assert "Position sizing: all-in-all-out" in captured.out
@@ -325,6 +330,85 @@ def test_main_anchors_undated_csv_period_to_first_available_candle(
     )
     assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
     assert "Years parameter: 1 (used to derive end from CSV start)" in captured.out
+    assert "CSV period anchor: start-csv (applied)" in captured.out
+
+
+def test_main_can_anchor_undated_csv_period_to_today(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    class FixedDate(date):
+        @classmethod
+        def today(cls) -> "FixedDate":
+            return cls(2024, 1, 3)
+
+    monkeypatch.setattr(commands, "date", FixedDate)
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--csv-period-anchor",
+            "end-today",
+            "--years",
+            "1",
+            "--strategy",
+            "buy-and-hold",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert (
+        "Requested period: 2023-01-03 (inclusive) to 2024-01-03 (exclusive)"
+        in captured.out
+    )
+    assert (
+        "Years parameter: 1 (used to derive start from today's end)"
+        in captured.out
+    )
+    assert "CSV period anchor: end-today (applied)" in captured.out
+
+
+def test_main_can_anchor_undated_csv_period_to_final_candle(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--csv-period-anchor",
+            "end-csv",
+            "--years",
+            "1",
+            "--strategy",
+            "buy-and-hold",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert (
+        "Requested period: 2023-01-03 (inclusive) to 2024-01-03 (exclusive)"
+        in captured.out
+    )
+    assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
+    assert "Years parameter: 1 (used to derive start from CSV end)" in captured.out
+    assert (
+        "CSV period anchor: end-csv (applied; final CSV candle included)"
+        in captured.out
+    )
 
 
 def test_main_wires_toml_sizing_buffer_and_execution_costs(

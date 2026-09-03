@@ -72,6 +72,15 @@ class CSVDataSource(DataSource):
 
     def first_available_date(self, symbol: str) -> date:
         """Return the earliest CSV candle date available for one symbol."""
+        first_date, _ = self.__available_date_range(symbol)
+        return first_date
+
+    def last_available_date(self, symbol: str) -> date:
+        """Return the latest CSV candle date available for one symbol."""
+        _, last_date = self.__available_date_range(symbol)
+        return last_date
+
+    def __available_date_range(self, symbol: str) -> tuple[date, date]:
         data = self.__read_symbol_data(symbol)
         if data.empty:
             raise ValueError(f"CSV data contains no rows for symbol: {symbol}.")
@@ -79,10 +88,11 @@ class CSVDataSource(DataSource):
         timestamp_column = find_timestamp_column(data)
         timestamps = pd.to_datetime(data[timestamp_column], errors="raise")
         first_timestamp = timestamps.min()
-        if pd.isna(first_timestamp):
+        last_timestamp = timestamps.max()
+        if pd.isna(first_timestamp) or pd.isna(last_timestamp):
             raise ValueError("CSV data must contain at least one valid timestamp.")
 
-        return first_timestamp.date()
+        return first_timestamp.date(), last_timestamp.date()
 
     def __read_symbol_data(self, symbol: str) -> DataFrame:
         data = normalize_column_names(pd.read_csv(self.__resolve_csv_path(symbol)))

@@ -18,6 +18,7 @@ from backtester.config import (
 
 DEFAULT_SYMBOL = "SPY"
 DEFAULT_YEARS = 5
+DEFAULT_CSV_PERIOD_ANCHOR = "start-csv"
 DEFAULT_INITIAL_CAPITAL = 10_000.0
 DEFAULT_SHORT_WINDOW = 20
 DEFAULT_LONG_WINDOW = 50
@@ -39,6 +40,7 @@ STRATEGY_CHOICES = (
     "rsi",
     "mean-reversion",
 )
+CSV_PERIOD_ANCHOR_CHOICES = ("start-csv", "end-today", "end-csv")
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -155,6 +157,17 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--csv-path",
         type=Path,
         help="CSV file or directory used when --source csv is selected.",
+    )
+    parser.add_argument(
+        "--csv-period-anchor",
+        choices=CSV_PERIOD_ANCHOR_CHOICES,
+        default=DEFAULT_CSV_PERIOD_ANCHOR,
+        help=(
+            "No-date CSV period behavior: start-csv derives the end from the "
+            "selected symbol's first candle; end-today derives the start from "
+            "today; end-csv derives the start from the selected symbol's last "
+            f"candle. Default: {DEFAULT_CSV_PERIOD_ANCHOR}."
+        ),
     )
     parser.add_argument(
         "--initial-capital",

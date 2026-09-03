@@ -40,6 +40,8 @@ def print_parameters(
     end: str,
     years: int,
     years_note: str,
+    csv_period_anchor: str | None,
+    csv_period_anchor_applied: bool,
     result: BacktestResult,
     data_source_name: str,
     initial_capital: float,
@@ -59,6 +61,17 @@ def print_parameters(
     )
     _print_data_period(output, result)
     print(f"Years parameter: {years} ({years_note})", file=output)
+    if csv_period_anchor is not None:
+        if csv_period_anchor_applied and csv_period_anchor == "end-csv":
+            anchor_note = "applied; final CSV candle included"
+        elif csv_period_anchor_applied:
+            anchor_note = "applied"
+        else:
+            anchor_note = "not applied because a date boundary was provided"
+        print(
+            f"CSV period anchor: {csv_period_anchor} ({anchor_note})",
+            file=output,
+        )
     print(f"Data source: {data_source_name}", file=output)
     print(f"Initial capital: {_format_money(initial_capital)}", file=output)
     print(f"Position sizing: {sizing_name}", file=output)

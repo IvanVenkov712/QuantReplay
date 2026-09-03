@@ -67,10 +67,13 @@ Example command:
 python -m backtester.cli backtest --source csv --csv-path data/SPY.csv --symbol SPY --start 2024-01-01 --end 2025-01-01
 ```
 
-When neither `--start` nor `--end` is supplied, the requested period begins at
-the first CSV candle for the selected symbol and ends `--years` calendar years
-later. Explicit date boundaries follow the common resolution rules documented
-in the [CLI reference](cli.md#common-options).
+When neither `--start` nor `--end` is supplied, `--csv-period-anchor` selects
+one of three behaviors. Its default, `start-csv`, begins at the first CSV candle
+for the selected symbol and ends `--years` calendar years later. `end-today`
+ends the period today, while `end-csv` includes the selected symbol's final CSV
+candle. Both end-anchored modes start `--years` calendar years before their
+exclusive end boundary. Explicit date boundaries follow the common resolution
+rules documented in the [CLI reference](cli.md#common-options).
 
 ## Validation and normalization
 

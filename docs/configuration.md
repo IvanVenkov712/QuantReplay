@@ -60,6 +60,7 @@ symbol = "AAPL"
 years = 3
 source = "csv"
 csv_path = "data/AAPL.csv"
+csv_period_anchor = "start-csv"
 initial_capital = 25000.0
 chart = "reports/aapl-backtest.png"
 
@@ -94,7 +95,7 @@ Supported keys are:
 
 | Group | Keys |
 | --- | --- |
-| Data and period | `symbol`, `years`, `start`, `end`, `source`, `csv_path` |
+| Data and period | `symbol`, `years`, `start`, `end`, `source`, `csv_path`, `csv_period_anchor` |
 | Portfolio | `initial_capital` |
 | Output | `chart` |
 | Position sizing | `sizing`, `buy_size`, `sell_size`, `buy_percent`, `sell_percent`, `buffer_rate` |

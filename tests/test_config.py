@@ -40,6 +40,7 @@ def test_load_config_accepts_supported_sections_and_types(tmp_path: Path) -> Non
 [backtest]
 symbol = "AAPL"
 years = 3
+csv_period_anchor = "end-today"
 initial_capital = 25000.0
 chart = "reports/backtest.png"
 buffer_rate = 0.05
@@ -54,6 +55,7 @@ benchmark = "rsi"
         "backtest": {
             "symbol": "AAPL",
             "years": 3,
+            "csv_period_anchor": "end-today",
             "initial_capital": 25_000.0,
             "chart": "reports/backtest.png",
             "buffer_rate": 0.05,
@@ -68,6 +70,7 @@ def test_config_to_cli_arguments_uses_compare_section_only_for_compare() -> None
         "backtest": {
             "symbol": "AAPL",
             "years": 3,
+            "csv_period_anchor": "start-csv",
             "chart": "reports/backtest.png",
         },
         "compare": {"benchmark": "rsi"},
@@ -78,6 +81,8 @@ def test_config_to_cli_arguments_uses_compare_section_only_for_compare() -> None
         "AAPL",
         "--years",
         "3",
+        "--csv-period-anchor",
+        "start-csv",
         "--chart",
         "reports/backtest.png",
     ]
@@ -86,6 +91,8 @@ def test_config_to_cli_arguments_uses_compare_section_only_for_compare() -> None
         "AAPL",
         "--years",
         "3",
+        "--csv-period-anchor",
+        "start-csv",
         "--benchmark",
         "rsi",
     ]
@@ -97,6 +104,10 @@ def test_config_to_cli_arguments_uses_compare_section_only_for_compare() -> None
         ("[unknown]\nvalue = 1\n", "Unknown configuration section"),
         ("[backtest]\nsymbl = 'SPY'\n", "Unknown option.*symbl"),
         ("[backtest]\nyears = 'five'\n", "years.*must be an integer"),
+        (
+            "[backtest]\ncsv_period_anchor = 1\n",
+            "csv_period_anchor.*must be a string",
+        ),
         ("[backtest]\nchart = 123\n", "chart.*must be a string"),
         ("backtest = 'not a table'\n", "must be a table"),
     ],

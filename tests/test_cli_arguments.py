@@ -5,6 +5,7 @@ import pytest
 from backtester.cli.arguments import (
     DEFAULT_COMMISSION_MODEL,
     DEFAULT_CONFIG_PATH,
+    DEFAULT_CSV_PERIOD_ANCHOR,
     DEFAULT_INITIAL_CAPITAL,
     DEFAULT_LONG_WINDOW,
     DEFAULT_SHORT_WINDOW,
@@ -24,6 +25,7 @@ def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
     assert args.symbol == DEFAULT_SYMBOL
     assert args.years == DEFAULT_YEARS
     assert args.source == "yfinance"
+    assert args.csv_period_anchor == DEFAULT_CSV_PERIOD_ANCHOR
     assert args.initial_capital == DEFAULT_INITIAL_CAPITAL
     assert args.sizing == DEFAULT_SIZING
     assert args.buy_size is None
@@ -49,6 +51,31 @@ def test_parse_args_accepts_backtest_chart_path() -> None:
     assert args.chart_path == chart_path
 
 
+@pytest.mark.parametrize("anchor", ["start-csv", "end-today", "end-csv"])
+def test_parse_args_accepts_csv_period_anchor(anchor: str) -> None:
+    args = parse_args(["--csv-period-anchor", anchor])
+
+    assert args.csv_period_anchor == anchor
+
+
+def test_cli_csv_period_anchor_overrides_toml(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        '[backtest]\ncsv_period_anchor = "start-csv"\n',
+    )
+
+    args = parse_args(
+        [
+            "--config",
+            str(config_path),
+            "--csv-period-anchor",
+            "end-today",
+        ]
+    )
+
+    assert args.csv_period_anchor == "end-today"
+
+
 def test_parse_args_loads_explicit_toml_configuration(tmp_path: Path) -> None:
     config_path = _write_config(
         tmp_path,
@@ -56,6 +83,7 @@ def test_parse_args_loads_explicit_toml_configuration(tmp_path: Path) -> None:
 [backtest]
 symbol = "AAPL"
 years = 3
+csv_period_anchor = "end-today"
 initial_capital = 25000.0
 chart = "reports/from-config.png"
 sizing = "fixed"
@@ -76,6 +104,7 @@ rsi_max = 75.0
     assert args.config == config_path
     assert args.symbol == "AAPL"
     assert args.years == 3
+    assert args.csv_period_anchor == "end-today"
     assert args.initial_capital == 25_000
     assert args.chart_path == Path("reports/from-config.png")
     assert args.sizing == "fixed"

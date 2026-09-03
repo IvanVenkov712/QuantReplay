@@ -203,6 +203,25 @@ def test_csv_data_source_finds_first_available_date_for_selected_symbol(
     assert first_date == date(2024, 1, 2)
 
 
+def test_csv_data_source_finds_last_available_date_for_selected_symbol(
+    tmp_path: Path,
+) -> None:
+    csv_path = tmp_path / "prices.csv"
+    write_csv(
+        csv_path,
+        """
+        date,symbol,open,high,low,close,volume
+        2024-01-02,AAPL,100,105,99,104,1000
+        2024-01-03,AAPL,104,108,103,107,1200
+        2025-01-03,MSFT,200,205,198,204,800
+        """,
+    )
+
+    last_date = CSVDataSource(csv_path).last_available_date("AAPL")
+
+    assert last_date == date(2024, 1, 3)
+
+
 def test_csv_data_source_rejects_first_date_lookup_for_missing_symbol(
     tmp_path: Path,
 ) -> None:
@@ -217,6 +236,9 @@ def test_csv_data_source_rejects_first_date_lookup_for_missing_symbol(
 
     with pytest.raises(ValueError, match="no rows for symbol: MSFT"):
         CSVDataSource(csv_path).first_available_date("MSFT")
+
+    with pytest.raises(ValueError, match="no rows for symbol: MSFT"):
+        CSVDataSource(csv_path).last_available_date("MSFT")
 
 
 def test_csv_data_source_rejects_missing_ohlcv_columns(tmp_path: Path) -> None:

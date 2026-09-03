@@ -18,6 +18,7 @@ _STRING_OPTIONS = {
     "end",
     "source",
     "csv_path",
+    "csv_period_anchor",
     "chart",
     "sizing",
     "commission_model",
