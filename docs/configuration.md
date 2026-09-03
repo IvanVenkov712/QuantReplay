@@ -86,7 +86,9 @@ benchmark = "buy-and-hold"
 `[backtest]` contains the settings for a single backtest and the settings
 shared by both commands, including the strategy under test. Consequently,
 `compare` uses the same data, portfolio, execution, and strategy settings as
-`backtest`. The `chart` setting is the exception: it applies only to
+`backtest`. Position sizing applies to the strategy run; the benchmark always
+uses all-in/all-out while retaining the configured cash buffer. The `chart`
+setting is the other exception: it applies only to
 `backtest`, because `compare` does not yet provide a comparison chart.
 Strategy parameters are shared between the strategy and benchmark; there are
 no benchmark-specific window or threshold keys.

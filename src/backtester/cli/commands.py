@@ -91,7 +91,7 @@ def run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         candles=candles,
         symbol=args.symbol,
         initial_capital=args.initial_capital,
-        sizing_plan=factories.create_sizing_plan(args),
+        sizing_plan=factories.create_all_in_all_out_sizing_plan(),
         execution_model=factories.create_execution_model(args),
         commission_model=factories.create_commission_model(args),
         buffer_rate=args.buffer_rate,
@@ -118,6 +118,7 @@ def run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         data_source_name=reporting.describe_data_source(args),
         initial_capital=args.initial_capital,
         sizing_name=reporting.describe_sizing(args),
+        benchmark_sizing_name=reporting.describe_all_in_all_out_sizing(args),
         commission_name=reporting.describe_commission(args),
         slippage_name=reporting.describe_slippage(args),
     )

@@ -642,6 +642,48 @@ def test_main_compares_strategy_with_benchmark_using_same_csv_data(
     assert "Number of trades" in captured.out
 
 
+def test_main_uses_all_in_all_out_for_benchmark_regardless_of_strategy_sizing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = main(
+        [
+            "compare",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-03",
+            "--strategy",
+            "buy-and-hold",
+            "--benchmark",
+            "buy-and-hold",
+            "--sizing",
+            "fixed",
+            "--buy-size",
+            "1",
+            "--sell-size",
+            "1",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert "Strategy position sizing: fixed shares (buy=1, sell=1)" in captured.out
+    assert "Benchmark position sizing: all in / all out" in captured.out
+    total_return_row = next(
+        line for line in captured.out.splitlines() if line.startswith("Total return")
+    )
+    assert "0.10%" in total_return_row
+    assert "10.00%" in total_return_row
+    assert "-9.90%" in total_return_row
+
+
 def test_main_reports_runtime_errors_and_returns_nonzero_exit_code(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

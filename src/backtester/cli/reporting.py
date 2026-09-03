@@ -66,6 +66,7 @@ def print_parameters(
     data_source_name: str,
     initial_capital: float,
     sizing_name: str,
+    benchmark_sizing_name: str | None = None,
     commission_name: str,
     slippage_name: str,
 ) -> None:
@@ -95,7 +96,11 @@ def print_parameters(
         )
     print(f"Data source: {data_source_name}", file=output)
     print(f"Initial capital: {_format_money(initial_capital)}", file=output)
-    print(f"Position sizing: {sizing_name}", file=output)
+    if benchmark_sizing_name is None:
+        print(f"Position sizing: {sizing_name}", file=output)
+    else:
+        print(f"Strategy position sizing: {sizing_name}", file=output)
+        print(f"Benchmark position sizing: {benchmark_sizing_name}", file=output)
     print(f"Commission: {commission_name}", file=output)
     print(f"Slippage: {slippage_name}", file=output)
     print(file=output)
@@ -328,6 +333,14 @@ def describe_sizing(args: argparse.Namespace) -> str:
     if args.buffer_rate is not None:
         return f"{description}, cash buffer={args.buffer_rate:.2%}"
 
+    return description
+
+
+def describe_all_in_all_out_sizing(args: argparse.Namespace) -> str:
+    """Describe benchmark all-in/all-out sizing and its shared cash buffer."""
+    description = "all in / all out"
+    if args.buffer_rate is not None:
+        description += f", cash buffer={args.buffer_rate:.2%}"
     return description
 
 

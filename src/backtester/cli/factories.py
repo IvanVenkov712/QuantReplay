@@ -122,8 +122,7 @@ def create_strategy(name: str, args: argparse.Namespace) -> Strategy:
 def create_sizing_plan(args: argparse.Namespace) -> SizingPlan:
     """Create buy and sell sizing instructions from parsed CLI parameters."""
     if args.sizing == "all-in-all-out":
-        buy_instruction = SizingInstruction(mode=SizingMode.ALL_IN, value=None)
-        sell_instruction = SizingInstruction(mode=SizingMode.ALL_IN, value=None)
+        return create_all_in_all_out_sizing_plan()
     elif args.sizing == "fixed":
         buy_instruction = SizingInstruction(
             mode=SizingMode.FIXED,
@@ -146,6 +145,12 @@ def create_sizing_plan(args: argparse.Namespace) -> SizingPlan:
         raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
 
     return SizingPlan(buy=buy_instruction, sell=sell_instruction)
+
+
+def create_all_in_all_out_sizing_plan() -> SizingPlan:
+    """Create a plan that invests available cash and fully exits positions."""
+    instruction = SizingInstruction(mode=SizingMode.ALL_IN, value=None)
+    return SizingPlan(buy=instruction, sell=instruction)
 
 
 def create_order_resolver(

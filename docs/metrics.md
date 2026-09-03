@@ -59,8 +59,9 @@ metric shared by both runs:
 | ---: | ---: | ---: |
 | Metric value from the strategy run | Metric value from the benchmark run | Strategy value minus benchmark value |
 
-The strategy and benchmark use the same data and execution assumptions. Each
-difference is calculated as:
+The strategy and benchmark use the same data, costs, and slippage assumptions.
+The benchmark always uses all-in/all-out sizing, while the strategy uses the
+selected sizing policy. Each difference is calculated as:
 
 ```text
 strategy metric - benchmark metric

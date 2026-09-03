@@ -107,9 +107,9 @@ See [Performance metrics](metrics.md) for the formulas and interpretation.
 ## Benchmark comparison command
 
 `compare` runs the selected strategy and a benchmark on the same data. The
-default benchmark is displayed as `Buy and Hold`. Both runs use the selected
-position-sizing, commission, and slippage configuration so that their execution
-assumptions are consistent.
+default benchmark is displayed as `Buy and Hold`. The selected sizing applies
+to the strategy, while the benchmark always uses all-in/all-out. Both runs use
+the same cash buffer, commission, and slippage configuration.
 
 The command calculates metrics for both backtests and displays three value
 columns: the strategy result, the benchmark result, and their difference. Each
@@ -138,7 +138,8 @@ Data span: <elapsed-calendar-days> calendar days (<elapsed-calendar-years> years
 Length in years: 5 (used to derive start from today's end)
 Data source: Yahoo Finance
 Initial capital: 10,000.00
-Position sizing: all in / all out
+Strategy position sizing: all in / all out
+Benchmark position sizing: all in / all out
 Commission: no commission
 Slippage: 0.00%
 

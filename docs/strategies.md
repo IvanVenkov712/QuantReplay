@@ -220,9 +220,10 @@ options.
 python -m backtester.cli compare --strategy simple-moving-average --benchmark exponential-moving-average --short-window 20 --long-window 50
 ```
 
-Both runs also share the symbol, candles, initial capital, sizing plan,
-commission model, and slippage model. See the [CLI reference](cli.md) for those
-options and [Market data](data.md) for input conventions.
+Both runs also share the symbol, candles, initial capital, cash buffer,
+commission model, and slippage model. The selected sizing plan applies only to
+the strategy; the benchmark uses all-in/all-out. See the [CLI reference](cli.md)
+for those options and [Market data](data.md) for input conventions.
 
 ## Test coverage
 

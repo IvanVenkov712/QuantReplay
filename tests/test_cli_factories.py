@@ -5,6 +5,7 @@ import pytest
 
 from backtester.cli.arguments import parse_args
 from backtester.cli.factories import (
+    create_all_in_all_out_sizing_plan,
     create_commission_model,
     create_execution_model,
     create_order_resolver,
@@ -163,6 +164,13 @@ def test_create_sizing_plan_uses_selected_policy(
     assert create_sizing_plan(args) == expected_plan
 
 
+def test_create_all_in_all_out_sizing_plan_uses_all_in_for_both_sides() -> None:
+    assert create_all_in_all_out_sizing_plan() == SizingPlan(
+        buy=SizingInstruction(mode=SizingMode.ALL_IN, value=None),
+        sell=SizingInstruction(mode=SizingMode.ALL_IN, value=None),
+    )
+
+
 def test_create_order_resolver_composes_cost_capper_and_cash_buffer() -> None:
     args = parse_args(["--buffer-rate", "0.25"])
     plan = create_sizing_plan(args)
@@ -230,5 +238,3 @@ def test_create_execution_model_uses_selected_slippage_rate() -> None:
 
     assert isinstance(model, ExecutionModel)
     assert model.calculate_fill_price(100, Side.BUY) == pytest.approx(101)
-
-
