@@ -26,3 +26,5 @@ htmlcov/
 .vscode/
 *.swp
 *~
+
+reports/
