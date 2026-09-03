@@ -12,6 +12,7 @@ def export_backtest_dashboard(
     result: BacktestResult,
     output_path: str | Path,
     *,
+    title: str | None = None,
     dpi: int = 150,
     overwrite: bool = False,
 ) -> Path:
@@ -32,7 +33,7 @@ def export_backtest_dashboard(
 
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    figure = create_backtest_figure(result)
+    figure = create_backtest_figure(result, title=title)
     try:
         figure.savefig(path, dpi=dpi, bbox_inches="tight")
     finally:

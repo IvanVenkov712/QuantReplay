@@ -26,11 +26,12 @@ def run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
     strategy = factories.create_strategy(args.strategy, args)
     result = _run_backtest(args, strategy, start, end)
     metrics = factories.create_performance_analyzer().calculate_metrics(result)
+    strategy_description = reporting.describe_strategy(args.strategy, args)
 
     reporting.print_parameters(
         output=output,
         title="Backtest parameters",
-        strategy_name=reporting.describe_strategy(args.strategy, args),
+        strategy_name=strategy_description,
         benchmark_name=None,
         symbol=args.symbol,
         start=start,
@@ -46,7 +47,11 @@ def run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
     reporting.print_rejected_orders(output, "Rejected orders", result)
 
     if args.chart_path is not None:
-        chart_path = export_backtest_dashboard(result, args.chart_path)
+        chart_path = export_backtest_dashboard(
+            result,
+            args.chart_path,
+            title=f"{strategy_description} - {result.symbol}",
+        )
         print(file=output)
         print(f"Chart saved to: {chart_path}", file=output)
 

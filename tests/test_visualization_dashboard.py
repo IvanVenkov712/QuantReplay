@@ -176,6 +176,19 @@ def test_create_backtest_figure_assembles_and_formats_shared_time_panels() -> No
     assert actual_figure is figure
 
 
+def test_create_backtest_figure_adds_optional_dashboard_title() -> None:
+    figure = dashboard.create_backtest_figure(
+        EMPTY_RESULT,
+        title="BuyAndHoldStrategy — AAPL",
+    )
+
+    try:
+        assert figure._suptitle is not None
+        assert figure._suptitle.get_text() == "BuyAndHoldStrategy — AAPL"
+    finally:
+        plt.close(figure)
+
+
 def test_created_figure_contains_expected_panels_artists_and_legends(
     populated_figure: Figure,
 ) -> None:

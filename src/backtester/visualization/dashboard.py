@@ -46,11 +46,16 @@ def populate_risk_panel(axes: Axes, result: BacktestResult) -> None:
     axes.legend()
 
 
-def create_backtest_figure(result: BacktestResult) -> Figure:
+def create_backtest_figure(
+    result: BacktestResult,
+    *,
+    title: str | None = None,
+) -> Figure:
     """Return a formatted price, portfolio, position, and risk dashboard.
 
     The panels share a time axis. The returned figure is not displayed, saved,
     or closed; those lifecycle operations remain the caller's responsibility.
+    When supplied, ``title`` is displayed above the complete dashboard.
     """
     figure, (price_ax, portfolio_ax, position_ax, risk_ax) = plt.subplots(
         4,
@@ -62,6 +67,8 @@ def create_backtest_figure(result: BacktestResult) -> Figure:
     populate_portfolio_panel(portfolio_ax, result)
     populate_position_panel(position_ax, result)
     populate_risk_panel(risk_ax, result)
+    if title is not None:
+        figure.suptitle(title)
     figure.autofmt_xdate()
     figure.tight_layout()
     return figure

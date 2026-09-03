@@ -890,6 +890,9 @@ def test_main_exports_backtest_chart_to_requested_path(
     exported_result, exported_path = export_dashboard.call_args.args
     assert isinstance(exported_result, BacktestResult)
     assert exported_path == chart_path
+    assert export_dashboard.call_args.kwargs == {
+        "title": "BuyAndHoldStrategy — SPY"
+    }
 
 
 @pytest.mark.parametrize("timestamp_column", ["timestamp", "datetime"])
@@ -970,6 +973,9 @@ chart = "{chart_path.as_posix()}"
     exported_result, exported_path = export_dashboard.call_args.args
     assert isinstance(exported_result, BacktestResult)
     assert exported_path == chart_path
+    assert export_dashboard.call_args.kwargs == {
+        "title": "BuyAndHoldStrategy — AAPL"
+    }
 
 
 def test_main_wires_toml_sizing_buffer_and_execution_costs(

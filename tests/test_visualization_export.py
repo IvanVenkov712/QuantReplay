@@ -36,12 +36,16 @@ def test_export_backtest_dashboard_saves_and_closes_figure(tmp_path: Path) -> No
         actual_path = export.export_backtest_dashboard(
             RESULT,
             str(output_path),
+            title="BuyAndHoldStrategy — AAPL",
             dpi=200,
         )
 
     assert actual_path == output_path
     assert output_path.parent.is_dir()
-    create_figure.assert_called_once_with(RESULT)
+    create_figure.assert_called_once_with(
+        RESULT,
+        title="BuyAndHoldStrategy — AAPL",
+    )
     figure.savefig.assert_called_once_with(
         output_path,
         dpi=200,

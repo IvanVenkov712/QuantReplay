@@ -26,7 +26,7 @@ from matplotlib import pyplot as plt
 from backtester.visualization.dashboard import create_backtest_figure
 
 result = engine.run()
-figure = create_backtest_figure(result)
+figure = create_backtest_figure(result, title="BuyAndHoldStrategy — AAPL")
 
 # Display interactively.
 plt.show()
@@ -46,6 +46,7 @@ from backtester.visualization.export import export_backtest_dashboard
 output_path = export_backtest_dashboard(
     result,
     "reports/backtest-dashboard.png",
+    title="BuyAndHoldStrategy — AAPL",
     dpi=150,
 )
 ```
@@ -60,6 +61,10 @@ customized before saving. In that case, the caller continues to own displaying,
 saving, and closing the figure.
 
 ## Dashboard panels
+
+The CLI adds the configured strategy description and symbol as the dashboard's
+figure-level title. Python callers can provide their own optional `title` to
+either function.
 
 The dashboard contains four vertically stacked panels with a shared time axis:
 
