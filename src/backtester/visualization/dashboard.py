@@ -70,5 +70,8 @@ def create_backtest_figure(
     if title is not None:
         figure.suptitle(title)
     figure.autofmt_xdate()
-    figure.tight_layout()
+    if title is not None:
+        figure.tight_layout(rect=(0.0, 0.0, 1.0, 0.98))
+    else:
+        figure.tight_layout()
     return figure

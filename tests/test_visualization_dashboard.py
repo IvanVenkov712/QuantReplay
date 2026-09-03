@@ -189,6 +189,26 @@ def test_create_backtest_figure_adds_optional_dashboard_title() -> None:
         plt.close(figure)
 
 
+def test_dashboard_title_does_not_overlap_price_panel_title() -> None:
+    figure = dashboard.create_backtest_figure(
+        EMPTY_RESULT,
+        title="SimpleMovingAverageCrossStrategy(20, 50) - SPY",
+    )
+
+    try:
+        figure.canvas.draw()
+        renderer = figure.canvas.get_renderer()
+        dashboard_title = figure._suptitle
+        assert dashboard_title is not None
+
+        dashboard_title_bounds = dashboard_title.get_window_extent(renderer)
+        price_title_bounds = figure.axes[0].title.get_window_extent(renderer)
+
+        assert price_title_bounds.y1 < dashboard_title_bounds.y0
+    finally:
+        plt.close(figure)
+
+
 def test_created_figure_contains_expected_panels_artists_and_legends(
     populated_figure: Figure,
 ) -> None:
