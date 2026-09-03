@@ -75,6 +75,10 @@ The dashboard contains four vertically stacked panels with a shared time axis:
 | Position | Quantity held for `BacktestResult.symbol` | Whole shares |
 | Risk | Drawdown from the running portfolio-equity peak | Percentage |
 
+![Four-panel QuantReplay dashboard showing SPY prices and signal and trade markers, portfolio equity, cash and market value, position quantity, and drawdown](images/backtest-dashboard.png)
+
+*Example dashboard for a 20/50-period simple moving-average crossover on SPY. The price panel shows when signals were generated and trades were filled. Reading downward, the remaining panels show how those trades affected portfolio equity and its cash and market-value components, the number of shares held, and the decline from the running equity peak. Results are illustrative.*
+
 Every panel includes a title and legend. The common time axis keeps the same
 timestamp horizontally aligned across all panels. Date labels are rotated for
 readability, and the figure layout is adjusted before it is returned.

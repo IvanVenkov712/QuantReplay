@@ -136,6 +136,12 @@ command can save this dashboard directly:
 python -m backtester.cli backtest --chart reports/backtest-dashboard.png
 ```
 
+<p align="center">
+  <img src="docs/images/backtest-dashboard.png" alt="QuantReplay dashboard showing SPY prices and signal and trade markers, portfolio equity, cash and market value, position quantity, and drawdown" width="700">
+</p>
+
+<p align="center"><em>Example output for a 20/50-period simple moving-average crossover on SPY. Hollow markers show strategy signals, while filled markers show the resulting trades; the lower panels track portfolio composition, position size, and drawdown. Results are illustrative.</em></p>
+
 The path can also be stored as `chart = "reports/backtest-dashboard.png"`
 under `[backtest]` in the TOML configuration.
 
