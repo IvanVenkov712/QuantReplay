@@ -69,7 +69,16 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
     assert "Backtest parameters" in captured.out
     assert "Strategy: BuyAndHoldStrategy" in captured.out
     assert "Asset: AAPL" in captured.out
-    assert "Period: 2024-01-01 to 2024-01-03" in captured.out
+    assert (
+        "Requested period: 2024-01-01 (inclusive) to 2024-01-03 (exclusive)"
+        in captured.out
+    )
+    assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
+    assert "Data span: 1 calendar day (0.00 years)" in captured.out
+    assert (
+        "Years parameter: 5 (not applied because start was provided)"
+        in captured.out
+    )
     assert f"Data source: CSVDataSource({csv_path})" in captured.out
     assert "Initial capital: 10,000.00" in captured.out
     assert "Position sizing: all-in-all-out" in captured.out
@@ -202,6 +211,38 @@ chart = "{chart_path.as_posix()}"
     assert export_dashboard.call_args.kwargs == {
         "title": "BuyAndHoldStrategy - AAPL"
     }
+
+
+def test_main_reports_when_years_derived_the_requested_start(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--end",
+            "2024-01-03",
+            "--years",
+            "1",
+            "--strategy",
+            "buy-and-hold",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert (
+        "Requested period: 2023-01-03 (inclusive) to 2024-01-03 (exclusive)"
+        in captured.out
+    )
+    assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
+    assert "Years parameter: 1 (used to derive start)" in captured.out
 
 
 def test_main_wires_toml_sizing_buffer_and_execution_costs(
@@ -412,6 +453,11 @@ def test_main_compares_strategy_with_benchmark_using_same_csv_data(
     assert "Benchmark comparison parameters" in captured.out
     assert "Strategy: BuyAndHoldStrategy" in captured.out
     assert "Benchmark: SimpleMovingAverageCrossStrategy(20, 50)" in captured.out
+    assert (
+        "Requested period: 2024-01-01 (inclusive) to 2024-01-03 (exclusive)"
+        in captured.out
+    )
+    assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
     assert "Metric comparison" in captured.out
     assert "Metric" in captured.out
     assert "Strategy" in captured.out

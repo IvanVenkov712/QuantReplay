@@ -80,8 +80,10 @@ illustrative:
 Backtest parameters
 Strategy: SimpleMovingAverageCrossStrategy(20, 50)
 Asset: SPY
-Period: <resolved-start-date> to <resolved-end-date>
-Years parameter: 5
+Requested period: <resolved-start-date> (inclusive) to <resolved-end-date> (exclusive)
+Data used: <first-candle-date> through <last-candle-date> (<count> candles)
+Data span: <elapsed-calendar-days> calendar days (<elapsed-calendar-years> years)
+Years parameter: 5 (used to derive start)
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
 Position sizing: all-in-all-out
@@ -130,8 +132,10 @@ Benchmark comparison parameters
 Strategy: SimpleMovingAverageCrossStrategy(20, 50)
 Benchmark: BuyAndHoldStrategy
 Asset: SPY
-Period: <resolved-start-date> to <resolved-end-date>
-Years parameter: 5
+Requested period: <resolved-start-date> (inclusive) to <resolved-end-date> (exclusive)
+Data used: <first-candle-date> through <last-candle-date> (<count> candles)
+Data span: <elapsed-calendar-days> calendar days (<elapsed-calendar-years> years)
+Years parameter: 5 (used to derive start)
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
 Position sizing: all-in-all-out
@@ -175,7 +179,11 @@ Number of trades                     4           1            3
 
 The requested range is half-open: `--start` is included and `--end` is
 excluded. When `--start` is supplied, `--years` does not affect the resolved
-start date, although the CLI still prints the configured years parameter.
+start date. The report marks the years parameter as not applied in that case.
+It also distinguishes the requested range from the first and last candles
+actually returned by the data source. The displayed data span is the elapsed
+calendar time between those candles, using the same 365.25-day year as the
+annualized-return calculation.
 
 ## Buffered quantity resolution
 

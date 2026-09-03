@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import math
+from datetime import datetime
 from typing import TextIO
 
 from backtester.domain.trading import OrderExecutionStatus
@@ -38,6 +39,8 @@ def print_parameters(
     start: str,
     end: str,
     years: int,
+    years_applied: bool,
+    result: BacktestResult,
     data_source_name: str,
     initial_capital: float,
     sizing_name: str,
@@ -50,14 +53,58 @@ def print_parameters(
     if benchmark_name is not None:
         print(f"Benchmark: {benchmark_name}", file=output)
     print(f"Asset: {symbol}", file=output)
-    print(f"Period: {start} to {end}", file=output)
-    print(f"Years parameter: {years}", file=output)
+    print(
+        f"Requested period: {start} (inclusive) to {end} (exclusive)",
+        file=output,
+    )
+    _print_data_period(output, result)
+    years_note = (
+        "used to derive start"
+        if years_applied
+        else "not applied because start was provided"
+    )
+    print(f"Years parameter: {years} ({years_note})", file=output)
     print(f"Data source: {data_source_name}", file=output)
     print(f"Initial capital: {_format_money(initial_capital)}", file=output)
     print(f"Position sizing: {sizing_name}", file=output)
     print(f"Commission: {commission_name}", file=output)
     print(f"Slippage: {slippage_name}", file=output)
     print(file=output)
+
+
+def _print_data_period(output: TextIO, result: BacktestResult) -> None:
+    """Print the actual candle coverage used by the backtest."""
+    first_timestamp = result.records[0].timestamp
+    last_timestamp = result.records[-1].timestamp
+    observation_count = len(result.records)
+
+    print(
+        "Data used: "
+        f"{_format_date(first_timestamp)} through {_format_date(last_timestamp)} "
+        f"({observation_count:,} candles)",
+        file=output,
+    )
+
+    elapsed_days = (
+        last_timestamp - first_timestamp
+    ).total_seconds() / (24.0 * 60.0 * 60.0)
+    elapsed_years = elapsed_days / 365.25
+    print(
+        f"Data span: {_format_day_count(elapsed_days)} calendar "
+        f"{'day' if elapsed_days == 1 else 'days'} "
+        f"({elapsed_years:.2f} years)",
+        file=output,
+    )
+
+
+def _format_date(value: datetime) -> str:
+    return value.date().isoformat()
+
+
+def _format_day_count(value: float) -> str:
+    if value.is_integer():
+        return f"{int(value):,}"
+    return f"{value:,.2f}"
 
 
 def print_metrics(
