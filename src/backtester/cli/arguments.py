@@ -127,17 +127,23 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         type=_positive_int,
         default=DEFAULT_YEARS,
         help=(
-            "Number of calendar years to load when --start is omitted. "
+            "Number of calendar years used to derive a missing date boundary. "
             f"Default: {DEFAULT_YEARS}."
         ),
     )
     parser.add_argument(
         "--start",
-        help="Inclusive start date in YYYY-MM-DD format. Defaults to --years before --end.",
+        help=(
+            "Inclusive start date in YYYY-MM-DD format. If --end is omitted, "
+            "it is derived using --years."
+        ),
     )
     parser.add_argument(
         "--end",
-        help="Exclusive end date in YYYY-MM-DD format. Default: today's date.",
+        help=(
+            "Exclusive end date in YYYY-MM-DD format. If --start is omitted, "
+            "it is used with --years to derive the start."
+        ),
     )
     parser.add_argument(
         "--source",

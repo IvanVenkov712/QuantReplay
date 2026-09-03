@@ -1,6 +1,7 @@
 """Load, normalize, validate, and convert historical OHLCV data."""
 
 from abc import ABC, abstractmethod
+from datetime import date
 from math import isfinite
 from pathlib import Path
 
@@ -60,13 +61,7 @@ class CSVDataSource(DataSource):
     def load(self, symbol: str, start: str, end: str) -> DataFrame | None:
         """Load and normalize one symbol over the requested half-open range."""
         start_timestamp, end_timestamp = parse_date_range(start, end)
-        csv_path = self.__resolve_csv_path(symbol)
-
-        data = pd.read_csv(csv_path)
-        data = normalize_column_names(data)
-
-        if "symbol" in data.columns:
-            data = data.loc[data["symbol"] == symbol].copy()
+        data = self.__read_symbol_data(symbol)
 
         return prepare_market_data(
             data,
@@ -74,6 +69,26 @@ class CSVDataSource(DataSource):
             start_timestamp,
             end_timestamp,
         )
+
+    def first_available_date(self, symbol: str) -> date:
+        """Return the earliest CSV candle date available for one symbol."""
+        data = self.__read_symbol_data(symbol)
+        if data.empty:
+            raise ValueError(f"CSV data contains no rows for symbol: {symbol}.")
+
+        timestamp_column = find_timestamp_column(data)
+        timestamps = pd.to_datetime(data[timestamp_column], errors="raise")
+        first_timestamp = timestamps.min()
+        if pd.isna(first_timestamp):
+            raise ValueError("CSV data must contain at least one valid timestamp.")
+
+        return first_timestamp.date()
+
+    def __read_symbol_data(self, symbol: str) -> DataFrame:
+        data = normalize_column_names(pd.read_csv(self.__resolve_csv_path(symbol)))
+        if "symbol" in data.columns:
+            data = data.loc[data["symbol"] == symbol].copy()
+        return data
 
     def __resolve_csv_path(self, symbol: str) -> Path:
         if self.__path.is_dir():

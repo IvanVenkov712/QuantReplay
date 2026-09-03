@@ -17,6 +17,27 @@ def test_resolve_date_range_handles_leap_day_when_subtracting_years() -> None:
     )
 
 
+def test_resolve_date_range_handles_leap_day_when_adding_years() -> None:
+    assert resolve_date_range("2024-02-29", None, 1) == (
+        "2024-02-29",
+        "2025-02-28",
+    )
+
+
+def test_resolve_date_range_uses_both_explicit_dates_without_applying_years() -> None:
+    assert resolve_date_range("2024-01-01", "2024-06-01", 10) == (
+        "2024-01-01",
+        "2024-06-01",
+    )
+
+
+def test_resolve_date_range_uses_source_start_when_dates_are_omitted() -> None:
+    assert resolve_date_range(None, None, 2, date(2021, 1, 4)) == (
+        "2021-01-04",
+        "2023-01-04",
+    )
+
+
 def test_resolve_date_range_rejects_start_on_or_after_end() -> None:
     with pytest.raises(ValueError, match="Start date must be before end date"):
         resolve_date_range("2024-01-02", "2024-01-02", 5)
@@ -76,7 +97,7 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
     assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
     assert "Data span: 1 calendar day (0.00 years)" in captured.out
     assert (
-        "Years parameter: 5 (not applied because start was provided)"
+        "Years parameter: 5 (not applied because start and end were provided)"
         in captured.out
     )
     assert f"Data source: CSVDataSource({csv_path})" in captured.out
@@ -243,6 +264,67 @@ def test_main_reports_when_years_derived_the_requested_start(
     )
     assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
     assert "Years parameter: 1 (used to derive start)" in captured.out
+
+
+def test_main_uses_years_to_derive_end_from_explicit_start(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--start",
+            "2024-01-01",
+            "--years",
+            "1",
+            "--strategy",
+            "buy-and-hold",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert (
+        "Requested period: 2024-01-01 (inclusive) to 2025-01-01 (exclusive)"
+        in captured.out
+    )
+    assert "Years parameter: 1 (used to derive end)" in captured.out
+
+
+def test_main_anchors_undated_csv_period_to_first_available_candle(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    csv_path = FIXTURES_DIR / "cli_two_candles.csv"
+
+    exit_code = main(
+        [
+            "backtest",
+            "--source",
+            "csv",
+            "--csv-path",
+            str(csv_path),
+            "--years",
+            "1",
+            "--strategy",
+            "buy-and-hold",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.err == ""
+    assert (
+        "Requested period: 2024-01-01 (inclusive) to 2025-01-01 (exclusive)"
+        in captured.out
+    )
+    assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
+    assert "Years parameter: 1 (used to derive end from CSV start)" in captured.out
 
 
 def test_main_wires_toml_sizing_buffer_and_execution_costs(

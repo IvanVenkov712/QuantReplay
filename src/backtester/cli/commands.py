@@ -7,7 +7,11 @@ from datetime import date
 from typing import Sequence, TextIO
 
 from backtester.cli import factories, reporting
-from backtester.data.loader import candles_from_dataframe
+from backtester.data.loader import (
+    CSVDataSource,
+    DataSource,
+    candles_from_dataframe,
+)
 from backtester.domain.market import Candle
 from backtester.engine.backtest import BacktestEngine
 from backtester.engine.backtest_result import BacktestResult
@@ -22,9 +26,10 @@ from backtester.visualization.export import export_backtest_dashboard
 
 def run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
     """Run one configured backtest and print its parameters and results."""
-    start, end = resolve_date_range(args.start, args.end, args.years)
+    data_source = factories.create_data_source(args)
+    start, end = _resolve_command_date_range(args, data_source)
     strategy = factories.create_strategy(args.strategy, args)
-    result = _run_backtest(args, strategy, start, end)
+    result = _run_backtest(args, data_source, strategy, start, end)
     metrics = factories.create_performance_analyzer().calculate_metrics(result)
     strategy_description = reporting.describe_strategy(args.strategy, args)
 
@@ -37,7 +42,7 @@ def run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
         start=start,
         end=end,
         years=args.years,
-        years_applied=args.start is None,
+        years_note=_describe_years_application(args),
         result=result,
         data_source_name=reporting.describe_data_source(args),
         initial_capital=args.initial_capital,
@@ -60,8 +65,8 @@ def run_backtest_command(args: argparse.Namespace, output: TextIO) -> None:
 
 def run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
     """Run a strategy and benchmark over identical data and print differences."""
-    start, end = resolve_date_range(args.start, args.end, args.years)
     data_source = factories.create_data_source(args)
+    start, end = _resolve_command_date_range(args, data_source)
     data = data_source.load(args.symbol, start, end)
     if data is None or data.empty:
         raise ValueError("No market data was returned for the selected parameters.")
@@ -104,7 +109,7 @@ def run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
         start=start,
         end=end,
         years=args.years,
-        years_applied=args.start is None,
+        years_note=_describe_years_application(args),
         result=strategy_result,
         data_source_name=reporting.describe_data_source(args),
         initial_capital=args.initial_capital,
@@ -132,11 +137,11 @@ def run_compare_command(args: argparse.Namespace, output: TextIO) -> None:
 
 def _run_backtest(
     args: argparse.Namespace,
+    data_source: DataSource,
     strategy: Strategy,
     start: str,
     end: str,
 ) -> BacktestResult:
-    data_source = factories.create_data_source(args)
     data = data_source.load(args.symbol, start, end)
     if data is None or data.empty:
         raise ValueError("No market data was returned for the selected parameters.")
@@ -188,15 +193,31 @@ def resolve_date_range(
     start_arg: str | None,
     end_arg: str | None,
     years: int,
+    source_start: date | None = None,
 ) -> tuple[str, str]:
     """Resolve an inclusive start and exclusive end date for data loading.
 
-    Missing end dates default to today. A missing start is derived by
-    subtracting ``years`` from the end, with February 29 adjusted to February
-    28 when the target year is not a leap year.
+    Years determine whichever explicit boundary is missing. When both are
+    missing, ``source_start`` anchors the range when supplied; otherwise the
+    end defaults to today. February 29 is adjusted to February 28 when the
+    shifted year is not a leap year.
     """
-    end = date.fromisoformat(end_arg) if end_arg else date.today()
-    start = date.fromisoformat(start_arg) if start_arg else _subtract_years(end, years)
+    if start_arg is not None:
+        start = date.fromisoformat(start_arg)
+        end = (
+            date.fromisoformat(end_arg)
+            if end_arg is not None
+            else _add_years(start, years)
+        )
+    elif end_arg is not None:
+        end = date.fromisoformat(end_arg)
+        start = _subtract_years(end, years)
+    elif source_start is not None:
+        start = source_start
+        end = _add_years(start, years)
+    else:
+        end = date.today()
+        start = _subtract_years(end, years)
 
     if start >= end:
         raise ValueError("Start date must be before end date.")
@@ -209,6 +230,40 @@ def _subtract_years(value: date, years: int) -> date:
         return value.replace(year=value.year - years)
     except ValueError:
         return value.replace(year=value.year - years, day=28)
+
+
+def _add_years(value: date, years: int) -> date:
+    try:
+        return value.replace(year=value.year + years)
+    except ValueError:
+        return value.replace(year=value.year + years, day=28)
+
+
+def _resolve_command_date_range(
+    args: argparse.Namespace,
+    data_source: DataSource,
+) -> tuple[str, str]:
+    source_start = None
+    if (
+        args.start is None
+        and args.end is None
+        and isinstance(data_source, CSVDataSource)
+    ):
+        source_start = data_source.first_available_date(args.symbol)
+
+    return resolve_date_range(args.start, args.end, args.years, source_start)
+
+
+def _describe_years_application(args: argparse.Namespace) -> str:
+    if args.start is not None and args.end is not None:
+        return "not applied because start and end were provided"
+    if args.start is not None:
+        return "used to derive end"
+    if args.end is not None:
+        return "used to derive start"
+    if args.source == "csv":
+        return "used to derive end from CSV start"
+    return "used to derive start from today's end"
 
 
 def _validate_backtest_data(candles: Sequence[Candle]) -> None:

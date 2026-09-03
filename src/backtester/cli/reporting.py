@@ -39,7 +39,7 @@ def print_parameters(
     start: str,
     end: str,
     years: int,
-    years_applied: bool,
+    years_note: str,
     result: BacktestResult,
     data_source_name: str,
     initial_capital: float,
@@ -58,11 +58,6 @@ def print_parameters(
         file=output,
     )
     _print_data_period(output, result)
-    years_note = (
-        "used to derive start"
-        if years_applied
-        else "not applied because start was provided"
-    )
     print(f"Years parameter: {years} ({years_note})", file=output)
     print(f"Data source: {data_source_name}", file=output)
     print(f"Initial capital: {_format_money(initial_capital)}", file=output)

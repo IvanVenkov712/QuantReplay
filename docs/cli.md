@@ -83,7 +83,7 @@ Asset: SPY
 Requested period: <resolved-start-date> (inclusive) to <resolved-end-date> (exclusive)
 Data used: <first-candle-date> through <last-candle-date> (<count> candles)
 Data span: <elapsed-calendar-days> calendar days (<elapsed-calendar-years> years)
-Years parameter: 5 (used to derive start)
+Years parameter: 5 (used to derive start from today's end)
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
 Position sizing: all-in-all-out
@@ -135,7 +135,7 @@ Asset: SPY
 Requested period: <resolved-start-date> (inclusive) to <resolved-end-date> (exclusive)
 Data used: <first-candle-date> through <last-candle-date> (<count> candles)
 Data span: <elapsed-calendar-days> calendar days (<elapsed-calendar-years> years)
-Years parameter: 5 (used to derive start)
+Years parameter: 5 (used to derive start from today's end)
 Data source: YFinanceDataSource
 Initial capital: 10,000.00
 Position sizing: all-in-all-out
@@ -160,9 +160,9 @@ Number of trades                     4           1            3
 - `--config`: TOML configuration path; default lookup is `quantreplay.toml` in
   the current working directory; see [TOML configuration](configuration.md)
 - `--symbol`: asset symbol, default `SPY`
-- `--years`: calendar years to load when `--start` is omitted, default `5`
+- `--years`: calendar years used to derive a missing date boundary, default `5`
 - `--start`: inclusive start date in `YYYY-MM-DD` format
-- `--end`: exclusive end date in `YYYY-MM-DD` format, default is today's date
+- `--end`: exclusive end date in `YYYY-MM-DD` format
 - `--source`: `yfinance` or `csv`, default `yfinance`
 - `--csv-path`: CSV file or directory used with `--source csv`
 - `--initial-capital`: starting cash, default `10000`
@@ -178,12 +178,23 @@ Number of trades                     4           1            3
 - `--slippage-rate`: adverse fill-price fraction from `0` inclusive to `1` exclusive, default `0`
 
 The requested range is half-open: `--start` is included and `--end` is
-excluded. When `--start` is supplied, `--years` does not affect the resolved
-start date. The report marks the years parameter as not applied in that case.
-It also distinguishes the requested range from the first and last candles
-actually returned by the data source. The displayed data span is the elapsed
-calendar time between those candles, using the same 365.25-day year as the
-annualized-return calculation.
+excluded. Date boundaries are resolved consistently as follows:
+
+| Supplied dates | Resolution |
+| --- | --- |
+| Neither date, Yahoo Finance | `end = today`, `start = end - years` |
+| Neither date, CSV | `start = first CSV candle for the selected symbol`, `end = start + years` |
+| Only `--end` | `start = end - years` |
+| Only `--start` | `end = start + years` |
+| Both dates | Use both; `years` is not applied |
+
+Adding or subtracting calendar years preserves the month and day. February 29
+is adjusted to February 28 when the resulting year is not a leap year.
+
+The report distinguishes the requested range from the first and last candles
+actually returned by the data source and states how the years parameter was
+applied. The displayed data span is the elapsed calendar time between those
+candles, using the same 365.25-day year as the annualized-return calculation.
 
 ## Buffered quantity resolution
 
