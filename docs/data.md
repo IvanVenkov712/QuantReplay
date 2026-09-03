@@ -101,5 +101,5 @@ fixed 252-period annualization factor. Do not interpret those values as daily
 or annual statistics for intraday or irregular CSV data. See
 [Performance metrics](metrics.md) for the exact convention.
 
-See the [CLI reference](cli.md) for all source and date options, or return to
-the [project README](../README.md).
+See the [CLI reference](cli.md) for all source and date options, or return 
+to the [project README](../README.md).
