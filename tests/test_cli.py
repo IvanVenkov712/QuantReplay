@@ -891,7 +891,7 @@ def test_main_exports_backtest_chart_to_requested_path(
     assert isinstance(exported_result, BacktestResult)
     assert exported_path == chart_path
     assert export_dashboard.call_args.kwargs == {
-        "title": "BuyAndHoldStrategy — SPY"
+        "title": "BuyAndHoldStrategy - SPY"
     }
 
 
@@ -974,7 +974,7 @@ chart = "{chart_path.as_posix()}"
     assert isinstance(exported_result, BacktestResult)
     assert exported_path == chart_path
     assert export_dashboard.call_args.kwargs == {
-        "title": "BuyAndHoldStrategy — AAPL"
+        "title": "BuyAndHoldStrategy - AAPL"
     }
 
 
