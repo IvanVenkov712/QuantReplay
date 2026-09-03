@@ -7,10 +7,10 @@ can be run as a Python module:
 python -m backtester.cli backtest
 ```
 
-An editable installation also provides the equivalent `quantreplay` command:
+An editable installation also provides the equivalent `strat-echo` command:
 
 ```powershell
-quantreplay backtest
+strat-echo backtest
 ```
 
 If no command is provided, the CLI runs `backtest` with its default parameters.
@@ -24,7 +24,7 @@ python -m backtester.cli backtest --config configs/aapl.toml
 python -m backtester.cli compare --config configs/aapl.toml
 ```
 
-When `--config` is omitted, QuantReplay looks for `quantreplay.toml` in the
+When `--config` is omitted, Strat Echo looks for `strat-echo.toml` in the
 current working directory. Values use the priority
 `CLI option > TOML option > application default`.
 
@@ -158,7 +158,7 @@ Number of trades                     4           1            3
 
 ## Common options
 
-- `--config`: TOML configuration path; default lookup is `quantreplay.toml` in
+- `--config`: TOML configuration path; default lookup is `strat-echo.toml` in
   the current working directory; see [TOML configuration](configuration.md)
 - `--symbol`: asset symbol, default `SPY`
 - `--years`: calendar years used to derive a missing date boundary, default `5`

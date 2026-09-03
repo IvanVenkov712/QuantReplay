@@ -1,6 +1,6 @@
 # Market data
 
-QuantReplay obtains historical OHLCV candles from Yahoo Finance or CSV files.
+Strat Echo obtains historical OHLCV candles from Yahoo Finance or CSV files.
 Both sources are converted to the same internal `Candle` representation before
 a backtest starts, so the engine does not depend directly on either source.
 
@@ -21,20 +21,20 @@ Downloaded column names are normalized before the data passes through the same
 validation as CSV input.
 
 Adjusted Yahoo prices implicitly represent distributions as if they were
-reinvested. QuantReplay does not separately credit dividend cash or update
+reinvested. Strat Echo does not separately credit dividend cash or update
 share quantities for corporate actions. Consequently, Yahoo trade and
 valuation prices are synthetic adjusted prices rather than the literal prices
 quoted on each historical date. Explicit dividend cash flows must not be added
 on top of this data because that would count distributions twice.
 
-CSV OHLCV values are used as supplied. QuantReplay does not infer whether a CSV
+CSV OHLCV values are used as supplied. Strat Echo does not infer whether a CSV
 contains adjusted or unadjusted prices, so one file should use a consistent
 price convention throughout.
 
 ## CSV files
 
 Use `--source csv` together with `--csv-path`. The path may identify one file
-or a directory. When given a directory, QuantReplay looks for
+or a directory. When given a directory, Strat Echo looks for
 `<SYMBOL>.csv`; for example, the symbol `SPY` maps to `SPY.csv`.
 
 A CSV file must contain one timestamp column named `date`, `timestamp`, or
@@ -77,7 +77,7 @@ rules documented in the [CLI reference](cli.md#common-options).
 
 ## Validation and normalization
 
-Before data reaches the engine, QuantReplay requires:
+Before data reaches the engine, Strat Echo requires:
 
 - timestamps sorted in ascending order with no duplicates;
 - numeric, finite, and non-missing OHLCV values;
@@ -86,7 +86,7 @@ Before data reaches the engine, QuantReplay requires:
 - `high` greater than or equal to `low`;
 - `open` and `close` between `low` and `high`.
 
-Rows outside the requested date range are removed. QuantReplay does not sort
+Rows outside the requested date range are removed. Strat Echo does not sort
 rows, fill missing values, remove duplicate timestamps, resample candles, or
 otherwise repair invalid market data automatically. Invalid input fails with a
 clear error so that changes to financial data remain explicit.

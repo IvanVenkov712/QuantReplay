@@ -1,5 +1,5 @@
-# Copy this file to quantreplay.toml to make it the default configuration,
-# or pass it explicitly with: quantreplay backtest --config path/to/file.toml
+# Copy this file to strat-echo.toml to make it the default configuration,
+# or pass it explicitly with: strat-echo backtest --config path/to/file.toml
 
 [backtest]
 symbol = "SPY"

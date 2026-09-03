@@ -51,7 +51,7 @@ from backtester.strategies.rsi_strategies import (
 
 
 def create_performance_analyzer() -> PerformanceAnalyzer:
-    """Create an analyzer containing the standard QuantReplay metrics."""
+    """Create an analyzer containing the standard Strat Echo metrics."""
     analyzer = PerformanceAnalyzer()
     analyzer.add_metric_func("total_return", "Total return", total_return)
     analyzer.add_metric_func("annualized_return", "Annualized return", annualized_return)

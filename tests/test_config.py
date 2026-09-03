@@ -13,7 +13,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 
 
 def test_example_configuration_is_valid() -> None:
-    config = load_config(PROJECT_ROOT / "quantreplay.example.toml", required=True)
+    config = load_config(PROJECT_ROOT / "strat-echo.example.toml", required=True)
 
     assert config["backtest"]["symbol"] == "SPY"
     assert config["backtest"]["strategy"] == "simple-moving-average"

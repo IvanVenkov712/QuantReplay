@@ -43,6 +43,16 @@ def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
     assert args.chart_path is None
 
 
+def test_help_uses_strat_echo_program_name(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args(["--help"])
+
+    assert exc_info.value.code == 0
+    assert "usage: strat-echo" in capsys.readouterr().out
+
+
 def test_parse_args_accepts_backtest_chart_path() -> None:
     chart_path = Path("reports/backtest.png")
 
@@ -200,7 +210,7 @@ def test_parse_args_loads_default_config_from_current_directory(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _write_config(tmp_path, "[backtest]\nsymbol = 'AAPL'\n", "quantreplay.toml")
+    _write_config(tmp_path, "[backtest]\nsymbol = 'AAPL'\n", "strat-echo.toml")
     monkeypatch.chdir(tmp_path)
 
     args = parse_args([])

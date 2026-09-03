@@ -1,4 +1,4 @@
-"""High-level workflows executed by QuantReplay CLI commands."""
+"""High-level workflows executed by Strat Echo CLI commands."""
 
 from __future__ import annotations
 

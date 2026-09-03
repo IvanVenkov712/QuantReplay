@@ -1,6 +1,6 @@
-# QuantReplay
+# Strat Echo
 
-QuantReplay is a Python backtesting project for experimenting with simple
+Strat Echo is a Python backtesting project for experimenting with simple
 trading strategies on historical OHLCV market data. It is designed to show how
 a backtesting engine, strategies, portfolio accounting, trade execution, and
 performance metrics fit together without hiding the core logic inside a large
@@ -11,7 +11,7 @@ investment advice.
 
 ## Features
 
-QuantReplay can:
+Strat Echo can:
 
 - load historical candle data from Yahoo Finance or CSV files;
 - validate and normalize OHLCV data before running a backtest;
@@ -27,7 +27,7 @@ QuantReplay can:
 
 ## Installation
 
-QuantReplay requires Python 3.12 or later. Install it from the repository root
+Strat Echo requires Python 3.12 or later. Install it from the repository root
 in editable mode:
 
 ```powershell
@@ -78,14 +78,14 @@ python -m backtester.cli backtest --commission-model proportional --commission-r
 Use a TOML configuration file:
 
 ```powershell
-python -m backtester.cli backtest --config quantreplay.example.toml
+python -m backtester.cli backtest --config strat-echo.example.toml
 ```
 
-If `--config` is omitted, the CLI automatically uses `quantreplay.toml` from
+If `--config` is omitted, the CLI automatically uses `strat-echo.toml` from
 the current working directory when that file exists. Settings follow
 `CLI option > TOML option > application default`, so individual file values
 can be overridden for one run. See the
-[`quantreplay.example.toml`](quantreplay.example.toml) file and the
+[`strat-echo.example.toml`](strat-echo.example.toml) file and the
 [TOML configuration reference](docs/configuration.md) for the schema,
 validation rules, and path behavior.
 
@@ -137,7 +137,7 @@ python -m backtester.cli backtest --chart reports/backtest-dashboard.png
 ```
 
 <p align="center">
-  <img src="docs/images/backtest-dashboard.png" alt="QuantReplay dashboard showing SPY prices and signal and trade markers, portfolio equity, cash and market value, position quantity, and drawdown" width="700">
+  <img src="docs/images/backtest-dashboard.png" alt="Strat Echo dashboard showing SPY prices and signal and trade markers, portfolio equity, cash and market value, position quantity, and drawdown" width="700">
 </p>
 
 <p align="center"><em>Example output for a 20/50-period simple moving-average crossover on SPY. Hollow markers show strategy signals, while filled markers show the resulting trades; the lower panels track portfolio composition, position size, and drawdown. Results are illustrative.</em></p>

@@ -1,6 +1,6 @@
 # Strategy reference
 
-QuantReplay exposes eight concrete strategies through the CLI. Their signal
+Strat Echo exposes eight concrete strategies through the CLI. Their signal
 rules are tested directly or through their shared strategy family, indicator
 calculator, CLI wiring, and end-to-end backtest tests. Tests establish the
 implemented behavior; they do not establish that a strategy is profitable or

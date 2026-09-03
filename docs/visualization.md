@@ -1,6 +1,6 @@
 # Visualization
 
-QuantReplay provides a Matplotlib API for inspecting a completed
+Strat Echo provides a Matplotlib API for inspecting a completed
 `BacktestResult`. Visualization is intentionally separate from the backtest
 engine: chart code consumes recorded results and cannot influence strategy
 signals, executions, or portfolio accounting.
@@ -75,7 +75,7 @@ The dashboard contains four vertically stacked panels with a shared time axis:
 | Position | Quantity held for `BacktestResult.symbol` | Whole shares |
 | Risk | Drawdown from the running portfolio-equity peak | Percentage |
 
-![Four-panel QuantReplay dashboard showing SPY prices and signal and trade markers, portfolio equity, cash and market value, position quantity, and drawdown](images/backtest-dashboard.png)
+![Four-panel Strat Echo dashboard showing SPY prices and signal and trade markers, portfolio equity, cash and market value, position quantity, and drawdown](images/backtest-dashboard.png)
 
 *Example dashboard for a 20/50-period simple moving-average crossover on SPY. The price panel shows when signals were generated and trades were filled. Reading downward, the remaining panels show how those trades affected portfolio equity and its cash and market-value components, the number of shares held, and the decline from the running equity peak. Results are illustrative.*
 

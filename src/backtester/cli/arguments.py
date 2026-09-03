@@ -1,4 +1,4 @@
-"""Argument parsing and cross-option validation for the QuantReplay CLI."""
+"""Argument parsing and cross-option validation for the Strat Echo CLI."""
 
 from __future__ import annotations
 
@@ -73,8 +73,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="quantreplay",
-        description="Run QuantReplay strategy backtests from the console.",
+        prog="strat-echo",
+        description="Run Strat Echo strategy backtests from the console.",
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -115,7 +115,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         type=Path,
         default=DEFAULT_CONFIG_PATH,
         help=(
-            "TOML configuration path. If omitted, quantreplay.toml in the "
+            "TOML configuration path. If omitted, strat-echo.toml in the "
             "current working directory is used when present."
         ),
     )

@@ -10,7 +10,7 @@ from backtester.cli.commands import run_backtest_command, run_compare_command
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the QuantReplay command-line application."""
+    """Run the Strat Echo command-line application."""
     args = parse_args(argv)
 
     try:

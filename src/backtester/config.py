@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Mapping, TypeAlias
 
 
-DEFAULT_CONFIG_PATH = Path("quantreplay.toml")
+DEFAULT_CONFIG_PATH = Path("strat-echo.toml")
 
 ConfigValue: TypeAlias = str | int | float
 ConfigDocument: TypeAlias = dict[str, dict[str, ConfigValue]]

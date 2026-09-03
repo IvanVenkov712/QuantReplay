@@ -1,6 +1,6 @@
 # TOML configuration reference
 
-QuantReplay can read every `backtest` and `compare` setting from a TOML file.
+Strat Echo can read every `backtest` and `compare` setting from a TOML file.
 The command-line interface remains available for one-off overrides.
 
 ## Value priority
@@ -34,7 +34,7 @@ python -m backtester.cli compare --config configs/aapl.toml
 python -m backtester.cli --config configs/aapl.toml compare
 ```
 
-When `--config` is omitted, QuantReplay looks for `quantreplay.toml` in the
+When `--config` is omitted, Strat Echo looks for `strat-echo.toml` in the
 current working directory. A missing default file is ignored and all values
 fall back to normal application defaults. A missing explicitly named file is
 an error; this prevents a misspelled explicit path from being silently
@@ -45,8 +45,8 @@ current working directory. They are not interpreted relative to the package
 installation or to the custom configuration file.
 
 The repository includes
-[`quantreplay.example.toml`](../quantreplay.example.toml). Copy it to
-`quantreplay.toml` to use it automatically, or pass it directly to `--config`.
+[`strat-echo.example.toml`](../strat-echo.example.toml). Copy it to
+`strat-echo.toml` to use it automatically, or pass it directly to `--config`.
 
 ## File structure
 
