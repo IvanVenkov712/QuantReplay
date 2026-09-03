@@ -1,11 +1,17 @@
 from datetime import datetime
 from io import StringIO
+from pathlib import Path
 
 import pytest
 
 from backtester.cli.arguments import parse_args
 from backtester.cli.reporting import (
     MAX_REJECTED_ORDER_DETAILS,
+    describe_commission,
+    describe_csv_period_anchor,
+    describe_data_source,
+    describe_sizing,
+    describe_slippage,
     describe_strategy,
     format_metric_value,
     print_metric_comparison,
@@ -26,17 +32,26 @@ from backtester.metrics.metrics import MetricData
     [
         (
             ["--short-window", "10", "--long-window", "40"],
-            "SimpleMovingAverageCrossStrategy(10, 40)",
+            (
+                "Simple Moving Average Crossover with "
+                "short window=10, long window=40"
+            ),
         ),
         (
             ["--strategy", "simple-moving-average"],
-            "SimpleMovingAverageCrossStrategy(20, 50)",
+            (
+                "Simple Moving Average Crossover with "
+                "short window=20, long window=50"
+            ),
         ),
         (
             ["--strategy", "exponential-moving-average"],
-            "ExponentialMovingAverageCrossStrategy(20, 50)",
+            (
+                "Exponential Moving Average Crossover with "
+                "short window=20, long window=50"
+            ),
         ),
-        (["--strategy", "buy-and-hold"], "BuyAndHoldStrategy"),
+        (["--strategy", "buy-and-hold"], "Buy and Hold"),
         (
             [
                 "--strategy",
@@ -48,19 +63,19 @@ from backtester.metrics.metrics import MetricData
                 "--rsi-max",
                 "75",
             ],
-            "CutlerRSIStrategy(period=10, min=25.0, max=75.0)",
+            "Cutler RSI with period=10, min=25.0, max=75.0",
         ),
         (
             ["--strategy", "cutler-rsi"],
-            "CutlerRSIStrategy(period=14, min=30.0, max=70.0)",
+            "Cutler RSI with period=14, min=30.0, max=70.0",
         ),
         (
             ["--strategy", "exponential-rsi"],
-            "ExponentialRSIStrategy(period=14, min=30.0, max=70.0)",
+            "Exponential RSI with period=14, min=30.0, max=70.0",
         ),
         (
             ["--strategy", "wilder-rsi"],
-            "WilderRSIStrategy(period=14, min=30.0, max=70.0)",
+            "Wilder RSI with period=14, min=30.0, max=70.0",
         ),
         (
             [
@@ -71,15 +86,15 @@ from backtester.metrics.metrics import MetricData
                 "--mean-threshold",
                 "0.9",
             ],
-            "SimpleMeanReversionStrategy(window=15, threshold=0.9)",
+            "Simple Mean Reversion with window=15, threshold=0.9",
         ),
         (
             ["--strategy", "simple-mean-reversion"],
-            "SimpleMeanReversionStrategy(window=20, threshold=0.95)",
+            "Simple Mean Reversion with window=20, threshold=0.95",
         ),
         (
             ["--strategy", "exponential-mean-reversion"],
-            "ExponentialMeanReversionStrategy(window=20, threshold=0.95)",
+            "Exponential Mean Reversion with window=20, threshold=0.95",
         ),
     ],
 )
@@ -90,6 +105,212 @@ def test_describe_strategy_names_concrete_cli_strategy(
     args = parse_args(arguments)
 
     assert describe_strategy(args.strategy, args) == expected
+
+
+def test_describe_strategy_rejects_unknown_strategy() -> None:
+    args = parse_args([])
+
+    with pytest.raises(ValueError, match="Unknown strategy"):
+        describe_strategy("unknown", args)
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ([], "Yahoo Finance"),
+        (
+            ["--source", "csv", "--csv-path", "data/AAPL.csv"],
+            "csv, file: data/AAPL.csv",
+        ),
+    ],
+)
+def test_describe_data_source_uses_human_readable_names(
+    arguments: list[str],
+    expected: str,
+) -> None:
+    args = parse_args(arguments)
+
+    assert describe_data_source(args) == expected
+
+
+def test_describe_csv_directory_reports_effective_symbol_file(
+    tmp_path: Path,
+) -> None:
+    args = parse_args(
+        [
+            "--source",
+            "csv",
+            "--csv-path",
+            str(tmp_path),
+            "--symbol",
+            "AAPL",
+        ]
+    )
+
+    assert describe_data_source(args) == (
+        f"csv, file: {(tmp_path / 'AAPL.csv').as_posix()}"
+    )
+
+
+def test_describe_data_source_rejects_unknown_source() -> None:
+    args = parse_args([])
+    args.source = "unknown"
+
+    with pytest.raises(ValueError, match="Unknown data source"):
+        describe_data_source(args)
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ([], "all in / all out"),
+        (
+            ["--buffer-rate", "0.05"],
+            "all in / all out, cash buffer=5.00%",
+        ),
+        (
+            [
+                "--sizing",
+                "fixed",
+                "--buy-size",
+                "4",
+                "--sell-size",
+                "2",
+            ],
+            "fixed shares (buy=4, sell=2)",
+        ),
+        (
+            [
+                "--sizing",
+                "fixed",
+                "--buy-size",
+                "4",
+                "--sell-size",
+                "2",
+                "--buffer-rate",
+                "0.025",
+            ],
+            "fixed shares (buy=4, sell=2), cash buffer=2.50%",
+        ),
+        (
+            [
+                "--sizing",
+                "percent",
+                "--buy-percent",
+                "0.25",
+                "--sell-percent",
+                "1",
+            ],
+            "percentage (buy=25.00%, sell=100.00%)",
+        ),
+        (
+            [
+                "--sizing",
+                "percent",
+                "--buy-percent",
+                "0.25",
+                "--sell-percent",
+                "1",
+                "--buffer-rate",
+                "0.05",
+            ],
+            "percentage (buy=25.00%, sell=100.00%), cash buffer=5.00%",
+        ),
+    ],
+)
+def test_describe_sizing_uses_human_readable_names(
+    arguments: list[str],
+    expected: str,
+) -> None:
+    args = parse_args(arguments)
+
+    assert describe_sizing(args) == expected
+
+
+def test_describe_sizing_rejects_unknown_policy() -> None:
+    args = parse_args([])
+    args.sizing = "unknown"
+
+    with pytest.raises(ValueError, match="Unknown position sizing policy"):
+        describe_sizing(args)
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ([], "no commission"),
+        (
+            [
+                "--commission-model",
+                "fixed",
+                "--fixed-commission",
+                "2.5",
+            ],
+            "fixed, 2.50 per trade",
+        ),
+        (
+            [
+                "--commission-model",
+                "proportional",
+                "--commission-rate",
+                "0.001",
+            ],
+            "proportional, 0.10% of trade value",
+        ),
+    ],
+)
+def test_describe_commission_uses_human_readable_names(
+    arguments: list[str],
+    expected: str,
+) -> None:
+    args = parse_args(arguments)
+
+    assert describe_commission(args) == expected
+
+
+def test_describe_commission_rejects_unknown_model() -> None:
+    args = parse_args([])
+    args.commission_model = "unknown"
+
+    with pytest.raises(ValueError, match="Unknown commission model"):
+        describe_commission(args)
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ([], "0.00%"),
+        (["--slippage-rate", "0.0005"], "0.05%"),
+        (["--slippage-rate", "0.1"], "10.00%"),
+    ],
+)
+def test_describe_slippage_uses_human_readable_percentage(
+    arguments: list[str],
+    expected: str,
+) -> None:
+    args = parse_args(arguments)
+
+    assert describe_slippage(args) == expected
+
+
+@pytest.mark.parametrize(
+    ("anchor", "expected"),
+    [
+        ("start-csv", "first CSV candle"),
+        ("end-today", "today"),
+        ("end-csv", "last CSV candle"),
+    ],
+)
+def test_describe_csv_period_anchor_uses_human_readable_names(
+    anchor: str,
+    expected: str,
+) -> None:
+    assert describe_csv_period_anchor(anchor) == expected
+
+
+def test_describe_csv_period_anchor_rejects_unknown_anchor() -> None:
+    with pytest.raises(ValueError, match="Unknown CSV period anchor"):
+        describe_csv_period_anchor("unknown")
 
 
 @pytest.mark.parametrize(
@@ -207,5 +428,3 @@ def test_format_metric_value_uses_metric_specific_formatting(
     expected: str,
 ) -> None:
     assert format_metric_value(name, value) == expected
-
-

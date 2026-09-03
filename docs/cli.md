@@ -40,15 +40,15 @@ metrics registered with `PerformanceAnalyzer`.
 Default parameters:
 
 - strategy selector: `moving-average`, the backward-compatible alias for
-  `SimpleMovingAverageCrossStrategy(20, 50)`;
+  `Simple Moving Average Crossover with short window=20, long window=50`;
 - asset: `SPY`;
 - period length: five calendar years;
 - end date: today's date;
-- data source: `YFinanceDataSource`;
+- data source: Yahoo Finance;
 - initial capital: `10000`;
-- position sizing: `all-in-all-out`;
-- commission: `NoCommissionModel`;
-- slippage: `ExecutionModel(rate=0.00%)`.
+- position sizing: all in / all out;
+- commission: no commission;
+- slippage: `0.00%`.
 
 Run with defaults:
 
@@ -78,17 +78,17 @@ illustrative:
 
 ```text
 Backtest parameters
-Strategy: SimpleMovingAverageCrossStrategy(20, 50)
+Strategy: Simple Moving Average Crossover with short window=20, long window=50
 Asset: SPY
 Requested period: <resolved-start-date> (inclusive) to <resolved-end-date> (exclusive)
 Data used: <first-candle-date> through <last-candle-date> (<count> candles)
 Data span: <elapsed-calendar-days> calendar days (<elapsed-calendar-years> years)
-Years parameter: 5 (used to derive start from today's end)
-Data source: YFinanceDataSource
+Length in years: 5 (used to derive start from today's end)
+Data source: Yahoo Finance
 Initial capital: 10,000.00
-Position sizing: all-in-all-out
-Commission: NoCommissionModel
-Slippage: ExecutionModel(rate=0.00%)
+Position sizing: all in / all out
+Commission: no commission
+Slippage: 0.00%
 
 Performance metrics
 Total return: 12.34%
@@ -107,7 +107,7 @@ See [Performance metrics](metrics.md) for the formulas and interpretation.
 ## Benchmark comparison command
 
 `compare` runs the selected strategy and a benchmark on the same data. The
-default benchmark is `BuyAndHoldStrategy`. Both runs use the selected
+default benchmark is displayed as `Buy and Hold`. Both runs use the selected
 position-sizing, commission, and slippage configuration so that their execution
 assumptions are consistent.
 
@@ -129,18 +129,18 @@ Example output:
 
 ```text
 Benchmark comparison parameters
-Strategy: SimpleMovingAverageCrossStrategy(20, 50)
-Benchmark: BuyAndHoldStrategy
+Strategy: Simple Moving Average Crossover with short window=20, long window=50
+Benchmark: Buy and Hold
 Asset: SPY
 Requested period: <resolved-start-date> (inclusive) to <resolved-end-date> (exclusive)
 Data used: <first-candle-date> through <last-candle-date> (<count> candles)
 Data span: <elapsed-calendar-days> calendar days (<elapsed-calendar-years> years)
-Years parameter: 5 (used to derive start from today's end)
-Data source: YFinanceDataSource
+Length in years: 5 (used to derive start from today's end)
+Data source: Yahoo Finance
 Initial capital: 10,000.00
-Position sizing: all-in-all-out
-Commission: NoCommissionModel
-Slippage: ExecutionModel(rate=0.00%)
+Position sizing: all in / all out
+Commission: no commission
+Slippage: 0.00%
 
 Metric comparison
 Metric                       Strategy  Benchmark  Difference
@@ -202,8 +202,8 @@ Because the requested end is exclusive, `end-csv` sets that boundary to the
 calendar day after the final CSV candle so that the final candle is included.
 
 The report distinguishes the requested range from the first and last candles
-actually returned by the data source and states how the years parameter was
-applied. The displayed data span is the elapsed calendar time between those
+actually returned by the data source and states how the length-in-years setting
+was applied. The displayed data span is the elapsed calendar time between those
 candles, using the same 365.25-day year as the annualized-return calculation.
 
 ## Buffered quantity resolution

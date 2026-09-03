@@ -88,7 +88,7 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
     assert exit_code == 0
     assert captured.err == ""
     assert "Backtest parameters" in captured.out
-    assert "Strategy: BuyAndHoldStrategy" in captured.out
+    assert "Strategy: Buy and Hold" in captured.out
     assert "Asset: AAPL" in captured.out
     assert (
         "Requested period: 2024-01-01 (inclusive) to 2024-01-03 (exclusive)"
@@ -97,19 +97,19 @@ def test_main_runs_backtest_from_csv_and_prints_parameters_and_metrics(
     assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
     assert "Data span: 1 calendar day (0.00 years)" in captured.out
     assert (
-        "Years parameter: 5 (not applied because start and end were provided)"
+        "Length in years: 5 (not applied because start and end were provided)"
         in captured.out
     )
     assert (
-        "CSV period anchor: start-csv "
+        "CSV period anchor: first CSV candle "
         "(not applied because a date boundary was provided)"
         in captured.out
     )
-    assert f"Data source: CSVDataSource({csv_path})" in captured.out
+    assert f"Data source: csv, file: {csv_path.as_posix()}" in captured.out
     assert "Initial capital: 10,000.00" in captured.out
-    assert "Position sizing: all-in-all-out" in captured.out
-    assert "Commission: NoCommissionModel" in captured.out
-    assert "Slippage: ExecutionModel(rate=0.00%)" in captured.out
+    assert "Position sizing: all in / all out" in captured.out
+    assert "Commission: no commission" in captured.out
+    assert "Slippage: 0.00%" in captured.out
     assert "Performance metrics" in captured.out
     assert "Total return: 10.00%" in captured.out
     assert "Number of trades: 1" in captured.out
@@ -152,7 +152,7 @@ def test_main_exports_backtest_chart_to_requested_path(
     assert isinstance(exported_result, BacktestResult)
     assert exported_path == chart_path
     assert export_dashboard.call_args.kwargs == {
-        "title": "BuyAndHoldStrategy - SPY"
+        "title": "Buy and Hold - SPY"
     }
 
 
@@ -226,7 +226,7 @@ chart = "{chart_path.as_posix()}"
     captured = capsys.readouterr()
     assert exit_code == 0
     assert captured.err == ""
-    assert "Strategy: BuyAndHoldStrategy" in captured.out
+    assert "Strategy: Buy and Hold" in captured.out
     assert "Asset: AAPL" in captured.out
     assert "Total return: 10.00%" in captured.out
     assert f"Chart saved to: {chart_path}" in captured.out
@@ -235,7 +235,7 @@ chart = "{chart_path.as_posix()}"
     assert isinstance(exported_result, BacktestResult)
     assert exported_path == chart_path
     assert export_dashboard.call_args.kwargs == {
-        "title": "BuyAndHoldStrategy - AAPL"
+        "title": "Buy and Hold - AAPL"
     }
 
 
@@ -268,7 +268,7 @@ def test_main_reports_when_years_derived_the_requested_start(
         in captured.out
     )
     assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
-    assert "Years parameter: 1 (used to derive start)" in captured.out
+    assert "Length in years: 1 (used to derive start)" in captured.out
 
 
 def test_main_uses_years_to_derive_end_from_explicit_start(
@@ -299,7 +299,7 @@ def test_main_uses_years_to_derive_end_from_explicit_start(
         "Requested period: 2024-01-01 (inclusive) to 2025-01-01 (exclusive)"
         in captured.out
     )
-    assert "Years parameter: 1 (used to derive end)" in captured.out
+    assert "Length in years: 1 (used to derive end)" in captured.out
 
 
 def test_main_anchors_undated_csv_period_to_first_available_candle(
@@ -329,8 +329,8 @@ def test_main_anchors_undated_csv_period_to_first_available_candle(
         in captured.out
     )
     assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
-    assert "Years parameter: 1 (used to derive end from CSV start)" in captured.out
-    assert "CSV period anchor: start-csv (applied)" in captured.out
+    assert "Length in years: 1 (used to derive end from CSV start)" in captured.out
+    assert "CSV period anchor: first CSV candle (applied)" in captured.out
 
 
 def test_main_can_anchor_undated_csv_period_to_today(
@@ -369,10 +369,10 @@ def test_main_can_anchor_undated_csv_period_to_today(
         in captured.out
     )
     assert (
-        "Years parameter: 1 (used to derive start from today's end)"
+        "Length in years: 1 (used to derive start from today's end)"
         in captured.out
     )
-    assert "CSV period anchor: end-today (applied)" in captured.out
+    assert "CSV period anchor: today (applied)" in captured.out
 
 
 def test_main_can_anchor_undated_csv_period_to_final_candle(
@@ -404,9 +404,10 @@ def test_main_can_anchor_undated_csv_period_to_final_candle(
         in captured.out
     )
     assert "Data used: 2024-01-01 through 2024-01-02 (2 candles)" in captured.out
-    assert "Years parameter: 1 (used to derive start from CSV end)" in captured.out
+    assert "Length in years: 1 (used to derive start from CSV end)" in captured.out
     assert (
-        "CSV period anchor: end-csv (applied; final CSV candle included)"
+        "CSV period anchor: last CSV candle "
+        "(applied; final CSV candle included)"
         in captured.out
     )
 
@@ -440,9 +441,12 @@ slippage_rate = 0.1
     captured = capsys.readouterr()
     assert exit_code == 0
     assert captured.err == ""
-    assert "Position sizing: fixed (buy=1, sell=1), buffer=5.00%" in captured.out
-    assert "Commission: FixedCommissionModel(per_trade=5.00)" in captured.out
-    assert "Slippage: ExecutionModel(rate=10.00%)" in captured.out
+    assert (
+        "Position sizing: fixed shares (buy=1, sell=1), cash buffer=5.00%"
+        in captured.out
+    )
+    assert "Commission: fixed, 5.00 per trade" in captured.out
+    assert "Slippage: 10.00%" in captured.out
     assert "Total return: -0.05%" in captured.out
     assert "Number of trades: 1" in captured.out
 
@@ -477,7 +481,7 @@ def test_main_runs_backtest_with_fixed_position_sizing(
     captured = capsys.readouterr()
     assert exit_code == 0
     assert captured.err == ""
-    assert "Position sizing: fixed (buy=1, sell=1)" in captured.out
+    assert "Position sizing: fixed shares (buy=1, sell=1)" in captured.out
     assert "Total return: 0.10%" in captured.out
     assert "Number of trades: 1" in captured.out
 
@@ -508,7 +512,7 @@ def test_main_applies_and_prints_buffered_position_sizing(
     captured = capsys.readouterr()
     assert exit_code == 0
     assert captured.err == ""
-    assert "Position sizing: all-in-all-out, buffer=5.00%" in captured.out
+    assert "Position sizing: all in / all out, cash buffer=5.00%" in captured.out
 
 
 def test_main_applies_and_prints_fixed_commission_and_slippage(
@@ -547,8 +551,8 @@ def test_main_applies_and_prints_fixed_commission_and_slippage(
     captured = capsys.readouterr()
     assert exit_code == 0
     assert captured.err == ""
-    assert "Commission: FixedCommissionModel(per_trade=5.00)" in captured.out
-    assert "Slippage: ExecutionModel(rate=10.00%)" in captured.out
+    assert "Commission: fixed, 5.00 per trade" in captured.out
+    assert "Slippage: 10.00%" in captured.out
     assert "Total return: -0.05%" in captured.out
     assert "Number of trades: 1" in captured.out
 
@@ -617,8 +621,12 @@ def test_main_compares_strategy_with_benchmark_using_same_csv_data(
     assert exit_code == 0
     assert captured.err == ""
     assert "Benchmark comparison parameters" in captured.out
-    assert "Strategy: BuyAndHoldStrategy" in captured.out
-    assert "Benchmark: SimpleMovingAverageCrossStrategy(20, 50)" in captured.out
+    assert "Strategy: Buy and Hold" in captured.out
+    assert (
+        "Benchmark: Simple Moving Average Crossover with "
+        "short window=20, long window=50"
+        in captured.out
+    )
     assert (
         "Requested period: 2024-01-01 (inclusive) to 2024-01-03 (exclusive)"
         in captured.out

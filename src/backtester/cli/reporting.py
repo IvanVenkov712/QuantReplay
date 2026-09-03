@@ -28,6 +28,26 @@ REJECTION_MESSAGES = {
     OrderExecutionStatus.INSUFFICIENT_POSITION: "Insufficient position",
 }
 
+STRATEGY_DISPLAY_NAMES = {
+    "buy-and-hold": "Buy and Hold",
+    "moving-average": "Simple Moving Average Crossover",
+    "simple-moving-average": "Simple Moving Average Crossover",
+    "exponential-moving-average": "Exponential Moving Average Crossover",
+    "rsi": "Cutler RSI",
+    "cutler-rsi": "Cutler RSI",
+    "exponential-rsi": "Exponential RSI",
+    "wilder-rsi": "Wilder RSI",
+    "mean-reversion": "Simple Mean Reversion",
+    "simple-mean-reversion": "Simple Mean Reversion",
+    "exponential-mean-reversion": "Exponential Mean Reversion",
+}
+
+CSV_PERIOD_ANCHOR_DISPLAY_NAMES = {
+    "start-csv": "first CSV candle",
+    "end-today": "today",
+    "end-csv": "last CSV candle",
+}
+
 
 def print_parameters(
     *,
@@ -60,7 +80,7 @@ def print_parameters(
         file=output,
     )
     _print_data_period(output, result)
-    print(f"Years parameter: {years} ({years_note})", file=output)
+    print(f"Length in years: {years} ({years_note})", file=output)
     if csv_period_anchor is not None:
         if csv_period_anchor_applied and csv_period_anchor == "end-csv":
             anchor_note = "applied; final CSV candle included"
@@ -69,7 +89,8 @@ def print_parameters(
         else:
             anchor_note = "not applied because a date boundary was provided"
         print(
-            f"CSV period anchor: {csv_period_anchor} ({anchor_note})",
+            "CSV period anchor: "
+            f"{describe_csv_period_anchor(csv_period_anchor)} ({anchor_note})",
             file=output,
         )
     print(f"Data source: {data_source_name}", file=output)
@@ -232,65 +253,72 @@ def _format_money(value: float) -> str:
 
 
 def describe_strategy(name: str, args: argparse.Namespace) -> str:
-    """Return a concise description of a configured strategy."""
-    if name in {"moving-average", "simple-moving-average"}:
+    """Return a human-readable description of a configured strategy."""
+    try:
+        display_name = STRATEGY_DISPLAY_NAMES[name]
+    except KeyError:
+        raise ValueError(f"Unknown strategy: {name}.") from None
+
+    if name in {
+        "moving-average",
+        "simple-moving-average",
+        "exponential-moving-average",
+    }:
         return (
-            "SimpleMovingAverageCrossStrategy("
-            f"{args.short_window}, {args.long_window})"
-        )
-    if name == "exponential-moving-average":
-        return (
-            "ExponentialMovingAverageCrossStrategy("
-            f"{args.short_window}, {args.long_window})"
+            f"{display_name} with short window={args.short_window}, "
+            f"long window={args.long_window}"
         )
     if name == "buy-and-hold":
-        return "BuyAndHoldStrategy"
-    if name in {"rsi", "cutler-rsi"}:
+        return display_name
+    if name in {
+        "rsi",
+        "cutler-rsi",
+        "exponential-rsi",
+        "wilder-rsi",
+    }:
         return (
-            f"CutlerRSIStrategy(period={args.rsi_period}, "
-            f"min={args.rsi_min}, max={args.rsi_max})"
+            f"{display_name} with period={args.rsi_period}, "
+            f"min={args.rsi_min}, max={args.rsi_max}"
         )
-    if name == "exponential-rsi":
+    if name in {
+        "mean-reversion",
+        "simple-mean-reversion",
+        "exponential-mean-reversion",
+    }:
         return (
-            f"ExponentialRSIStrategy(period={args.rsi_period}, "
-            f"min={args.rsi_min}, max={args.rsi_max})"
-        )
-    if name == "wilder-rsi":
-        return (
-            f"WilderRSIStrategy(period={args.rsi_period}, "
-            f"min={args.rsi_min}, max={args.rsi_max})"
-        )
-    if name in {"mean-reversion", "simple-mean-reversion"}:
-        return (
-            f"SimpleMeanReversionStrategy(window={args.mean_window}, "
-            f"threshold={args.mean_threshold})"
-        )
-    if name == "exponential-mean-reversion":
-        return (
-            f"ExponentialMeanReversionStrategy(window={args.mean_window}, "
-            f"threshold={args.mean_threshold})"
+            f"{display_name} with window={args.mean_window}, "
+            f"threshold={args.mean_threshold}"
         )
 
     raise ValueError(f"Unknown strategy: {name}.")
 
 
 def describe_data_source(args: argparse.Namespace) -> str:
-    """Return a concise description of the configured data source."""
+    """Return a human-readable description of the configured data source."""
     if args.source == "yfinance":
-        return "YFinanceDataSource"
+        return "Yahoo Finance"
+    if args.source == "csv":
+        if args.csv_path is None:
+            raise ValueError("CSV file path is required for the CSV data source.")
 
-    return f"CSVDataSource({args.csv_path})"
+        csv_path = args.csv_path
+        if csv_path.is_dir():
+            csv_path = csv_path / f"{args.symbol}.csv"
+        display_path = csv_path.as_posix()
+        return f"csv, file: {display_path}"
+
+    raise ValueError(f"Unknown data source: {args.source}.")
 
 
 def describe_sizing(args: argparse.Namespace) -> str:
-    """Return a concise description of sizing and any cash buffer."""
+    """Return a human-readable description of sizing and any cash buffer."""
     if args.sizing == "all-in-all-out":
-        description = "all-in-all-out"
+        description = "all in / all out"
     elif args.sizing == "fixed":
-        description = f"fixed (buy={args.buy_size}, sell={args.sell_size})"
+        description = f"fixed shares (buy={args.buy_size}, sell={args.sell_size})"
     elif args.sizing == "percent":
         description = (
-            "percent ("
+            "percentage ("
             f"buy={args.buy_percent:.2%}, sell={args.sell_percent:.2%}"
             ")"
         )
@@ -298,27 +326,31 @@ def describe_sizing(args: argparse.Namespace) -> str:
         raise ValueError(f"Unknown position sizing policy: {args.sizing}.")
 
     if args.buffer_rate is not None:
-        return f"{description}, buffer={args.buffer_rate:.2%}"
+        return f"{description}, cash buffer={args.buffer_rate:.2%}"
 
     return description
 
 
 def describe_commission(args: argparse.Namespace) -> str:
-    """Return a concise description of the configured commission model."""
+    """Return a human-readable description of the configured commission."""
     if args.commission_model == "none":
-        return "NoCommissionModel"
+        return "no commission"
     if args.commission_model == "fixed":
-        return (
-            "FixedCommissionModel("
-            f"per_trade={_format_money(args.fixed_commission)}"
-            ")"
-        )
+        return f"fixed, {_format_money(args.fixed_commission)} per trade"
     if args.commission_model == "proportional":
-        return f"ProportionalCommissionModel(rate={args.commission_rate:.2%})"
+        return f"proportional, {args.commission_rate:.2%} of trade value"
 
     raise ValueError(f"Unknown commission model: {args.commission_model}.")
 
 
 def describe_slippage(args: argparse.Namespace) -> str:
-    """Return a concise description of the configured slippage rate."""
-    return f"ExecutionModel(rate={args.slippage_rate:.2%})"
+    """Return the configured slippage as a human-readable percentage."""
+    return f"{args.slippage_rate:.2%}"
+
+
+def describe_csv_period_anchor(anchor: str) -> str:
+    """Return a human-readable description of a CSV date-range anchor."""
+    try:
+        return CSV_PERIOD_ANCHOR_DISPLAY_NAMES[anchor]
+    except KeyError:
+        raise ValueError(f"Unknown CSV period anchor: {anchor}.") from None
