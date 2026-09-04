@@ -101,6 +101,18 @@ from backtester.sizing.policy import SizingPlan
             "ExponentialMeanReversionStrategy",
             {"window": 20, "threshold": 0.95},
         ),
+        (
+            [
+                "--strategy",
+                "donchian-breakout",
+                "--entry-window",
+                "55",
+                "--exit-window",
+                "21",
+            ],
+            "DonchianBreakoutStrategy",
+            {"entry_window": 55, "exit_window": 21},
+        ),
     ],
 )
 def test_create_strategy_passes_cli_parameters_to_concrete_strategy(

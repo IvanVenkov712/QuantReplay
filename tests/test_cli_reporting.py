@@ -96,6 +96,17 @@ from backtester.metrics.metrics import MetricData
             ["--strategy", "exponential-mean-reversion"],
             "Exponential Mean Reversion with window=20, threshold=0.95",
         ),
+        (
+            [
+                "--strategy",
+                "donchian-breakout",
+                "--entry-window",
+                "55",
+                "--exit-window",
+                "21",
+            ],
+            "Donchian Breakout with entry window=55, exit window=21",
+        ),
     ],
 )
 def test_describe_strategy_names_concrete_cli_strategy(

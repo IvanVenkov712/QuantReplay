@@ -40,6 +40,7 @@ STRATEGY_DISPLAY_NAMES = {
     "mean-reversion": "Simple Mean Reversion",
     "simple-mean-reversion": "Simple Mean Reversion",
     "exponential-mean-reversion": "Exponential Mean Reversion",
+    "donchian-breakout": "Donchian Breakout",
 }
 
 CSV_PERIOD_ANCHOR_DISPLAY_NAMES = {
@@ -293,6 +294,11 @@ def describe_strategy(name: str, args: argparse.Namespace) -> str:
         return (
             f"{display_name} with window={args.mean_window}, "
             f"threshold={args.mean_threshold}"
+        )
+    if name == "donchian-breakout":
+        return (
+            f"{display_name} with entry window={args.entry_window}, "
+            f"exit window={args.exit_window}"
         )
 
     raise ValueError(f"Unknown strategy: {name}.")

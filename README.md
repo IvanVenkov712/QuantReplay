@@ -95,9 +95,9 @@ examples.
 ## Strategies
 
 The CLI provides buy-and-hold, simple and exponential moving-average
-crossovers, three RSI conventions, and simple and exponential mean-reversion
-strategies. The default is a simple moving-average crossover with 20- and
-50-period windows.
+crossovers, three RSI conventions, simple and exponential mean-reversion, and
+Donchian breakout strategies. The default is a simple moving-average crossover
+with 20- and 50-period windows.
 
 See the dedicated [Strategy reference](docs/strategies.md) for every tested
 strategy, its formulas, parameters, signal boundaries, warm-up period, CLI

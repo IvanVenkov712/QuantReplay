@@ -22,6 +22,8 @@ DEFAULT_CSV_PERIOD_ANCHOR = "start-csv"
 DEFAULT_INITIAL_CAPITAL = 10_000.0
 DEFAULT_SHORT_WINDOW = 20
 DEFAULT_LONG_WINDOW = 50
+DEFAULT_ENTRY_WINDOW = 20
+DEFAULT_EXIT_WINDOW = 10
 DEFAULT_BENCHMARK = "buy-and-hold"
 DEFAULT_SIZING = "all-in-all-out"
 DEFAULT_COMMISSION_MODEL = "none"
@@ -35,6 +37,7 @@ STRATEGY_CHOICES = (
     "wilder-rsi",
     "simple-mean-reversion",
     "exponential-mean-reversion",
+    "donchian-breakout",
     # Backward-compatible aliases for the original CLI names.
     "moving-average",
     "rsi",
@@ -293,6 +296,18 @@ def _add_strategy_arguments(parser: argparse.ArgumentParser) -> None:
             "Mean reversion buy threshold as a fraction of the average. "
             "Default: 0.95."
         ),
+    )
+    parser.add_argument(
+        "--entry-window",
+        type=_positive_int,
+        default=DEFAULT_ENTRY_WINDOW,
+        help=f"Donchian breakout entry window. Default: {DEFAULT_ENTRY_WINDOW}.",
+    )
+    parser.add_argument(
+        "--exit-window",
+        type=_positive_int,
+        default=DEFAULT_EXIT_WINDOW,
+        help=f"Donchian breakout exit window. Default: {DEFAULT_EXIT_WINDOW}.",
     )
 
 

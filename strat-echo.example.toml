@@ -45,6 +45,9 @@ rsi_min = 30.0
 rsi_max = 70.0
 mean_window = 20
 mean_threshold = 0.95
+# Donchian breakout defaults; used when strategy = "donchian-breakout".
+entry_window = 20
+exit_window = 10
 
 [compare]
 benchmark = "buy-and-hold"

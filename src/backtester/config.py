@@ -33,6 +33,8 @@ _INTEGER_OPTIONS = {
     "long_window",
     "rsi_period",
     "mean_window",
+    "entry_window",
+    "exit_window",
 }
 _NUMBER_OPTIONS = {
     "initial_capital",

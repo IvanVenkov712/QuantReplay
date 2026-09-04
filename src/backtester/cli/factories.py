@@ -34,6 +34,7 @@ from backtester.resolving.resolver import (
 )
 from backtester.sizing.policy import SizingPlan
 from backtester.strategies.base import Strategy
+from backtester.strategies.breakout import DonchianBreakoutStrategy
 from backtester.strategies.buy_n_hold import BuyAndHoldStrategy
 from backtester.strategies.moving_average import (
     ExponentialMovingAverageCrossStrategy,
@@ -114,6 +115,11 @@ def create_strategy(name: str, args: argparse.Namespace) -> Strategy:
         return ExponentialMeanReversionStrategy(
             window=args.mean_window,
             threshold=args.mean_threshold,
+        )
+    if name == "donchian-breakout":
+        return DonchianBreakoutStrategy(
+            entry_window=args.entry_window,
+            exit_window=args.exit_window,
         )
 
     raise ValueError(f"Unknown strategy: {name}.")

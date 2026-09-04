@@ -1,6 +1,7 @@
 """Human-readable names for the concrete strategy types."""
 
 from backtester.strategies.base import Strategy
+from backtester.strategies.breakout import DonchianBreakoutStrategy
 from backtester.strategies.buy_n_hold import BuyAndHoldStrategy
 from backtester.strategies.moving_average import (
     ExponentialMovingAverageCrossStrategy,
@@ -26,4 +27,5 @@ STRATEGY_NAMES: dict[type[Strategy], str] = {
     WilderRSIStrategy: "Wilder RSI",
     SimpleMeanReversionStrategy: "Simple Mean Reversion",
     ExponentialMeanReversionStrategy: "Exponential Mean Reversion",
+    DonchianBreakoutStrategy: "Donchian Breakout",
 }

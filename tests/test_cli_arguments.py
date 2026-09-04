@@ -6,6 +6,8 @@ from backtester.cli.arguments import (
     DEFAULT_COMMISSION_MODEL,
     DEFAULT_CONFIG_PATH,
     DEFAULT_CSV_PERIOD_ANCHOR,
+    DEFAULT_ENTRY_WINDOW,
+    DEFAULT_EXIT_WINDOW,
     DEFAULT_INITIAL_CAPITAL,
     DEFAULT_LONG_WINDOW,
     DEFAULT_SHORT_WINDOW,
@@ -40,6 +42,8 @@ def test_parse_args_uses_backtest_defaults_when_no_command_is_given() -> None:
     assert args.strategy == "moving-average"
     assert args.short_window == DEFAULT_SHORT_WINDOW
     assert args.long_window == DEFAULT_LONG_WINDOW
+    assert args.entry_window == DEFAULT_ENTRY_WINDOW
+    assert args.exit_window == DEFAULT_EXIT_WINDOW
     assert args.chart_path is None
 
 
@@ -330,6 +334,41 @@ def test_parse_args_accepts_compare_command_and_benchmark() -> None:
     assert args.benchmark == "rsi"
 
 
+def test_parse_args_accepts_donchian_breakout_windows() -> None:
+    args = parse_args(
+        [
+            "--strategy",
+            "donchian-breakout",
+            "--entry-window",
+            "55",
+            "--exit-window",
+            "21",
+        ]
+    )
+
+    assert args.strategy == "donchian-breakout"
+    assert args.entry_window == 55
+    assert args.exit_window == 21
+
+
+def test_parse_args_loads_donchian_breakout_from_toml(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+[backtest]
+strategy = "donchian-breakout"
+entry_window = 55
+exit_window = 21
+""",
+    )
+
+    args = parse_args(["--config", str(config_path)])
+
+    assert args.strategy == "donchian-breakout"
+    assert args.entry_window == 55
+    assert args.exit_window == 21
+
+
 @pytest.mark.parametrize("strategy_name", STRATEGY_CHOICES)
 def test_parse_args_accepts_every_strategy_as_strategy_and_benchmark(
     strategy_name: str,
@@ -494,6 +533,8 @@ def test_csv_source_requires_csv_path(
     [
         ("--years", "0", "value must be a positive integer"),
         ("--short-window", "-1", "value must be a positive integer"),
+        ("--entry-window", "0", "value must be a positive integer"),
+        ("--exit-window", "-1", "value must be a positive integer"),
         ("--initial-capital", "0", "value must be positive"),
     ],
 )

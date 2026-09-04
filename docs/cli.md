@@ -62,6 +62,12 @@ Run with custom parameters:
 python -m backtester.cli backtest --strategy simple-moving-average --short-window 10 --long-window 40 --symbol AAPL --years 3 --initial-capital 25000 --sizing percent --buy-percent 0.5 --sell-percent 1 --commission-model proportional --commission-rate 0.001 --slippage-rate 0.0005
 ```
 
+Run a Donchian breakout with custom entry and exit channels:
+
+```powershell
+python -m backtester.cli backtest --strategy donchian-breakout --entry-window 55 --exit-window 21
+```
+
 Save the four-panel backtest dashboard to an image file:
 
 ```powershell
@@ -286,6 +292,7 @@ details. Comparison runs report strategy and benchmark rejections separately.
 | `simple-moving-average`, `exponential-moving-average` | `--short-window`, `--long-window` |
 | `cutler-rsi`, `exponential-rsi`, `wilder-rsi` | `--rsi-period`, `--rsi-min`, `--rsi-max` |
 | `simple-mean-reversion`, `exponential-mean-reversion` | `--mean-window`, `--mean-threshold` |
+| `donchian-breakout` | `--entry-window`, `--exit-window` |
 
 The original names `moving-average`, `rsi`, and `mean-reversion` remain aliases
 for the simple moving-average, Cutler RSI, and simple mean-reversion strategies.
@@ -294,6 +301,9 @@ The `compare` command accepts every strategy name and alias through
 shared by the strategy and benchmark. For example, a comparison between the
 simple and exponential crossover strategies uses the same short and long
 windows for both.
+
+The Donchian window options are positive integers. Their defaults are
+`--entry-window 20` and `--exit-window 10`.
 
 See the [Strategy reference](strategies.md) for indicator formulas, exact
 signal boundaries, parameter constraints, warm-up periods, examples, and test

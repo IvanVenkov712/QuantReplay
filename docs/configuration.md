@@ -76,6 +76,8 @@ slippage_rate = 0.0005
 strategy = "simple-moving-average"
 short_window = 10
 long_window = 40
+entry_window = 20
+exit_window = 10
 
 [compare]
 benchmark = "buy-and-hold"
@@ -106,6 +108,7 @@ Supported keys are:
 | Moving average | `short_window`, `long_window` |
 | RSI | `rsi_period`, `rsi_min`, `rsi_max` |
 | Mean reversion | `mean_window`, `mean_threshold` |
+| Donchian breakout | `entry_window`, `exit_window` |
 
 All strategy parameter keys may coexist in one file. A run uses only the keys
 relevant to its selected strategy; the others remain available for a later CLI
@@ -118,7 +121,8 @@ The `strategy` and `benchmark` values support:
 - `buy-and-hold`;
 - `simple-moving-average` and `exponential-moving-average`;
 - `cutler-rsi`, `exponential-rsi`, and `wilder-rsi`;
-- `simple-mean-reversion` and `exponential-mean-reversion`.
+- `simple-mean-reversion` and `exponential-mean-reversion`;
+- `donchian-breakout`.
 
 The original `moving-average`, `rsi`, and `mean-reversion` values remain
 supported as aliases. See the [Strategy reference](strategies.md) for the exact
@@ -159,8 +163,9 @@ Related settings must form a complete model. For example:
 
 Strategy constructors also enforce family-specific relationships such as
 `short_window < long_window`, `rsi_period > 1`, ordered RSI thresholds within
-`[0, 100]`, and a mean-reversion threshold within `[0, 1]`. These failures are
-reported by the CLI before a backtest begins.
+`[0, 100]`, a mean-reversion threshold within `[0, 1]`, and positive Donchian
+entry and exit windows. These failures are reported by the CLI before a
+backtest begins.
 
 If a CLI option changes `sizing` or `commission_model`, TOML-only parameters
 belonging to the old selection are discarded. Required parameters for the new

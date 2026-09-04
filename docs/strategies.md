@@ -1,6 +1,6 @@
 # Strategy reference
 
-Strat Echo exposes eight concrete strategies through the CLI. Their signal
+Strat Echo exposes nine concrete strategies through the CLI. Their signal
 rules are tested directly or through their shared strategy family, indicator
 calculator, CLI wiring, and end-to-end backtest tests. Tests establish the
 implemented behavior; they do not establish that a strategy is profitable or
@@ -18,6 +18,7 @@ appropriate for live trading.
 | `wilder-rsi` | `WilderRSIStrategy` | `rsi_period`, `rsi_min`, `rsi_max` | Close number `rsi_period + 1` |
 | `simple-mean-reversion` | `SimpleMeanReversionStrategy` | `mean_window`, `mean_threshold` | Close number `mean_window` |
 | `exponential-mean-reversion` | `ExponentialMeanReversionStrategy` | `mean_window`, `mean_threshold` | Close number `mean_window` |
+| `donchian-breakout` | `DonchianBreakoutStrategy` | `entry_window`, `exit_window` | Close number `max(entry_window, exit_window) + 1` |
 
 The original CLI names remain supported as aliases:
 
@@ -33,9 +34,9 @@ The default selector is the `moving-average` alias, which creates
 
 ## Shared signal and execution timing
 
-All strategies process candles chronologically through `on_candle`. Although
-each call receives a complete `Candle`, the current implementations use only
-its close for indicator calculations; buy-and-hold ignores its price fields.
+All strategies process candles chronologically through `on_candle`. Most
+indicator strategies use the current close. Donchian breakout additionally
+maintains prior-candle highs and lows, while buy-and-hold ignores price fields.
 The strategies do not read future candles, portfolio balance, or position.
 
 For candle `T`, the engine follows this sequence:
@@ -152,6 +153,39 @@ python -m backtester.cli backtest --strategy simple-moving-average --short-windo
 python -m backtester.cli backtest --strategy exponential-moving-average --short-window 20 --long-window 50
 ```
 
+## Donchian breakout
+
+`donchian-breakout` compares the current close with two channels calculated
+from prior candles. The entry channel is the highest high in the previous
+`entry_window` candles, while the exit channel is the lowest low in the
+previous `exit_window` candles:
+
+$$
+Entry_t = \max(H_{t-entry\_window}, \ldots, H_{t-1})
+$$
+
+$$
+Exit_t = \min(L_{t-exit\_window}, \ldots, L_{t-1})
+$$
+
+| Current close | Signal |
+| --- | --- |
+| `C_t > Entry_t` | BUY |
+| `C_t < Exit_t` | SELL |
+| Equal to either boundary, or between them | HOLD |
+
+Both windows must be positive. The strategy emits HOLD until both channels
+are full, so its first possible non-HOLD signal is on candle
+`max(entry_window, exit_window) + 1`. The current candle is added to the rolling
+channels only after its signal is calculated. Signals are level-based and can
+therefore repeat while closes remain outside a channel.
+
+The defaults use a 20-candle entry channel and a 10-candle exit channel:
+
+```powershell
+python -m backtester.cli backtest --strategy donchian-breakout --entry-window 20 --exit-window 10
+```
+
 ## RSI strategies
 
 All RSI variants use the same threshold rule:
@@ -212,9 +246,10 @@ python -m backtester.cli backtest --strategy exponential-mean-reversion --mean-w
 
 The `compare` command uses one shared set of strategy parameters. For example,
 `--short-window` and `--long-window` configure whichever selected strategy or
-benchmark uses moving averages. If both sides belong to the same family, both
-receive the same values; there are no separate benchmark window or threshold
-options.
+benchmark uses moving averages. Likewise, `--entry-window` and `--exit-window`
+configure a Donchian strategy on either side. If both sides belong to the same
+family, both receive the same values; there are no separate benchmark window
+or threshold options.
 
 ```powershell
 python -m backtester.cli compare --strategy simple-moving-average --benchmark exponential-moving-average --short-window 20 --long-window 50
@@ -237,12 +272,16 @@ The strategy behavior is checked in layers:
 - [`test_mean_reversion_strategies.py`](../tests/test_mean_reversion_strategies.py)
   checks threshold boundaries, validation, close-price input, warm-up, and
   reset.
+- [`test_breakout_strategy.py`](../tests/test_breakout_strategy.py) checks
+  prior-candle channel timing, strict breakout boundaries, rolling windows,
+  validation, warm-up, and reset.
 - [`test_moving_average_calculators.py`](../tests/test_moving_average_calculators.py)
   and [`test_rsi_calculators.py`](../tests/test_rsi_calculators.py) check the
   simple, standard exponential, Wilder, and RSI calculations.
-- [`test_cli.py`](../tests/test_cli.py) checks every concrete strategy name,
-  legacy alias, constructor mapping, printed description, and a buy-and-hold
-  run through the CLI.
+- [`test_cli_arguments.py`](../tests/test_cli_arguments.py),
+  [`test_cli_factories.py`](../tests/test_cli_factories.py), and
+  [`test_cli_reporting.py`](../tests/test_cli_reporting.py) check strategy
+  names, aliases, constructor mappings, and printed descriptions.
 - [`test_backtest.py`](../tests/test_backtest.py) checks chronological candle
   delivery and next-candle-open execution independently from any specific
   strategy implementation.

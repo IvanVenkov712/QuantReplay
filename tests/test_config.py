@@ -45,6 +45,8 @@ initial_capital = 25000.0
 chart = "reports/backtest.png"
 buffer_rate = 0.05
 slippage_rate = 0.001
+entry_window = 55
+exit_window = 21
 
 [compare]
 benchmark = "rsi"
@@ -60,6 +62,8 @@ benchmark = "rsi"
             "chart": "reports/backtest.png",
             "buffer_rate": 0.05,
             "slippage_rate": 0.001,
+            "entry_window": 55,
+            "exit_window": 21,
         },
         "compare": {"benchmark": "rsi"},
     }
