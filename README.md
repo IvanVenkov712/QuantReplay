@@ -153,7 +153,7 @@ from matplotlib import pyplot as plt
 from backtester.visualization.dashboard import create_backtest_figure
 
 result = engine.run()
-figure = create_backtest_figure(result, title="BuyAndHoldStrategy — AAPL")
+figure = create_backtest_figure(result, title="BuyAndHoldStrategy - AAPL")
 plt.show()
 plt.close(figure)
 ```
@@ -166,7 +166,7 @@ from backtester.visualization.export import export_backtest_dashboard
 export_backtest_dashboard(
     result,
     "reports/backtest-dashboard.png",
-    title="BuyAndHoldStrategy — AAPL",
+    title="BuyAndHoldStrategy - AAPL",
 )
 ```
 
