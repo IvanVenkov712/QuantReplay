@@ -162,3 +162,37 @@ class WilderRSICalculator(RSICalculator):
             ExponentialMovingAverageCalculator.wilder,
             window_size
         )
+
+class RollingExtremumCalculator(Calculator):
+    def __init__(self, window_size: int, compare: Callable[[float, float], int]):
+        if window_size <= 0:
+            raise ValueError("Positive integer expected for window_size")
+
+        self._window_size = window_size
+        self._deque = deque()
+        self._compare = compare
+        self._curr_index = 0
+
+    def next_value(self, value: float) -> float | None:
+
+        if self._deque:
+            index, _ = self._deque[0]
+            if index < self._curr_index - self._window_size + 1:
+                  self._deque.popleft()
+
+        while self._deque:
+            _, elem = self._deque[-1]
+            if self._compare(elem, value) < 0:
+                self._deque.pop()
+
+
+        self._deque.append((self._curr_index, value))
+        self._curr_index += 1
+        if self._curr_index >= self._window_size:
+            return (self._deque[0])[1]
+        else:
+            return None
+
+    def reset(self):
+        self._deque.clear()
+        self._curr_index = 0
