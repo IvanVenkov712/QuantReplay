@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import deque
 from math import isclose
-from typing import Callable, Self
+from typing import Callable, Self, Any
 
 
 class Calculator(ABC):
@@ -164,17 +164,17 @@ class WilderRSICalculator(RSICalculator):
         )
 
 class RollingExtremumCalculator(Calculator):
-    def __init__(self, window_size: int, compare: Callable[[float, float], int]):
-        if window_size <= 0:
+    def __init__(self, window_size: int, key: Callable[[float], Any]):
+        if not (isinstance(window_size, int) and not isinstance(window_size, bool) and window_size > 0):
             raise ValueError("Positive integer expected for window_size")
 
         self._window_size = window_size
         self._deque = deque()
-        self._compare = compare
-        self._curr_index = 0
+        self._key = key
+        self._curr_index = -1
 
     def next_value(self, value: float) -> float | None:
-
+        self._curr_index += 1
         if self._deque:
             index, _ = self._deque[0]
             if index < self._curr_index - self._window_size + 1:
@@ -182,17 +182,24 @@ class RollingExtremumCalculator(Calculator):
 
         while self._deque:
             _, elem = self._deque[-1]
-            if self._compare(elem, value) < 0:
+            if self._key(elem) < self._key(value):
                 self._deque.pop()
 
 
         self._deque.append((self._curr_index, value))
-        self._curr_index += 1
-        if self._curr_index >= self._window_size:
+        if self._curr_index >= self._window_size - 1:
             return (self._deque[0])[1]
         else:
             return None
 
     def reset(self):
         self._deque.clear()
-        self._curr_index = 0
+        self._curr_index = -1
+
+class RollingMaxCalculator(RollingExtremumCalculator):
+    def __init__(self, window_size: int):
+        super().__init__(window_size, lambda value: value)
+
+class RollingMinCalculator(RollingExtremumCalculator):
+    def __init__(self, window_size: int):
+        super().__init__(window_size, lambda value: -value)
