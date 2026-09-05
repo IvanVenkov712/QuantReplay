@@ -184,6 +184,8 @@ class RollingExtremumCalculator(Calculator):
             _, elem = self._deque[-1]
             if self._key(elem) < self._key(value):
                 self._deque.pop()
+            else:
+                break
 
 
         self._deque.append((self._curr_index, value))
